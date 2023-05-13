@@ -1,0 +1,53 @@
+{
+  "name": "inertia-adapter-solid",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "The SolidJS adapter for Inertia.js",
+  "contributors": [
+    "Jorge González <yo@jorgeglz.io>"
+  ],
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/types/server.d.ts",
+      "import": "./dist/server.esm.js",
+      "require": "./dist/server.js"
+    }
+  },
+  "scripts": {
+    "dev": "./build.js --watch",
+    "build": "rm -rf dist && ./build.js && tsc --emitDeclarationOnly"
+  },
+  "dependencies": {
+    "@inertiajs/core": "^1.0.6",
+    "lodash.clonedeep": "^4.5.0",
+    "lodash.isequal": "^4.5.0"
+  },
+  "devDependencies": {
+    "@solid-primitives/deep": "^0.0.102",
+    "@solidjs/meta": "^0.28.5",
+    "@types/node": "^20.1.2",
+    "esbuild": "^0.16.17",
+    "esbuild-node-externals": "^1.7.0",
+    "prettier": "^2.8.8",
+    "prettier-plugin-organize-imports": "^3.2.2",
+    "solid-js": "^1.7.5",
+    "typescript": "^5.0.4"
+  },
+  "peerDependencies": {
+    "@solid-primitives/deep": "^0.0.102",
+    "@solidjs/meta": "^0.28.5",
+    "solid-js": "^1.7.0"
+  }
+}
