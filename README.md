@@ -6,13 +6,13 @@ An adapter to bring [SolidJS](https://www.solidjs.com) compatibility to systems 
 
 ```sh
 # Using NPM
-npm install -D solid-js vite-plugin-solid @iksaku/inertia-adapter-solid
+npm install -D solid-js vite-plugin-solid inertia-adapter-solid
 
 # Using Yarn
-yarn add -D solid-js vite-plugin-solid @iksaku/inertia-adapter-solid
+yarn add -D solid-js vite-plugin-solid inertia-adapter-solid
 
 # Using PNPM
-pnpm add -D solid-js vite-plugin-solid @iksaku/inertia-adapter-solid
+pnpm add -D solid-js vite-plugin-solid inertia-adapter-solid
 ```
 
 ## Setup Vite
@@ -42,7 +42,7 @@ To accomplish this, we'll initialize SolidJS with
 the base Inertia component.
 
 ```jsx
-import { createInertiaApp } from '@iksaku/inertia-adapter-solid'
+import { createInertiaApp } from 'inertia-adapter-solid'
 import { render } from 'solid-js/web'
 
 createInertiaApp({
@@ -124,8 +124,8 @@ This file is going to look very similar to your `resources/js/app.js` file, exce
 going to run in the browser, but rather in Node.js. Here's a complete example.
 
 ```jsx
-import { createInertiaApp } from '@iksaku/inertia-adapter-solid'
-import createServer from '@iksaku/inertia-adapter-solid'
+import { createInertiaApp } from 'inertia-adapter-solid'
+import createServer from 'inertia-adapter-solid/server'
 
 createServer((page) =>
   createInertiaApp({
@@ -144,7 +144,7 @@ Since your website will now be server-side rendered, you can instruct SolidJS to
 static markup and make it interactive instead of re-rendering all the HTML that we just generated.
 
 ```diff
-  import { createInertiaApp } from '@iksaku/inertia-adapter-solid'
+  import { createInertiaApp } from 'inertia-adapter-solid'
 - import { render } from 'solid-js/web'
 + import { hydrate } from 'solid-js/web'
 
