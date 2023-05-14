@@ -82,6 +82,131 @@ or set it to `false`, to disable eager loading.
 + return pages[`./Pages/${name}.jsx`]()
 ```
 
+## Pages
+
+Inertia pages are simply SolidJS components, you will feel right at home.
+
+```jsx
+import Layout from './Layout'
+import { Title } from '@solidjs/meta'
+
+export default function Welcome(props) {
+  const user () => props.user
+
+  return (
+    <Layout>
+        <Title>Welcome</Title>
+        <h1>Welcome</h1>
+        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+    </Layout>
+  )
+}
+```
+
+### Creating Layouts
+
+While not required, for most projects it makes sense to create a site layout that all
+of your pages can extend. You may have noticed in our example above that we're wrapping
+the page content within a `<Layout>` component. Here's an example of such component:
+
+```jsx
+import { Link } from 'inertia-adapter-solid'
+
+export default function Layout(props) {
+  return (
+    <main>
+      <header>
+        <Link href="/">Home</Link>
+        <Link href="/about">About</Link>
+        <Link href="/contact">Contact</Link>
+      </header>
+      <article>{props.children}</article>
+    </main>
+  )
+}
+```
+
+As you can see, this is a typical Solid component.
+
+### Persistent Layouts
+
+While it's simple to implement layouts as children of page components, it forces the
+layout instance to be destroyed and recreated between visits. This means that you cannot
+have persistent layout state when navigating between pages.
+
+For example, maybe you have an audio player on a podcast website that you want to continue
+playinh as users navigate the site. Or, maybe, you simply want to maintain the scroll
+position in your sidebar navigation between page visits. In these situations, the solution
+is to leverage Inertia's persistent layouts.
+
+```jsx
+import Layout from './Layout'
+import { Title } from '@solidjs/meta'
+
+export default function Welcome(props) {
+  const user () => props.user
+
+  return (
+    <>
+        <Title>Welcome</Title>
+        <h1>Welcome</h1>
+        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+    </>
+  )
+}
+
+Welcome.layout = Layout
+```
+
+Alternatively, you can also stack multiple layouts on top of each other.
+
+```jsx
+import SiteLayout from './SiteLayout'
+import NestedLayout from './NestedLayout'
+import { Title } from '@solidjs/meta'
+
+export default function Welcome(props) {
+  const user () => props.user
+
+  return (
+    <>
+        <Title>Welcome</Title>
+        <h1>Welcome</h1>
+        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+    </>
+  )
+}
+
+Welcome.layout = [SiteLayout, NestedLayout]
+```
+
+You can also create more complex layout arrangements using nested layouts.
+
+```jsx
+import Layout from './Layout'
+import { Title } from '@solidjs/meta'
+
+export default function Welcome(props) {
+  const user () => props.user
+
+  return (
+    <Layout>
+        <Title>Welcome</Title>
+        <h1>Welcome</h1>
+        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+    </Layout>
+  )
+}
+
+Welcome.layout = (props) => {
+  <SiteLayout title="Welcome">
+    <NestedLayout>
+      {props.children}
+    </NestedLayout>
+  </SiteLayout>
+}
+```
+
 ## Title & Metadata
 
 This adapter brings compatibility to Meta-tags using [`@solidjs/meta`](https://github.com/solidjs/solid-meta)
@@ -89,8 +214,7 @@ official package, working in both Client-side Rendering and [Server-side Renderi
 
 ```jsx
 import { Title, Meta } from '@solidjs/meta'
-
-<>
+;<>
   <Title>Your page title</Title>
   <Meta name="description" content="Your page description" />
 </>

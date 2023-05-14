@@ -1,8 +1,9 @@
 import { Page, PageResolver, router } from '@inertiajs/core'
 import { MetaProvider } from '@solidjs/meta'
-import { Component, ParentComponent, ParentProps, mergeProps } from 'solid-js'
+import { Component, ParentComponent, ParentProps, Show, createMemo, mergeProps } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import { Dynamic, createComponent, isServer } from 'solid-js/web'
+import DynamicLayout from './DynamicLayout'
 import PageContext from './PageContext'
 
 export type InertiaAppProps = {
@@ -42,18 +43,14 @@ export default function App(props: ParentProps<InertiaAppProps>) {
   }
 
   const children = () => {
-    if (!current.component) {
-      return undefined
-    }
-
-    const PageComponent = current.component
-
     const child = createComponent(
-      // @ts-expect-error
+      // @ts-ignore
       Dynamic,
       mergeProps(
         {
-          component: PageComponent,
+          get component() {
+            return current.component
+          },
           get key() {
             return current.key
           },
@@ -62,17 +59,39 @@ export default function App(props: ParentProps<InertiaAppProps>) {
       ),
     )
 
-    if (typeof PageComponent.layout === 'function') {
-      return createComponent(PageComponent.layout, {
-        children: child,
-      })
-    }
+    const layouts = createMemo(() => {
+      if (typeof current.component.layout === 'function') {
+        return [current.component.layout]
+      }
 
-    if (Array.isArray(PageComponent.layout)) {
-      return PageComponent.layout.reverse().reduce((children, Layout) => createComponent(Layout, { children }), child)
-    }
+      if (Array.isArray(current.component.layout)) {
+        return [...current.component.layout]
+      }
 
-    return child
+      return []
+    })
+
+    return createComponent(Show, {
+      keyed: undefined,
+      get when() {
+        return layouts().length > 0
+      },
+      get fallback() {
+        return child
+      },
+      children: createComponent(
+        DynamicLayout,
+        mergeProps(
+          {
+            _component: child,
+            get _layouts() {
+              return layouts()
+            },
+          },
+          () => current.page.props,
+        ),
+      ),
+    })
   }
 
   return createComponent(MetaProvider, {
@@ -82,9 +101,8 @@ export default function App(props: ParentProps<InertiaAppProps>) {
         get value() {
           return current.page
         },
-        get children() {
-          return children()
-        },
+        // @ts-ignore
+        children,
       })
     },
   })
