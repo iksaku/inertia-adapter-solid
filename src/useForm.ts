@@ -126,7 +126,17 @@ export default function useForm<TForm extends FormState>(
       return this
     },
     clearErrors(...fields: string[]) {
-      setForm('errors', reconcile({}))
+      setForm('errors', (errors) =>
+        reconcile(
+          Object.keys(errors).reduce(
+            (carry, field) => ({
+              ...carry,
+              ...(fields.length > 0 && !fields.includes(field) ? { [field]: errors[field] } : {}),
+            }),
+            {},
+          ),
+        ),
+      )
 
       return this
     },
