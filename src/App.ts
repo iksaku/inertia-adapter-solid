@@ -39,7 +39,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     router.init({
       initialPage: props.initialPage,
       resolveComponent: props.resolveComponent,
-      swapComponent: async ({ component, page, preserveState }) => {
+      async swapComponent({ component, page, preserveState }) {
         setCurrent(
           reconcile({
             component: component as Component,
@@ -56,7 +56,15 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     const layout = current.layouts[i]
 
     if (!layout) {
-      return createComponent(current.component, current.page.props)
+      return createComponent(
+        current.component,
+        mergeProps(
+          {
+            key: current.key,
+          },
+          () => current.page.props,
+        ),
+      )
     }
 
     return createComponent(
