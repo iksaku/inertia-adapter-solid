@@ -63,8 +63,11 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
       as: 'a',
       data: {},
       method: 'get',
+      preserveScroll: false,
+      preserveState: null,
+      replace: false,
       only: [],
-      headers: () => ({}),
+      headers: {},
       queryStringArrayFormat: 'brackets',
     },
     props,
@@ -106,7 +109,8 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
         data: props.data,
         method: props.method,
         preserveScroll: props.preserveScroll,
-        preserveState: props.preserveState,
+        preserveState: props.preserveState ?? props.method === 'get',
+        replace: props.replace,
         only: props.only,
         headers: props.headers,
         onCancelToken: props.onCancelToken || noop,
@@ -114,7 +118,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
         onStart: props.onStart || noop,
         onProgress: props.onProgress || noop,
         onFinish: props.onFinish || noop,
-        onCancel: props.onFinish || noop,
+        onCancel: props.onCancel || noop,
         onSuccess: props.onSuccess || noop,
         onError: props.onError || noop,
       })
@@ -123,19 +127,14 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
 
   return createComponent(
     Dynamic,
-    mergeProps(
-      {
-        get component() {
-          return props.as
-        },
-        onClick: (e) => visit(e),
+    mergeProps(attributes, {
+      get component() {
+        return props.as
       },
-      attributes,
-      {
-        get children() {
-          return props.children
-        },
+      get children() {
+        return props.children
       },
-    ),
+      onClick: (e) => visit(e),
+    }),
   )
 }
