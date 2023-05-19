@@ -20,11 +20,19 @@ type InertiaAppState = {
 }
 
 function extractLayouts(component) {
-  if (!component || !component.layout) {
+  if (!component) {
     return []
   }
 
-  return [component.layout].flat()
+  if (typeof component.layout === 'function') {
+    return [component.layout]
+  }
+
+  if (Array.isArray(component.layout)) {
+    return component.layout
+  }
+
+  return []
 }
 
 export default function App(props: ParentProps<InertiaAppProps>) {
