@@ -1,6 +1,6 @@
 {
   "name": "inertia-adapter-solid",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "description": "The SolidJS adapter for Inertia.js",
   "contributors": [
@@ -34,7 +34,8 @@
   },
   "scripts": {
     "dev": "./build.js --watch",
-    "build": "rm -rf dist && ./build.js && tsc --emitDeclarationOnly"
+    "build": "rm -rf dist && ./build.js && tsc --emitDeclarationOnly",
+    "prepublish": "pnpm build"
   },
   "dependencies": {
     "@inertiajs/core": "^1.0.6",
