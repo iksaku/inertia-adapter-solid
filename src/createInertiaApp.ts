@@ -1,6 +1,6 @@
 import { Page, PageResolver, setupProgress } from '@inertiajs/core'
 import { renderTags } from '@solidjs/meta'
-import { createComponent, generateHydrationScript, isServer, renderToString } from 'solid-js/web'
+import { Dynamic, createComponent, generateHydrationScript, isServer, renderToString } from 'solid-js/web'
 import App, { InertiaAppProps } from './App'
 
 type CreateInertiaBaseOptions = {
@@ -54,9 +54,14 @@ export default async function createInertiaApp({
   }
 
   if (isServer) {
-    const body = `<div id='${id}' data-page='${JSON.stringify(initialPage)}'>${renderToString(() =>
-      createComponent(App, props),
-    )}</div>`
+    const body = renderToString(() =>
+      createComponent(Dynamic, {
+        component: 'div',
+        children: createComponent(App, props),
+        id,
+        'data-page': JSON.stringify(initialPage),
+      }),
+    )
 
     const head = renderTags(props.head).concat(generateHydrationScript())
 
