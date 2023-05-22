@@ -7,11 +7,11 @@ import {
   router,
   shouldIntercept,
 } from '@inertiajs/core'
-import { mergeProps, ParentProps, splitProps } from 'solid-js'
+import { ComponentProps, JSX, mergeProps, ParentProps, splitProps } from 'solid-js'
 import { createComponent, Dynamic, isServer } from 'solid-js/web'
 
 type InertiaLinkProps = {
-  as?: string
+  as?: keyof JSX.IntrinsicElements
   data?: Record<string, FormDataConvertible>
   href: string
   method?: Method
@@ -34,7 +34,7 @@ type InertiaLinkProps = {
 
 const noop = () => {}
 
-export default function Link(_props: ParentProps<InertiaLinkProps>) {
+export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentProps<InertiaLinkProps['as']>) {
   let [props, attributes] = splitProps(_props, [
     'children',
     'as',
@@ -75,7 +75,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
 
   // Mutate (once) props into prover values
   props = mergeProps(props, {
-    as: props.as.toLowerCase(),
+    as: props.as.toLowerCase() as InertiaLinkProps['as'],
     method: props.method.toLowerCase() as Method,
   })
 
@@ -126,6 +126,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
   }
 
   return createComponent(
+    // @ts-ignore
     Dynamic,
     mergeProps(attributes, {
       get component() {
