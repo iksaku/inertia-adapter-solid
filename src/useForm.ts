@@ -32,10 +32,7 @@ interface InertiaFormProps<TForm extends FormState> {
   cancel(): void
 }
 
-export type InertiaForm<TForm extends FormState> = [
-  get: Store<InertiaFormProps<TForm>>,
-  set: SetStoreFunction<InertiaFormProps<TForm>>,
-]
+export type InertiaForm<TForm extends FormState> = [get: Store<InertiaFormProps<TForm>>, set: SetStoreFunction<TForm>]
 
 export default function useForm<TForm extends FormState>(initialValues?: TForm): InertiaForm<TForm>
 export default function useForm<TForm extends FormState>(rememberKey: string, initialValues?: TForm): InertiaForm<TForm>
