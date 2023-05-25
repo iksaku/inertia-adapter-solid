@@ -1,17 +1,17 @@
 import { router } from '@inertiajs/core'
-import { deepTrack } from '@solid-primitives/deep'
-import { createEffect } from 'solid-js'
-import { createStore, unwrap } from 'solid-js/store'
+import { createEffect, createSignal } from 'solid-js'
+import { isServer } from 'solid-js/web'
 
-export default function useRemember<State extends object>(initialState: State, key?: string) {
-  const restored = router.restore(key) as State | undefined
-  const [store, setStore] = createStore<State>(restored !== undefined ? restored : initialState)
-
-  const deeplyTrackedStore = () => deepTrack(store)
+export default function useRemember<State = unknown>(
+  initialState: State,
+  key?: string,
+): ReturnType<typeof createSignal<State>> {
+  const restored = isServer ? undefined : (router.restore(key) as State | undefined)
+  const [state, setState] = createSignal<State>(restored !== undefined ? restored : initialState)
 
   createEffect(() => {
-    router.remember(unwrap(deeplyTrackedStore()), key)
+    router.remember(state(), key)
   })
 
-  return [store, setStore]
+  return [state, setState]
 }
