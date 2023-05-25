@@ -4,6 +4,7 @@ import cloneDeep from 'lodash.clonedeep'
 import isEqual from 'lodash.isequal'
 import { createEffect, createMemo, createSignal } from 'solid-js'
 import { createStore, reconcile, SetStoreFunction, Store, unwrap } from 'solid-js/store'
+import { isServer } from 'solid-js/web'
 
 type FormState = Record<string, unknown>
 type InertiaRestoredState<TForm extends FormState> = { data: TForm; errors: Record<keyof TForm, string> }
@@ -32,7 +33,10 @@ interface InertiaFormProps<TForm extends FormState> {
   cancel(): void
 }
 
-export type InertiaForm<TForm extends FormState> = [get: Store<InertiaFormProps<TForm>>, set: SetStoreFunction<TForm>]
+export type InertiaForm<TForm extends FormState> = [
+  get: Store<InertiaFormProps<TForm> & TForm>,
+  set: SetStoreFunction<TForm>,
+]
 
 export default function useForm<TForm extends FormState>(initialValues?: TForm): InertiaForm<TForm>
 export default function useForm<TForm extends FormState>(rememberKey: string, initialValues?: TForm): InertiaForm<TForm>
@@ -42,9 +46,8 @@ export default function useForm<TForm extends FormState>(
 ): InertiaForm<TForm> {
   const rememberKey: string | null = typeof rememberKeyOrInitialValues === 'string' ? rememberKeyOrInitialValues : null
   const data: TForm = typeof rememberKeyOrInitialValues === 'string' ? maybeInitialValues : rememberKeyOrInitialValues
-  const restored: InertiaRestoredState<TForm> | null = rememberKey
-    ? (router.restore(rememberKey) as InertiaRestoredState<TForm>)
-    : null
+  const restored: InertiaRestoredState<TForm> | null =
+    !isServer && rememberKey ? (router.restore(rememberKey) as InertiaRestoredState<TForm>) : null
 
   const [defaults, setDefaults] = createSignal(data)
   let cancelToken = null
@@ -180,6 +183,8 @@ export default function useForm<TForm extends FormState>(
   hasErrorsMemo = createMemo(() => Object.keys(unwrap(deeplyTrackedFormErrors())).length > 0)
 
   submit = (method: Method, url: string, options: Partial<VisitOptions> = {}) => {
+    if (isServer) return
+
     const data = transform(form.data)
     const _options = {
       ...options,
@@ -191,8 +196,10 @@ export default function useForm<TForm extends FormState>(
         }
       },
       onBefore(visit) {
-        setForm('wasSuccessful', true)
-        setForm('recentlySuccessful', false)
+        setForm({
+          wasSuccessful: true,
+          recentlySuccessful: false,
+        })
         clearTimeout(recentlySuccessfulTimeoutId)
 
         if (options.onBefore) {
@@ -272,7 +279,7 @@ export default function useForm<TForm extends FormState>(
     }
   }
 
-  if (rememberKey) {
+  if (!isServer && rememberKey) {
     createEffect(() => {
       router.remember({ data: unwrap(form.data), errors: unwrap(deeplyTrackedFormErrors()) }, rememberKey)
     })
