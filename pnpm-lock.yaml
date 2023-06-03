@@ -12,9 +12,6 @@ dependencies:
     version: 4.5.0
 
 devDependencies:
-  '@solid-primitives/deep':
-    specifier: ^0.0.102
-    version: 0.0.102(solid-js@1.7.5)
   '@solidjs/meta':
     specifier: ^0.28.5
     version: 0.28.5(solid-js@1.7.5)
@@ -250,14 +247,6 @@ packages:
     transitivePeerDependencies:
       - debug
     dev: false
-
-  /@solid-primitives/deep@0.0.102(solid-js@1.7.5):
-    resolution: {integrity: sha512-qD4J69VUDnnjwe4zlU3yEyZoa04wF8atytU88i80+CZ4pi7qNKEjTiU1DQg6lMTtx9znZrhChz349sRfHViVPQ==}
-    peerDependencies:
-      solid-js: ^1.6.12
-    dependencies:
-      solid-js: 1.7.5
-    dev: true
 
   /@solidjs/meta@0.28.5(solid-js@1.7.5):
     resolution: {integrity: sha512-52luJR6hVNMA1K8Od5OD0d8WVz/svqZG4is8lrDimiUGxdia3DzuLF+pK56dnEzbNt9cA42qVFL134U9LkC9Gg==}

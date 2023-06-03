@@ -43,7 +43,6 @@
     "lodash.isequal": "^4.5.0"
   },
   "devDependencies": {
-    "@solid-primitives/deep": "^0.0.102",
     "@solidjs/meta": "^0.28.5",
     "@types/node": "^20.1.2",
     "esbuild": "^0.16.17",
@@ -54,7 +53,6 @@
     "typescript": "^5.0.4"
   },
   "peerDependencies": {
-    "@solid-primitives/deep": "^0.0.102",
     "@solidjs/meta": "^0.28.5",
     "solid-js": "^1.7.0"
   }
