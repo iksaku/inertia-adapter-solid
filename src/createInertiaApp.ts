@@ -1,5 +1,5 @@
 import { Page, PageResolver, setupProgress } from '@inertiajs/core'
-import { renderTags } from '@solidjs/meta'
+import { renderTags } from './meta'
 import { Dynamic, createComponent, generateHydrationScript, isServer, renderToString } from 'solid-js/web'
 import App, { InertiaAppProps } from './App'
 
@@ -27,7 +27,7 @@ type CreateInertiaSSROptions = CreateInertiaBaseOptions & {
   setup?: never
   progress?: never
 }
-export type CreateInertiaSSRReturnType = { head: string; body: string }
+export type CreateInertiaSSRReturnType = { head: string[]; body: string }
 
 export default async function createInertiaApp(options: CreateInertiaCSROptions): Promise<CreateInertiaCSRReturnType>
 export default async function createInertiaApp(options: CreateInertiaSSROptions): Promise<CreateInertiaSSRReturnType>
