@@ -47,6 +47,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     'only',
     'headers',
     'queryStringArrayFormat',
+    'onClick',
     'onCancelToken',
     'onBefore',
     'onStart',
@@ -98,7 +99,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     }
   }
 
-  const visit = (event: MouseEvent) => {
+  const visit = (event: MouseEvent | KeyboardEvent) => {
     if (isServer) return
 
     // @ts-ignore
@@ -135,7 +136,14 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
       get children() {
         return props.children
       },
-      onClick: (e) => visit(e),
+      onClick: (e: MouseEvent | KeyboardEvent) => {
+        if (typeof props.onClick === 'function') {
+          props.onClick(e)
+        }
+        if (!e.defaultPrevented) {
+          visit(e)
+        }
+      },
     }),
   )
 }
