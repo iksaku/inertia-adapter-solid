@@ -21,7 +21,7 @@ type InertiaLinkProps = {
   only?: string[]
   headers?: Record<string, string>
   queryStringArrayFormat?: 'indices' | 'brackets'
-  onClick?: (event: MouseEvent | KeyboardEvent) => void
+  onClick?: (event: MouseEvent) => void
   onCancelToken?: (cancelToken: any) => void
   onBefore?: () => void
   onStart?: () => void
@@ -47,6 +47,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     'only',
     'headers',
     'queryStringArrayFormat',
+    'onClick',
     'onCancelToken',
     'onBefore',
     'onStart',
@@ -101,6 +102,8 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
   const visit = (event: MouseEvent) => {
     if (isServer) return
 
+    props.onClick?.(event)
+
     // @ts-ignore
     if (shouldIntercept(event)) {
       event.preventDefault()
@@ -135,7 +138,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
       get children() {
         return props.children
       },
-      onClick: (e) => visit(e),
+      onClick: visit,
     }),
   )
 }
