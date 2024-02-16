@@ -21,7 +21,7 @@ type InertiaLinkProps = {
   only?: string[]
   headers?: Record<string, string>
   queryStringArrayFormat?: 'indices' | 'brackets'
-  onClick?: (event: MouseEvent | KeyboardEvent) => void
+  onClick?: (event: MouseEvent) => void
   onCancelToken?: (cancelToken: any) => void
   onBefore?: () => void
   onStart?: () => void
@@ -99,8 +99,10 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     }
   }
 
-  const visit = (event: MouseEvent | KeyboardEvent) => {
+  const visit = (event: MouseEvent) => {
     if (isServer) return
+
+    props.onClick?.(event)
 
     // @ts-ignore
     if (shouldIntercept(event)) {
@@ -136,14 +138,7 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
       get children() {
         return props.children
       },
-      onClick: (e: MouseEvent | KeyboardEvent) => {
-        if (typeof props.onClick === 'function') {
-          props.onClick(e)
-        }
-        if (!e.defaultPrevented) {
-          visit(e)
-        }
-      },
+      onClick: visit,
     }),
   )
 }
