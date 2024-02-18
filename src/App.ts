@@ -1,8 +1,8 @@
 import { Page, PageResolver, router } from '@inertiajs/core'
 import { MetaProvider } from '@solidjs/meta'
-import { Component, ParentComponent, ParentProps, mergeProps } from 'solid-js'
+import { Component, ParentComponent, ParentProps, createComponent, mergeProps } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
-import { createComponent, isServer } from 'solid-js/web'
+import { isServer } from 'solid-js/web'
 import PageContext from './PageContext'
 
 export type InertiaAppProps = {
