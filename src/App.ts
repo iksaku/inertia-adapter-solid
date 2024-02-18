@@ -9,7 +9,6 @@ export type InertiaAppProps = {
   initialPage: Page
   initialComponent?: Component<Page['props']> & { layout?: ParentComponent<any> | ParentComponent<any>[] }
   resolveComponent?: PageResolver
-  head: Parameters<typeof MetaProvider>['0']['tags']
 }
 
 type InertiaAppState = {
@@ -86,7 +85,6 @@ export default function App(props: ParentProps<InertiaAppProps>) {
   }
 
   return createComponent(MetaProvider, {
-    tags: props.head,
     get children() {
       return createComponent(PageContext.Provider, {
         get value() {
