@@ -1,12 +1,11 @@
 import { Page, PageResolver, setupProgress } from '@inertiajs/core'
-import { renderTags } from './meta'
-import { Dynamic, createComponent, generateHydrationScript, isServer, renderToString } from 'solid-js/web'
+import { createComponent } from 'solid-js'
+import { Dynamic, generateHydrationScript, getAssets, isServer, renderToString } from 'solid-js/web'
 import App, { InertiaAppProps } from './App'
 
 type CreateInertiaBaseOptions = {
   id?: string
   page?: Page
-  title?: (title: string) => string
   resolve: PageResolver
 }
 
@@ -34,7 +33,6 @@ export default async function createInertiaApp(options: CreateInertiaSSROptions)
 export default async function createInertiaApp({
   id = 'app',
   page = undefined,
-  title = undefined,
   resolve,
   setup,
   progress = {},
@@ -50,7 +48,6 @@ export default async function createInertiaApp({
     initialPage,
     initialComponent: await resolveComponent(initialPage.component),
     resolveComponent,
-    head: [],
   }
 
   if (isServer) {
@@ -63,7 +60,7 @@ export default async function createInertiaApp({
       }),
     )
 
-    const head = renderTags(props.head).concat(generateHydrationScript())
+    const head = [getAssets(), generateHydrationScript()]
 
     return { head, body }
   }

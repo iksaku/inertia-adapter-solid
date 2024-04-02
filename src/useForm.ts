@@ -13,29 +13,45 @@ interface InertiaFormProps<TForm extends FormState> {
   get isDirty(): boolean
 
   defaults(): this
+
   defaults(field: keyof TForm, value: unknown): this
+
   defaults(fields: TForm): this
 
   reset(...fields: string[]): this
+
   transform(callback: (data: TForm) => RequestPayload): this
 
   get errors(): FormErrors<TForm>
+
   get hasErrors(): boolean
+
   setError(field: keyof TForm, value: string): this
+
   setError(fields: Record<keyof TForm, string>): this
+
   clearErrors(...fields: string[]): this
 
   get processing(): boolean
+
   get progress(): GlobalEventsMap['progress']['parameters'][0]
+
   get wasSuccessful(): boolean
+
   get recentlySuccessful(): boolean
 
   get(url: string, options?: Partial<VisitOptions>): void
+
   post(url: string, options?: Partial<VisitOptions>): void
+
   put(url: string, options?: Partial<VisitOptions>): void
+
   patch(url: string, options?: Partial<VisitOptions>): void
+
   delete(url: string, options?: Partial<VisitOptions>): void
+
   submit(method: Method, url: string, options: Partial<VisitOptions>): void
+
   cancel(): void
 }
 
@@ -72,6 +88,7 @@ export type InertiaForm<TForm extends FormState> = [
 
 export function useForm<TForm extends FormState>(initialValues?: TForm): InertiaForm<TForm>
 export function useForm<TForm extends FormState>(rememberKey: string, initialValues?: TForm): InertiaForm<TForm>
+
 export default function useForm<TForm extends FormState>(
   rememberKeyOrInitialValues?: string | TForm,
   maybeInitialValues?: TForm,

@@ -1,6 +1,6 @@
 {
   "name": "inertia-adapter-solid",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "The SolidJS adapter for Inertia.js",
   "contributors": [
@@ -38,22 +38,22 @@
     "prepublish": "pnpm build"
   },
   "dependencies": {
-    "@inertiajs/core": "^1.0.6",
+    "@inertiajs/core": "^1.0.14",
     "lodash.clonedeep": "^4.5.0",
     "lodash.isequal": "^4.5.0"
   },
   "devDependencies": {
-    "@solidjs/meta": "^0.28.5",
-    "@types/node": "^20.1.2",
-    "esbuild": "^0.16.17",
-    "esbuild-node-externals": "^1.7.0",
-    "prettier": "^2.8.8",
-    "prettier-plugin-organize-imports": "^3.2.2",
-    "solid-js": "^1.7.5",
-    "typescript": "^5.0.4"
+    "@solidjs/meta": "^0.29.3",
+    "@types/node": "^20.11.19",
+    "esbuild": "^0.20.0",
+    "esbuild-node-externals": "^1.13.0",
+    "prettier": "^3.2.5",
+    "prettier-plugin-organize-imports": "^3.2.4",
+    "solid-js": "^1.8.0",
+    "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@solidjs/meta": "^0.28.5",
-    "solid-js": "^1.7.0"
+    "@solidjs/meta": "^0.29.3",
+    "solid-js": "^1.8.0"
   }
 }

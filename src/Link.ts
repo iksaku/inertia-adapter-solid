@@ -7,8 +7,8 @@ import {
   router,
   shouldIntercept,
 } from '@inertiajs/core'
-import { ComponentProps, JSX, mergeProps, ParentProps, splitProps } from 'solid-js'
-import { createComponent, Dynamic, isServer } from 'solid-js/web'
+import { ComponentProps, createComponent, JSX, mergeProps, ParentProps, splitProps } from 'solid-js'
+import { Dynamic, isServer } from 'solid-js/web'
 
 type InertiaLinkProps = {
   as?: keyof JSX.IntrinsicElements
