@@ -142,7 +142,7 @@ export default function useForm<TForm extends FormState>(
         fieldOrFields = { [fieldOrFields]: maybeValue }
       }
 
-      // setDefaults((defaults) => Object.assign(defaults, fieldOrFields))
+      setDefaults((defaults) => Object.assign(defaults, fieldOrFields))
 
       return this
     },
