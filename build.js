@@ -6,35 +6,42 @@ const watch = process.argv.slice(1).includes('--watch')
 
 const config = {
   bundle: true,
-  minify: true,
+  minify: false,
   sourcemap: true,
   target: 'es2020',
-  plugins: [nodeExternalsPlugin()],
+  plugins: [
+    nodeExternalsPlugin(),
+    {
+      name: 'inertia',
+      setup(build) {
+        let count = 0
+        build.onEnd(() => {
+          if (count++ !== 0) {
+            console.log(`Rebuilding ${build.initialOptions.entryPoints} (${build.initialOptions.format})...`)
+          }
+        })
+      },
+    },
+  ],
 }
 
 const builds = [
   { entryPoints: ['src/index.ts'], format: 'esm', outfile: 'dist/index.esm.js', platform: 'browser' },
-  { entryPoints: ['src/index.ts'], format: 'cjs', outfile: 'dist/index.js', platform: 'browser' },
+  { entryPoints: ['src/index.ts'], format: 'cjs', outfile: 'dist/index.ts', platform: 'browser' },
   { entryPoints: ['src/server.ts'], format: 'esm', outfile: 'dist/server.esm.js', platform: 'node' },
   { entryPoints: ['src/server.ts'], format: 'cjs', outfile: 'dist/server.js', platform: 'node' },
 ]
 
-for (const build of builds) {
-  esbuild
-    .build({ ...config, ...build, ...watcher(build) })
-    .then(() => console.log(`${watch ? 'Watching' : 'Built'} ${build.entryPoints} (${build.format})…`))
-    .catch(() => process.exit(1))
-}
+// biome-ignore lint/complexity/noForEach: <explanation>
+builds.forEach(async (build) => {
+  const context = await esbuild.context({ ...config, ...build })
 
-function watcher(build) {
-  return watch
-    ? {
-        watch: {
-          onRebuild: (error) =>
-            error
-              ? console.error('Watch failed:', error)
-              : console.log(`Rebuilding ${build.entryPoints} (${build.format})…`),
-        },
-      }
-    : {}
-}
+  if (watch) {
+    console.log(`Watching ${build.entryPoints} (${build.format})...`)
+    await context.watch()
+  } else {
+    await context.rebuild()
+    context.dispose()
+    console.log(`Built ${build.entryPoints} (${build.format})...`)
+  }
+})
