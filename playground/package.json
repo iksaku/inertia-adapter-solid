@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "devDependencies": {
+    "@inertiajs/core": "^1.3.0",
+    "inertia-adapter-solid": "workspace:*",
+    "msw": "^2.10.4",
+    "solid-js": "^1.9.7",
+    "vite": "^6.3.5",
+    "vite-plugin-solid": "^2.11.7"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}
