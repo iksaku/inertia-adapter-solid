@@ -1,4 +1,4 @@
-import { Page, PageProps } from '@inertiajs/core'
+import type { Page, PageProps } from '@inertiajs/core'
 import { useContext } from 'solid-js'
 import PageContext from './PageContext'
 

@@ -1,8 +1,8 @@
-import { GlobalEventsMap, Method, RequestPayload, router, VisitOptions } from '@inertiajs/core'
+import { type GlobalEventsMap, type Method, type RequestPayload, router, type VisitOptions } from '@inertiajs/core'
 import cloneDeep from 'lodash.clonedeep'
 import isEqual from 'lodash.isequal'
 import { batch, createMemo, createSignal } from 'solid-js'
-import { createStore, reconcile, SetStoreFunction, Store, unwrap } from 'solid-js/store'
+import { createStore, reconcile, type SetStoreFunction, type Store, unwrap } from 'solid-js/store'
 import { isServer } from 'solid-js/web'
 import useRemember from './useRemember'
 

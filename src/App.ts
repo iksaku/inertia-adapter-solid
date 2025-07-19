@@ -1,21 +1,27 @@
-import { Page, PageResolver, router } from '@inertiajs/core'
+import { type Page, type PageResolver, router } from '@inertiajs/core'
 import { MetaProvider } from '@solidjs/meta'
-import { Component, ParentComponent, ParentProps, createComponent, mergeProps } from 'solid-js'
+import { type Component, type ParentComponent, type ParentProps, createComponent, mergeProps } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import { isServer } from 'solid-js/web'
 import PageContext from './PageContext'
 
+type InertiaLayoutComponent = ParentComponent<Page['props']>
+
+type InertiaComponent = Component<Page['props']> & {
+  layout?: InertiaLayoutComponent | InertiaLayoutComponent[]
+}
+
 export type InertiaAppProps = {
   initialPage: Page
-  initialComponent?: Component<Page['props']> & { layout?: ParentComponent<any> | ParentComponent<any>[] }
+  initialComponent?: InertiaComponent
   resolveComponent?: PageResolver
 }
 
 type InertiaAppState = {
   component: InertiaAppProps['initialComponent'] | null
-  layouts: ParentComponent<any>[]
+  layouts: ParentComponent<unknown>[]
   page: InertiaAppProps['initialPage']
-  key: any
+  key: unknown
 }
 
 function extractLayouts(component) {
@@ -74,6 +80,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
       )
     }
 
+    // @ts-ignore
     return createComponent(
       layout,
       mergeProps(() => current.page.props, {

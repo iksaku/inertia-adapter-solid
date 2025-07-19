@@ -1,13 +1,13 @@
 import {
-  FormDataConvertible,
+  type FormDataConvertible,
   mergeDataIntoQueryString,
-  Method,
-  PreserveStateOption,
-  Progress,
+  type Method,
+  type PreserveStateOption,
+  type Progress,
   router,
   shouldIntercept,
 } from '@inertiajs/core'
-import { ComponentProps, createComponent, JSX, mergeProps, ParentProps, splitProps } from 'solid-js'
+import { type ComponentProps, createComponent, type JSX, mergeProps, type ParentProps, splitProps } from 'solid-js'
 import { Dynamic, isServer } from 'solid-js/web'
 
 type InertiaLinkProps = {
@@ -22,7 +22,7 @@ type InertiaLinkProps = {
   headers?: Record<string, string>
   queryStringArrayFormat?: 'indices' | 'brackets'
   onClick?: (event: MouseEvent) => void
-  onCancelToken?: (cancelToken: any) => void
+  onCancelToken?: (cancelToken: unknown) => void
   onBefore?: () => void
   onStart?: () => void
   onProgress?: (progress: Progress) => void

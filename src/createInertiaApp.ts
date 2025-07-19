@@ -1,7 +1,7 @@
-import { Page, PageResolver, setupProgress } from '@inertiajs/core'
+import { type Page, type PageResolver, setupProgress } from '@inertiajs/core'
 import { createComponent } from 'solid-js'
 import { Dynamic, generateHydrationScript, getAssets, isServer, renderToString } from 'solid-js/web'
-import App, { InertiaAppProps } from './App'
+import App, { type InertiaAppProps } from './App'
 
 type CreateInertiaBaseOptions = {
   id?: string

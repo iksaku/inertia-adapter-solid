@@ -19,12 +19,12 @@ const builds = [
   { entryPoints: ['src/server.ts'], format: 'cjs', outfile: 'dist/server.js', platform: 'node' },
 ]
 
-builds.forEach((build) => {
+for (const build of builds) {
   esbuild
     .build({ ...config, ...build, ...watcher(build) })
     .then(() => console.log(`${watch ? 'Watching' : 'Built'} ${build.entryPoints} (${build.format})…`))
     .catch(() => process.exit(1))
-})
+}
 
 function watcher(build) {
   return watch
