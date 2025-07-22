@@ -1,13 +1,21 @@
 import {
   type FormDataConvertible,
-  mergeDataIntoQueryString,
   type Method,
   type PreserveStateOption,
   type Progress,
+  mergeDataIntoQueryString,
   router,
   shouldIntercept,
 } from '@inertiajs/core'
-import { type ComponentProps, createComponent, type JSX, mergeProps, type ParentProps, splitProps } from 'solid-js'
+import {
+  type ComponentProps,
+  type JSX,
+  type ParentProps,
+  createComponent,
+  createMemo,
+  mergeProps,
+  splitProps,
+} from 'solid-js'
 import { Dynamic, isServer } from 'solid-js/web'
 
 type InertiaLinkProps = {
@@ -74,29 +82,23 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     props,
   )
 
-  // Mutate (once) props into prover values
+  // Mutate (once) props into proper values
   props = mergeProps(props, {
     as: props.as.toLowerCase() as InertiaLinkProps['as'],
     method: props.method.toLowerCase() as Method,
   })
 
-  const [href, data] = mergeDataIntoQueryString(
-    props.method,
-    props.href || '',
-    props.data,
-    props.queryStringArrayFormat,
+  const mergedDataArray = createMemo(() =>
+    mergeDataIntoQueryString(props.method, props.href || '', props.data, props.queryStringArrayFormat),
   )
 
-  props = mergeProps(props, { data })
+  const href = createMemo(() => mergedDataArray()[0])
+  const data = createMemo(() => mergedDataArray()[1])
 
-  if (props.as === 'a') {
-    attributes = mergeProps(attributes, { href })
-
-    if (props.method !== 'get') {
-      console.warn(
-        `Creating POST/PUT/PATCH/DELETE <a> links is discouraged as it causes "Open Link in New Tab/Window" accessibility issues.\n\nPlease specify a more appropriate element using the "as" attribute. For example:\n\n<Link href="${href}" method="${props.method}" as="button">...</Link>`,
-      )
-    }
+  if (props.as === 'a' && props.method !== 'get') {
+    console.warn(
+      `Creating POST/PUT/PATCH/DELETE <a> links is discouraged as it causes "Open Link in New Tab/Window" accessibility issues.\n\nPlease specify a more appropriate element using the "as" attribute. For example:\n\n<Link href="${href()}" method="${props.method}" as="button">...</Link>`,
+    )
   }
 
   const visit = (event: MouseEvent) => {
@@ -108,8 +110,8 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     if (shouldIntercept(event)) {
       event.preventDefault()
 
-      router.visit(props.href, {
-        data: props.data,
+      router.visit(href(), {
+        data: data(),
         method: props.method,
         preserveScroll: props.preserveScroll,
         preserveState: props.preserveState ?? props.method === 'get',

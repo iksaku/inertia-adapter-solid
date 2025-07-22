@@ -10,6 +10,9 @@ export default function MainLayout(props) {
               <Link href="/">Home</Link>
             </li>
             <li>
+              <Link href="/preserve-state">Preserve State</Link>
+            </li>
+            <li>
               Layouts
               <ul>
                 <li>
