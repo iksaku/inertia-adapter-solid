@@ -30,7 +30,7 @@ async function resolvePropertyInstances(props: object | unknown[]) {
     value = await Promise.resolve(value)
 
     if (typeof value === 'object' && value !== null) {
-      value = await this.resolvePropertyInstances(value)
+      value = await resolvePropertyInstances(value)
     }
 
     props[key] = value
