@@ -16,8 +16,6 @@
     "vite-plugin-solid": "^2.11.7"
   },
   "msw": {
-    "workerDirectory": [
-      "public"
-    ]
+    "workerDirectory": ["public"]
   }
 }

@@ -13,7 +13,13 @@ export default function MainLayout(props) {
               Layouts
               <ul>
                 <li>
-                  Distinct Layouts
+                  <Link href="/no-layout">No-Layout</Link>
+                </li>
+                <li>
+                  <Link href="/own-layout">Own-Layout</Link>
+                </li>
+                <li>
+                  Distinct Persistent Layouts
                   <ul>
                     <li>
                       <Link href="/layouts/a">Page A</Link>
@@ -24,7 +30,7 @@ export default function MainLayout(props) {
                   </ul>
                 </li>
                 <li>
-                  Shared Layouts
+                  Shared Persistent Layout
                   <ul>
                     <li>
                       <Link href="/layouts/c">Page C</Link>
