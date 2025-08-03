@@ -3,8 +3,6 @@ import Inertia from './Inertia'
 
 export default [
   http.get('/', ({ request }) => Inertia.render(request, 'Home')),
-  http.get('/no-layout', ({ request }) => Inertia.render(request, 'NoLayout')),
-  http.get('/own-layout', ({ request }) => Inertia.render(request, 'OwnLayout')),
   http.get('/preserve-state', ({ request }) => Inertia.render(request, 'PreserveState')),
   http.post(
     '/preserve-state',
@@ -13,6 +11,8 @@ export default [
         data: await request.json(),
       }),
   ),
+  http.get('/layouts/no-layout', ({ request }) => Inertia.render(request, 'Layouts/NoLayout')),
+  http.get('/layouts/own-layout', ({ request }) => Inertia.render(request, 'Layouts/OwnLayout')),
   http.get<{ page?: string }>('/layouts/:page?', ({ request, params }) => {
     const page = params.page
 

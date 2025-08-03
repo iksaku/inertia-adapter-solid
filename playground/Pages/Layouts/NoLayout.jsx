@@ -1,10 +1,6 @@
 import { Link } from 'inertia-adapter-solid'
 
-export default function OwnLayout() {
-  return 'This is a simple page with its own Persistent Layout'
-}
-
-function Layout(props) {
+export default function NoLayout() {
   return (
     <>
       <header>
@@ -16,9 +12,10 @@ function Layout(props) {
           </ul>
         </nav>
       </header>
-      {props.children}
+
+      <hr />
+
+      <div>Simple page without Persistent Layout</div>
     </>
   )
 }
-
-OwnLayout.layout = Layout

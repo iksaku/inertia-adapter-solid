@@ -16,10 +16,10 @@ export default function MainLayout(props) {
               Layouts
               <ul>
                 <li>
-                  <Link href="/no-layout">No-Layout</Link>
+                  <Link href="/layouts/no-layout">No-Layout</Link>
                 </li>
                 <li>
-                  <Link href="/own-layout">Own-Layout</Link>
+                  <Link href="/layouts/own-layout">Own-Layout</Link>
                 </li>
                 <li>
                   Distinct Persistent Layouts
@@ -48,6 +48,9 @@ export default function MainLayout(props) {
           </ul>
         </nav>
       </header>
+
+      <hr />
+
       {props.children}
     </>
   )
