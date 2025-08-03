@@ -7,7 +7,7 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
 
-    "types": ["node"],
+    "types": ["vite/client"],
 
     "declaration": true,
     "declarationDir": "dist/types",

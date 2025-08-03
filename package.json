@@ -3,9 +3,7 @@
   "version": "0.2.0",
   "license": "MIT",
   "description": "The SolidJS adapter for Inertia.js",
-  "contributors": [
-    "Jorge González <yo@jorgeglz.io>"
-  ],
+  "contributors": ["Jorge González <yo@jorgeglz.io>"],
   "repository": {
     "type": "git",
     "url": "https://github.com/iksaku/inertia-adapter-solid.git"
@@ -13,12 +11,9 @@
   "bugs": {
     "url": "https://github.com/iksaku/inertia-adapter-solid/issues"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "type": "module",
   "main": "dist/index.js",
-  "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
