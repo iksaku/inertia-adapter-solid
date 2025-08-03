@@ -13,6 +13,9 @@ export default function MainLayout(props) {
               <Link href="/preserve-state">Preserve State</Link>
             </li>
             <li>
+              <Link href="/use-remember">UseRemember</Link>
+            </li>
+            <li>
               Layouts
               <ul>
                 <li>
