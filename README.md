@@ -335,6 +335,21 @@ yarn build
 pnpm build
 ```
 
+## Configure Typescript
+
+While this library is Typescript-ready, your bundler may complain as it tries to compile TSX components
+with React in mind... But we're not using React, we're using SolidJS!
+
+Actually, the fix is really simple. Add the following to your `tsconfig.json` file:
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+  }
+}
+```
+
 ## Next steps
 
 You can read the full documentation on Server-side Rendering on [InertiaJS's Offial Guide](https://inertiajs.com/server-side-rendering).
