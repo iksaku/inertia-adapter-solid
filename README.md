@@ -91,7 +91,7 @@ import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user () => props.user
+  const user = () => props.user
 
   return (
     <Layout>
@@ -144,7 +144,7 @@ import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user () => props.user
+  const user = () => props.user
 
   return (
     <>
@@ -166,7 +166,7 @@ import NestedLayout from './NestedLayout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user () => props.user
+  const user = () => props.user
 
   return (
     <>
@@ -187,7 +187,7 @@ import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user () => props.user
+  const user = () => props.user
 
   return (
     <Layout>
@@ -212,14 +212,17 @@ Welcome.layout = (props) => {
 This adapter brings compatibility to Meta-tags using [`@solidjs/meta`](https://github.com/solidjs/solid-meta)
 official package, working in both Client-side Rendering and [Server-side Rendering](#server-side-rendering-ssr).
 
-<!-- prettier-ignore -->
 ```jsx
 import { Title, Meta } from '@solidjs/meta'
 
-<>
-  <Title>Your page title</Title>
-  <Meta name="description" content="Your page description" />
-</>
+export default function Page() {
+  return (
+    <>
+      <Title>Your page title</Title>
+      <Meta name="description" content="Your page description" />
+    </>
+  )
+}
 ```
 
 # Server-side Rendering (SSR)
