@@ -6,13 +6,13 @@ An adapter to bring [SolidJS](https://www.solidjs.com) compatibility to systems 
 
 ```sh
 # Using NPM
-npm install -D solid-js vite-plugin-solid inertia-adapter-solid
+npm install -D solid-js vite-plugin-solid @solidjs/meta inertia-adapter-solid
 
 # Using Yarn
-yarn add -D solid-js vite-plugin-solid inertia-adapter-solid
+yarn add -D solid-js vite-plugin-solid @solidjs/meta inertia-adapter-solid
 
 # Using PNPM
-pnpm add -D solid-js vite-plugin-solid inertia-adapter-solid
+pnpm add -D solid-js vite-plugin-solid @solidjs/meta inertia-adapter-solid
 ```
 
 ## Setup Vite
