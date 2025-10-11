@@ -225,6 +225,21 @@ export default function Page() {
 }
 ```
 
+# Configuring Typescript
+
+While this library is Typescript-ready, your bundler may complain as it tries to compile TSX components
+with React in mind... But we're not using React, we're using SolidJS!
+
+Actually, the fix is really simple. Add the following to your `tsconfig.json` file:
+```json
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+  }
+}
+```
+
 # Server-side Rendering (SSR)
 
 Server-side rendering pre-renders your JavaScript pages on the server, allowing your
@@ -333,21 +348,6 @@ yarn build
 
 # Using PNPM
 pnpm build
-```
-
-## Configure Typescript
-
-While this library is Typescript-ready, your bundler may complain as it tries to compile TSX components
-with React in mind... But we're not using React, we're using SolidJS!
-
-Actually, the fix is really simple. Add the following to your `tsconfig.json` file:
-```json
-{
-  "compilerOptions": {
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
-  }
-}
 ```
 
 ## Next steps
