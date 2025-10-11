@@ -16,6 +16,9 @@ export default function MainLayout(props) {
               <Link href="/use-remember">UseRemember</Link>
             </li>
             <li>
+              <Link href="/use-form">UseForm</Link>
+            </li>
+            <li>
               Layouts
               <ul>
                 <li>

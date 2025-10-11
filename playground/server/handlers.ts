@@ -12,6 +12,7 @@ export default [
       }),
   ),
   http.get('/use-remember', ({ request }) => Inertia.render(request, 'UseRemember')),
+  http.get('/use-form', ({ request }) => Inertia.render(request, 'UseForm')),
   http.get('/layouts/no-layout', ({ request }) => Inertia.render(request, 'Layouts/NoLayout')),
   http.get('/layouts/own-layout', ({ request }) => Inertia.render(request, 'Layouts/OwnLayout')),
   http.get<{ page?: string }>('/layouts/:page?', ({ request, params }) => {

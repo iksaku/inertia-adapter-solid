@@ -1,58 +1,59 @@
-import { type GlobalEventsMap, type Method, type RequestPayload, router, type VisitOptions } from '@inertiajs/core'
-import cloneDeep from 'lodash.clonedeep'
-import isEqual from 'lodash.isequal'
+import {
+  type FormDataConvertible,
+  type GlobalEventsMap,
+  type Method,
+  type RequestPayload,
+  type VisitOptions,
+  router,
+} from '@inertiajs/core'
+import { trackStore } from '@solid-primitives/deep'
+import { cloneDeep, isEqual, omit, toMerged } from 'es-toolkit'
+import { get, set } from 'es-toolkit/compat'
 import { batch, createMemo, createSignal } from 'solid-js'
-import { createStore, reconcile, type SetStoreFunction, type Store, unwrap } from 'solid-js/store'
+import { type SetStoreFunction, type Store, createStore, produce, reconcile, unwrap } from 'solid-js/store'
 import { isServer } from 'solid-js/web'
 import useRemember from './useRemember'
 
-type FormState = Record<string, unknown>
-type FormErrors<TForm extends FormState> = Partial<Record<keyof TForm, string>>
+type StringKeyOf<T> = Extract<keyof T, string>
 
-interface InertiaFormProps<TForm extends FormState> {
+type FormState = Record<string, FormDataConvertible>
+type FormErrors<TForm extends FormState> = Partial<Record<StringKeyOf<TForm>, string>>
+
+interface InertiaFormProps<TForm extends FormState, TFormKey extends StringKeyOf<TForm> = StringKeyOf<TForm>> {
+  get data(): Store<TForm>
+  setData: SetStoreFunction<TForm>
   get isDirty(): boolean
 
   defaults(): this
+  defaults(field: TFormKey, value: FormDataConvertible): this
+  defaults(fields: Partial<TForm>): this
 
-  defaults(field: keyof TForm, value: unknown): this
+  reset(...fields: TFormKey[]): this
 
-  defaults(fields: TForm): this
-
-  reset(...fields: string[]): this
-
-  transform(callback: (data: TForm) => RequestPayload): this
-
-  get errors(): FormErrors<TForm>
-
+  get errors(): Store<FormErrors<TForm>>
   get hasErrors(): boolean
+  setError(field: TFormKey, value: string): this
+  setError(errors: Record<TFormKey, string>): this
+  clearErrors(...fields: TFormKey[]): this
 
-  setError(field: keyof TForm, value: string): this
-
-  setError(fields: Record<keyof TForm, string>): this
-
-  clearErrors(...fields: string[]): this
+  transform(callback: (data: TForm) => RequestPayload): void
 
   get processing(): boolean
-
   get progress(): GlobalEventsMap['progress']['parameters'][0]
-
   get wasSuccessful(): boolean
-
   get recentlySuccessful(): boolean
 
-  get(url: string, options?: Partial<VisitOptions>): void
-
-  post(url: string, options?: Partial<VisitOptions>): void
-
-  put(url: string, options?: Partial<VisitOptions>): void
-
-  patch(url: string, options?: Partial<VisitOptions>): void
-
-  delete(url: string, options?: Partial<VisitOptions>): void
-
   submit(method: Method, url: string, options: Partial<VisitOptions>): void
-
+  get(url: string, options?: Partial<VisitOptions>): void
+  post(url: string, options?: Partial<VisitOptions>): void
+  put(url: string, options?: Partial<VisitOptions>): void
+  patch(url: string, options?: Partial<VisitOptions>): void
+  delete(url: string, options?: Partial<VisitOptions>): void
   cancel(): void
+}
+
+function cloneStore<TStore extends Store<FormState>>(store: TStore): TStore {
+  return cloneDeep(unwrap(store))
 }
 
 function createRememberStore<TValue extends object>(
@@ -69,8 +70,9 @@ function createRememberStore<TValue extends object>(
 
   const [store, setStore] = createStore<TValue>(restored ?? value)
 
-  function setStoreTrap(...args) {
-    // @ts-ignore
+  // @ts-ignore - We know this is safe, but TS can't infer the complex overloads
+  const setStoreTrap: SetStoreFunction<TValue> = (...args: Parameters<SetStoreFunction<TValue>>) => {
+    // @ts-ignore - We know this is safe, but TS can't infer the complex overloads
     setStore(...args)
 
     if (!isServer && key !== undefined) {
@@ -81,38 +83,34 @@ function createRememberStore<TValue extends object>(
   return [store, setStoreTrap]
 }
 
-export type InertiaForm<TForm extends FormState> = [
-  get: Store<TForm> & InertiaFormProps<TForm>,
-  set: SetStoreFunction<TForm>,
-]
-
-export function useForm<TForm extends FormState>(initialValues?: TForm): InertiaForm<TForm>
-export function useForm<TForm extends FormState>(rememberKey: string, initialValues?: TForm): InertiaForm<TForm>
-
+export default function useForm<TForm extends FormState>(initialValues?: TForm): InertiaFormProps<TForm>
+export default function useForm<TForm extends FormState>(
+  rememberKey: string,
+  initialValues?: TForm,
+): InertiaFormProps<TForm>
 export default function useForm<TForm extends FormState>(
   rememberKeyOrInitialValues?: string | TForm,
   maybeInitialValues?: TForm,
-): InertiaForm<TForm> {
+): InertiaFormProps<TForm> {
   const rememberKey = typeof rememberKeyOrInitialValues === 'string' ? rememberKeyOrInitialValues : undefined
 
-  const [defaults, setDefaults] = createSignal<TForm>(
+  const [defaults, setDefaults] = createStore<TForm>(
     typeof rememberKeyOrInitialValues === 'string' ? maybeInitialValues : rememberKeyOrInitialValues,
   )
 
-  const [data, setData] = createRememberStore<TForm>(cloneDeep(defaults()), rememberKey, 'data')
-  const dataMemo = createMemo(() =>
-    unwrap(
-      Object.keys(defaults()).reduce((carry, key) => {
-        carry[key] = data[key]
-        return carry
-      }, {}) as TForm,
-    ),
-  )
-  const isDirty = createMemo<boolean>(() => !isEqual(dataMemo(), defaults()))
+  const [data, setData] = createRememberStore<TForm>(cloneStore(defaults), rememberKey, 'data')
+
+  const isDirty = createMemo<boolean>(() => {
+    trackStore(defaults)
+    trackStore(data)
+
+    return !isEqual(unwrap(data), unwrap(defaults))
+  })
 
   const [errors, setErrors] = rememberKey
     ? useRemember<FormErrors<TForm>>({}, `${rememberKey}:errors`)
     : createSignal<FormErrors<TForm>>({})
+
   const hasErrors = createMemo<boolean>(() => Object.keys(errors()).length > 0)
 
   let cancelToken = null
@@ -126,48 +124,42 @@ export default function useForm<TForm extends FormState>(
   const [recentlySuccessful, setRecentlySuccessful] = createSignal<boolean>(false)
 
   const store = {
+    get data() {
+      return data
+    },
+    setData,
     get isDirty() {
       return isDirty()
     },
 
-    defaults(fieldOrFields?: keyof TForm | Record<keyof TForm, unknown>, maybeValue?: unknown) {
+    defaults(fieldOrFields?: StringKeyOf<TForm> | Partial<TForm>, maybeValue?: FormDataConvertible) {
       if (typeof fieldOrFields === 'undefined') {
-        setDefaults((defaults) => Object.assign(defaults, cloneDeep(data)))
-
-        return this
+        setDefaults(reconcile(cloneStore(data)))
+      } else {
+        setDefaults(
+          produce((defaults) => {
+            Object.assign(defaults, typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields)
+          }),
+        )
       }
-
-      if (typeof fieldOrFields === 'string') {
-        // @ts-ignore
-        fieldOrFields = { [fieldOrFields]: maybeValue }
-      }
-
-      // setDefaults((defaults) => Object.assign(defaults, fieldOrFields))
 
       return this
     },
 
     reset(...fields: string[]) {
+      const _defaults = cloneStore(defaults)
+
       if (fields.length === 0) {
-        setData(reconcile(defaults()))
-
-        return this
+        setData(reconcile(_defaults))
+      } else {
+        setData(
+          produce((data) => {
+            for (const field of fields) {
+              set(data, field, get(_defaults, field, undefined))
+            }
+          }),
+        )
       }
-
-      setData(
-        Object.keys(defaults())
-          .filter((key) => fields.includes(key))
-          .reduce((carry, key) => {
-            carry[key] = defaults()[key]
-            return carry
-          }, {}) as TForm,
-      )
-
-      return this
-    },
-
-    transform(callback: typeof transform) {
-      transform = callback
 
       return this
     },
@@ -178,29 +170,26 @@ export default function useForm<TForm extends FormState>(
     get hasErrors() {
       return hasErrors()
     },
-    setError(fieldOrFields: keyof TForm | Record<keyof TForm, string>, maybeValue?: string) {
-      if (typeof fieldOrFields === 'string') {
-        // @ts-ignore
-        fieldOrFields = { [fieldOrFields]: maybeValue }
-      }
-
-      setErrors((errors) => Object.assign(errors, fieldOrFields))
+    setError(fieldOrFields: StringKeyOf<TForm> | Record<StringKeyOf<TForm>, string>, maybeValue?: string) {
+      setErrors((errors) =>
+        toMerged(errors, typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields),
+      )
 
       return this
     },
-    clearErrors(...fields: string[]) {
+    clearErrors: function (...fields: StringKeyOf<TForm>[]) {
       if (fields.length === 0) {
         setErrors({})
-
-        return this
+      } else {
+        // @ts-ignore Typescript complains that the expected return type is wrapped with an Omit<> 🤦‍♂️
+        setErrors((errors) => omit(errors, fields))
       }
 
-      setErrors((errors) =>
-        Object.keys(defaults()).reduce(
-          (carry, field) => Object.assign(carry, !fields.includes(field) ? { [field]: errors[field] } : {}),
-          {},
-        ),
-      )
+      return this
+    },
+
+    transform(callback: typeof transform) {
+      transform = callback
 
       return this
     },
@@ -218,27 +207,12 @@ export default function useForm<TForm extends FormState>(
       return recentlySuccessful()
     },
 
-    get(url: string, options: Partial<VisitOptions> = {}) {
-      this.submit('get', url, options)
-    },
-    post(url: string, options: Partial<VisitOptions> = {}) {
-      this.submit('post', url, options)
-    },
-    put(url: string, options: Partial<VisitOptions> = {}) {
-      this.submit('put', url, options)
-    },
-    patch(url: string, options: Partial<VisitOptions> = {}) {
-      this.submit('patch', url, options)
-    },
-    delete(url: string, options: Partial<VisitOptions> = {}) {
-      this.submit('delete', url, options)
-    },
     submit(method: Method, url: string, options: Partial<VisitOptions> = {}) {
       if (isServer) return
 
       const store = this
 
-      const data = transform(dataMemo())
+      const _data = transform(unwrap(data))
       const _options = {
         ...options,
         onCancelToken(token) {
@@ -281,11 +255,11 @@ export default function useForm<TForm extends FormState>(
             setRecentlySuccessful(true)
 
             store.clearErrors()
+
+            setDefaults(() => cloneStore(data))
           })
 
           recentlySuccessfulTimeoutId = setTimeout(() => setRecentlySuccessful(false), 2000)
-
-          // setDefaults(() => dataMemo())
 
           if (options.onSuccess) {
             return await options.onSuccess(page)
@@ -318,6 +292,7 @@ export default function useForm<TForm extends FormState>(
             setProcessing(false)
             setProgress(undefined)
           })
+
           cancelToken = null
 
           if (options.onFinish) {
@@ -327,10 +302,25 @@ export default function useForm<TForm extends FormState>(
       }
 
       if (method === 'delete') {
-        router.delete(url, { ..._options, data })
+        router.delete(url, { ..._options, data: _data })
       } else {
-        router[method](url, data, _options)
+        router[method](url, _data, _options)
       }
+    },
+    get(url: string, options: Partial<VisitOptions> = {}) {
+      this.submit('get', url, options)
+    },
+    post(url: string, options: Partial<VisitOptions> = {}) {
+      this.submit('post', url, options)
+    },
+    put(url: string, options: Partial<VisitOptions> = {}) {
+      this.submit('put', url, options)
+    },
+    patch(url: string, options: Partial<VisitOptions> = {}) {
+      this.submit('patch', url, options)
+    },
+    delete(url: string, options: Partial<VisitOptions> = {}) {
+      this.submit('delete', url, options)
     },
 
     cancel() {
@@ -340,17 +330,24 @@ export default function useForm<TForm extends FormState>(
     },
   }
 
-  const proxy = new Proxy(store, {
+  const warnedProperties = new Set()
+
+  return new Proxy(store, {
     get(target, property) {
       if (property in target) {
-        return target[property]
+        return Reflect.get(target, property)
       }
 
-      // @ts-ignore
-      return data[property]
+      if (!warnedProperties.has(property)) {
+        warnedProperties.add(property)
+
+        console.warn(`Direct property access to form objects is deprecated and will be removed in the near future. Please access form data through the "data" property:
+❌ form.${String(property)}
+✅ form.data.${String(property)}
+        `)
+      }
+
+      return Reflect.get(data, property)
     },
   })
-
-  // @ts-ignore
-  return [proxy, setData]
 }
