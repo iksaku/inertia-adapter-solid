@@ -7,4 +7,4 @@ export { default as usePage } from './usePage'
 // TODO: usePoll
 // TODO: usePrefetch
 export { default as useRemember } from './useRemember'
-// TODO: WhenVisible
+export { default as WhenVisible } from './WhenVisible'

@@ -19,6 +19,9 @@ export default function MainLayout(props) {
               <Link href="/use-form">UseForm</Link>
             </li>
             <li>
+              <Link href="/when-visible">WhenVisible</Link>
+            </li>
+            <li>
               Layouts
               <ul>
                 <li>

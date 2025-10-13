@@ -63,4 +63,8 @@ export default {
       },
     )
   },
+
+  optional<TValue = unknown>(callback: () => TValue) {
+    return new LazyProp(callback)
+  },
 }
