@@ -1,70 +1,42 @@
-import { HttpResponse } from 'msw'
+import { Inertia, type InertiaSharedProps } from '@antennajs/core'
+import type { AlwaysProp, DeferProp, LazyProp, MergeProp, OptionalProp, ScrollProp } from '@antennajs/core/dist/props'
+import type { ProvidesScrollMetadata } from '@antennajs/core/dist/scroll'
+import type { InertiaPrimitive, MaybeResolvable, Resolvable } from '@antennajs/core/dist/types'
+import type { Promisable } from 'type-fest'
+import html from '../index.html?raw'
 
-function objectFilter<TObject>(obj: TObject, predicate: (entry: [string, unknown]) => boolean): object {
-  return Object.fromEntries(
-    Object.entries(obj)
-      // @ts-ignore
-      .filter(predicate),
-  )
+type InertiaMswAdapter = Omit<Inertia, 'render'> & {
+  render(request: Request, component: string, props?: InertiaSharedProps): Promise<Response>
+
+  // Fixes static methods not being available
+  lazy<TValue extends InertiaPrimitive>(callback: Resolvable<TValue>): LazyProp<TValue>
+  optional<TValue extends InertiaPrimitive>(callback: Resolvable<TValue>): OptionalProp<TValue>
+  defer<TValue extends InertiaPrimitive>(callback: Resolvable<TValue>, group?: string): DeferProp<TValue>
+  merge<TValue extends InertiaPrimitive>(value: MaybeResolvable<TValue>): MergeProp<TValue>
+  deepMerge<TValue extends InertiaPrimitive>(value: MaybeResolvable<TValue>): MergeProp<TValue>
+  always<TValue extends InertiaPrimitive>(value: MaybeResolvable<TValue>): AlwaysProp<TValue>
+  scroll<TValue extends InertiaPrimitive>(
+    value: MaybeResolvable<TValue>,
+    wrapper?: string,
+    metadata?: ProvidesScrollMetadata | ((value: Promisable<TValue>) => ProvidesScrollMetadata),
+  ): ScrollProp<TValue>
+  location(request: Request, url: string | URL): Response
 }
 
-class LazyProp<TValue = unknown> {
-  public constructor(protected callback: () => TValue) {}
+export default new Proxy<InertiaMswAdapter>(
+  // @ts-ignore
+  {},
+  {
+    get(_, property, receiver) {
+      if (Reflect.has(Inertia, property)) {
+        return Reflect.get(Inertia, property, receiver)
+      }
 
-  public resolve(): TValue {
-    return this.callback()
-  }
-}
+      const inertia = new Inertia()
 
-async function resolvePropertyInstances(props: object | unknown[]) {
-  for (let [key, value] of Object.entries(props)) {
-    if (typeof value === 'function') {
-      value = value()
-    }
+      inertia.setView(() => html)
 
-    if (value instanceof LazyProp) {
-      value = value.resolve()
-    }
-
-    // In case value is a Promise, otherwise, it resolves instantly
-    value = await Promise.resolve(value)
-
-    if (typeof value === 'object' && value !== null) {
-      value = await resolvePropertyInstances(value)
-    }
-
-    props[key] = value
-  }
-
-  return props
-}
-
-export default {
-  async render(request: Request, component: string, props: Record<string, unknown> = {}, version?: string) {
-    const only = (request.headers.get('X-Inertia-Partial-Data') ?? '').split(',').filter(Boolean)
-
-    return HttpResponse.json(
-      {
-        component,
-        props: await resolvePropertyInstances(
-          only && request.headers.get('X-Inertia-Partial-Component') === component
-            ? objectFilter(props, ([key]) => only.includes(key))
-            : objectFilter(props, ([, value]) => !(value instanceof LazyProp)),
-        ),
-        url: request.url,
-        version,
-      },
-      {
-        status: 200,
-        headers: {
-          'X-Inertia': 'true',
-          'Content-Type': 'application/json',
-        },
-      },
-    )
+      return Reflect.get(inertia, property, receiver)
+    },
   },
-
-  optional<TValue = unknown>(callback: () => TValue) {
-    return new LazyProp(callback)
-  },
-}
+)

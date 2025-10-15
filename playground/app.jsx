@@ -5,7 +5,14 @@ import { render } from 'solid-js/web'
 await server.start()
 
 createInertiaApp({
-  page: await (await fetch(window.location.href)).json(),
+  page: await (
+    await fetch(window.location.href, {
+      headers: {
+        'X-Inertia': true,
+        Accept: 'application/json',
+      },
+    })
+  ).json(),
   resolve(name) {
     const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
     return pages[`./Pages/${name}.jsx`]
