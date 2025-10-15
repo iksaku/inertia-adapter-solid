@@ -1,7 +1,5 @@
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, delay } from 'msw'
 import Inertia from './Inertia'
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default [
   http.get('/', ({ request }) => Inertia.render(request, 'Home')),
@@ -32,10 +30,32 @@ export default [
   http.get('/when-visible', ({ request }) =>
     Inertia.render(request, 'WhenVisible', {
       messages: Inertia.optional(async () => {
-        // await wait(3_000)
+        // await delay(3_000)
         return ['Hello world!', 'This works!']
       }),
       users: Inertia.optional(async () => {
+        return [
+          {
+            id: 1,
+            name: 'iksaku',
+          },
+          {
+            id: 2,
+            name: 'lugro',
+          },
+        ]
+      }),
+    }),
+  ),
+
+  http.get('/props/deferred', ({ request }) =>
+    Inertia.render(request, 'Props/Deferred', {
+      messages: Inertia.defer(async () => {
+        await delay(3_000)
+        return ['Hello world!', 'This works!']
+      }),
+      users: Inertia.defer(async () => {
+        await delay(3_000)
         return [
           {
             id: 1,

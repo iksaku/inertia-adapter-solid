@@ -22,6 +22,14 @@ export default function MainLayout(props) {
               <Link href="/when-visible">WhenVisible</Link>
             </li>
             <li>
+              Props
+              <ul>
+                <li>
+                  <Link href="/props/deferred">Deferred</Link>
+                </li>
+              </ul>
+            </li>
+            <li>
               Layouts
               <ul>
                 <li>
