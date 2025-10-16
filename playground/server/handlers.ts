@@ -23,9 +23,15 @@ export default [
       }),
   ),
 
-  http.get('/use-remember', ({ request }) => Inertia.render(request, 'UseRemember')),
-
   http.get('/use-form', ({ request }) => Inertia.render(request, 'UseForm')),
+
+  http.get('/use-poll', ({ request }) =>
+    Inertia.render(request, 'UsePoll', {
+      now: new Date().toISOString(),
+    }),
+  ),
+
+  http.get('/use-remember', ({ request }) => Inertia.render(request, 'UseRemember')),
 
   http.get('/when-visible', ({ request }) =>
     Inertia.render(request, 'WhenVisible', {

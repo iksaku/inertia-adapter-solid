@@ -49,11 +49,8 @@ importers:
   playground:
     devDependencies:
       '@antennajs/core':
-        specifier: 2.0.0-beta.0
-        version: 2.0.0-beta.0
-      '@inertiajs/core':
-        specifier: ^1.3.0
-        version: 1.3.0
+        specifier: 2.0.0-beta.1
+        version: 2.0.0-beta.1
       inertia-adapter-solid:
         specifier: workspace:*
         version: link:..
@@ -75,8 +72,8 @@ importers:
 
 packages:
 
-  '@antennajs/core@2.0.0-beta.0':
-    resolution: {integrity: sha512-aBkrU6vnzYwcOLwhzhtBYKAE55xdTTb8tvpuRRmBRspJ4ZUsZUaXYFgaC5xYSZM9mbHcGLVSZljNTEeY10W7xg==}
+  '@antennajs/core@2.0.0-beta.1':
+    resolution: {integrity: sha512-t+lMMlZUUYfs4AKBEa5rIEiCOr8NQpXISuL17r7SnY7VhSTgJsb+ihnI9ertvmne++8tyFVemxGHOQNumLLcOg==}
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -583,9 +580,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@inertiajs/core@1.3.0':
-    resolution: {integrity: sha512-TJ8R1eUYY473m9DaKlCPRdHTdznFWTDuy5VvEzXg3t/hohbDQedLj46yn/uAqziJPEUZJrSftZzPI2NMzL9tQA==}
-
   '@inertiajs/core@2.2.8':
     resolution: {integrity: sha512-sN6ArjsDajohctU7j17lsnSk5j3otDDSuR0JgtJxUftNcV3mv51XTKm/IHM3zdHYhq4rpvgHlr9epUqp7tMnxQ==}
 
@@ -961,10 +955,6 @@ packages:
       supports-color:
         optional: true
 
-  deepmerge@4.3.1:
-    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
-    engines: {node: '>=0.10.0'}
-
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
@@ -1290,9 +1280,6 @@ packages:
 
   node-releases@2.0.23:
     resolution: {integrity: sha512-cCmFDMSm26S6tQSDpBCg/NR8NENrVPhAJSf+XbxBG4rPFaaonlEoE9wHQmun+cls499TQGSb7ZyPBRlzgKfpeg==}
-
-  nprogress@0.2.0:
-    resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
 
   object-inspect@1.13.4:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
@@ -1663,7 +1650,7 @@ packages:
 
 snapshots:
 
-  '@antennajs/core@2.0.0-beta.0':
+  '@antennajs/core@2.0.0-beta.1':
     dependencies:
       '@inertiajs/core': 2.2.8
       es-toolkit: 1.40.0
@@ -2119,15 +2106,6 @@ snapshots:
   '@esbuild/win32-x64@0.25.11':
     optional: true
 
-  '@inertiajs/core@1.3.0':
-    dependencies:
-      axios: 1.12.2
-      deepmerge: 4.3.1
-      nprogress: 0.2.0
-      qs: 6.14.0
-    transitivePeerDependencies:
-      - debug
-
   '@inertiajs/core@2.2.8':
     dependencies:
       '@types/lodash-es': 4.17.12
@@ -2472,8 +2450,6 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  deepmerge@4.3.1: {}
-
   delayed-stream@1.0.0: {}
 
   detect-indent@6.1.0: {}
@@ -2813,8 +2789,6 @@ snapshots:
   nanoid@3.3.11: {}
 
   node-releases@2.0.23: {}
-
-  nprogress@0.2.0: {}
 
   object-inspect@1.13.4: {}
 

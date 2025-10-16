@@ -13,10 +13,13 @@ export default function MainLayout(props) {
               <Link href="/preserve-state">Preserve State</Link>
             </li>
             <li>
-              <Link href="/use-remember">UseRemember</Link>
+              <Link href="/use-form">UseForm</Link>
             </li>
             <li>
-              <Link href="/use-form">UseForm</Link>
+              <Link href="/use-poll">UsePoll</Link>
+            </li>
+            <li>
+              <Link href="/use-remember">UseRemember</Link>
             </li>
             <li>
               <Link href="/when-visible">WhenVisible</Link>
