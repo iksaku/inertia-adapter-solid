@@ -235,7 +235,7 @@ Actually, the fix is really simple. Add the following to your `tsconfig.json` fi
 {
   "compilerOptions": {
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "solid-js"
   }
 }
 ```
