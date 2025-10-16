@@ -1,8 +1,8 @@
 import MainLayout from '@/Components/MainLayout'
-import usePoll from '../../src/usePoll'
+import { usePoll } from 'inertia-adapter-solid'
 
 export default function UsePoll(props) {
-  const { start, stop } = usePoll({ interval: 5_000 })
+  const { start, stop } = usePoll(5_000)
 
   return <div>Date: {props.now}</div>
 }

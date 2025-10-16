@@ -23,39 +23,9 @@ export default [
       }),
   ),
 
-  http.get('/use-form', ({ request }) => Inertia.render(request, 'UseForm')),
-
-  http.get('/use-poll', ({ request }) =>
-    Inertia.render(request, 'UsePoll', {
-      now: new Date().toISOString(),
-    }),
-  ),
-
-  http.get('/use-remember', ({ request }) => Inertia.render(request, 'UseRemember')),
-
-  http.get('/when-visible', ({ request }) =>
-    Inertia.render(request, 'WhenVisible', {
-      messages: Inertia.optional(async () => {
-        // await delay(3_000)
-        return ['Hello world!', 'This works!']
-      }),
-      users: Inertia.optional(async () => {
-        return [
-          {
-            id: 1,
-            name: 'iksaku',
-          },
-          {
-            id: 2,
-            name: 'lugro',
-          },
-        ]
-      }),
-    }),
-  ),
-
-  http.get('/props/deferred', ({ request }) =>
-    Inertia.render(request, 'Props/Deferred', {
+  /* Components */
+  http.get('/components/deferred', ({ request }) =>
+    Inertia.render(request, 'Components/Deferred', {
       messages: Inertia.defer(async () => {
         await delay(3_000)
         return ['Hello world!', 'This works!']
@@ -75,4 +45,33 @@ export default [
       }),
     }),
   ),
+  http.get('/components/when-visible', ({ request }) =>
+    Inertia.render(request, 'Components/WhenVisible', {
+      messages: Inertia.optional(async () => {
+        // await delay(3_000)
+        return ['Hello world!', 'This works!']
+      }),
+      users: Inertia.optional(async () => {
+        return [
+          {
+            id: 1,
+            name: 'iksaku',
+          },
+          {
+            id: 2,
+            name: 'lugro',
+          },
+        ]
+      }),
+    }),
+  ),
+
+  /* Utilities */
+  http.get('/utilities/use-form', ({ request }) => Inertia.render(request, 'Util/UseForm')),
+  http.get('/utilities/use-poll', ({ request }) =>
+    Inertia.render(request, 'Util/UsePoll', {
+      now: new Date().toISOString(),
+    }),
+  ),
+  http.get('/utilities/use-remember', ({ request }) => Inertia.render(request, 'Util/UseRemember')),
 ]

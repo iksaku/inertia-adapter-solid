@@ -13,22 +13,30 @@ export default function MainLayout(props) {
               <Link href="/preserve-state">Preserve State</Link>
             </li>
             <li>
-              <Link href="/use-form">UseForm</Link>
-            </li>
-            <li>
-              <Link href="/use-poll">UsePoll</Link>
-            </li>
-            <li>
-              <Link href="/use-remember">UseRemember</Link>
-            </li>
-            <li>
-              <Link href="/when-visible">WhenVisible</Link>
-            </li>
-            <li>
-              Props
+              Components
               <ul>
                 <li>
-                  <Link href="/props/deferred">Deferred</Link>
+                  <Link href="/components/deferred">Deferred</Link>
+                </li>
+                <li>
+                  <Link href="/components/when-visible">WhenVisible</Link>
+                </li>
+              </ul>
+            </li>
+            <li>
+              Utilities
+              <ul>
+                <li>
+                  <Link href="/utilities/use-form">UseForm</Link>
+                </li>
+                <li>
+                  <Link href="/utilities/use-poll">UsePoll</Link>
+                </li>
+                <li>
+                  <Link href="/utilities/use-prefetch">UsePrefetch</Link>
+                </li>
+                <li>
+                  <Link href="/utilities/use-remember">UseRemember</Link>
                 </li>
               </ul>
             </li>
