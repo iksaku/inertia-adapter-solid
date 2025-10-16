@@ -32,6 +32,7 @@ export default function usePrefetch(options: VisitOptions = {}): InertiaUsePrefe
         batch(() => {
           setPrefetching(false)
           setPrefetched(true)
+          setLastUpdatedAt(e.detail.fetchedAt)
         })
       }
     })
