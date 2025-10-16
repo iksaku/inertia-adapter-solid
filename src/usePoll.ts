@@ -1,31 +1,18 @@
 import { type PollOptions, type ReloadOptions, router } from '@inertiajs/core'
-import { mergeProps, onCleanup, onMount } from 'solid-js'
+import { onCleanup, onMount } from 'solid-js'
 
-type UsePollProps = {
-  interval: number
-  requestOptions?: ReloadOptions
-  options?: PollOptions
-}
-
-export default function usePoll(_props: UsePollProps): ReturnType<(typeof router)['poll']> {
-  const props = mergeProps(
-    {
-      requestOptions: {},
-      options: {
-        keepAlive: false,
-        autoStart: true,
-      },
-    },
-    _props,
-  )
-
-  const { start, stop } = router.poll(props.interval, props.requestOptions, {
-    ...props.options,
+export default function usePoll(
+  interval: number,
+  requestOptions: ReloadOptions = {},
+  options: PollOptions = { keepAlive: false, autoStart: true },
+): ReturnType<(typeof router)['poll']> {
+  const { start, stop } = router.poll(interval, requestOptions, {
+    ...options,
     autoStart: false,
   })
 
   onMount(() => {
-    if (props.options.autoStart ?? true) {
+    if (options.autoStart ?? true) {
       start()
     }
   })
