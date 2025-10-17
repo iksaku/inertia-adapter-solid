@@ -107,12 +107,7 @@ export default function WhenVisible(_props: WhenVisibleProps) {
             return props.as
           },
           ref(el: Element) {
-            const _ref = currentElement as Element | ((el: Element) => void)
-            if (typeof _ref === 'function') {
-              _ref(el)
-            } else {
-              currentElement = el
-            }
+            currentElement = el
           },
         })
       },
