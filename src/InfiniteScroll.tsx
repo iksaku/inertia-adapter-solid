@@ -7,7 +7,6 @@ import {
 import { createLazyMemo } from '@solid-primitives/memo'
 import {
   type Component,
-  type ComponentProps,
   type JSX,
   Show,
   batch,
@@ -18,6 +17,7 @@ import {
   createSignal,
   mergeProps,
   on,
+  onCleanup,
   onMount,
   splitProps,
   untrack,
@@ -58,7 +58,7 @@ function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | nu
   return fallback
 }
 
-export default function InfiniteScroll(_props: InfiniteScrollProps & ComponentProps<InfiniteScrollProps['as']>) {
+export default function InfiniteScroll(_props: InfiniteScrollProps) {
   const [props, childrenProps] = splitProps(
     mergeProps(
       {
@@ -111,7 +111,11 @@ export default function InfiniteScroll(_props: InfiniteScrollProps & ComponentPr
   const manualMode = createMemo(() => props.manual || (props.manualAfter > 0 && requestCount() >= props.manualAfter))
   const autoLoad = createMemo(() => !manualMode())
 
-  const { dataManager, elementManager, flush } = useInfiniteScroll({
+  const {
+    dataManager,
+    elementManager,
+    flush: flushInfiniteScroll,
+  } = useInfiniteScroll({
     // Data
     getPropName: () => props.data,
     inReverseMode: () => props.reverse,
@@ -181,6 +185,10 @@ export default function InfiniteScroll(_props: InfiniteScrollProps & ComponentPr
     if (autoLoad()) {
       elementManager.enableTriggers()
     }
+  })
+
+  onCleanup(() => {
+    flushInfiniteScroll()
   })
 
   createEffect(
