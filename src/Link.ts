@@ -1,40 +1,34 @@
 import {
-  type FormDataConvertible,
+  type ActiveVisit,
+  type LinkComponentBaseProps,
+  type LinkPrefetchOption,
   type Method,
-  type PreserveStateOption,
-  type Progress,
+  type PendingVisit,
+  type VisitOptions,
+  isUrlMethodPair,
   mergeDataIntoQueryString,
   router,
   shouldIntercept,
+  shouldNavigate,
 } from '@inertiajs/core'
-import { type ComponentProps, type JSX, type ParentProps, createMemo, mergeProps, splitProps } from 'solid-js'
+import {
+  type ParentProps,
+  type ValidComponent,
+  createMemo,
+  createSignal,
+  mergeProps,
+  onCleanup,
+  onMount,
+  splitProps,
+} from 'solid-js'
 import { createDynamic, isServer } from 'solid-js/web'
 
-type InertiaLinkProps = {
-  as?: keyof JSX.IntrinsicElements
-  data?: Record<string, FormDataConvertible>
-  href: string
-  method?: Method
-  preserveScroll?: PreserveStateOption
-  preserveState?: PreserveStateOption
-  replace?: boolean
-  only?: string[]
-  headers?: Record<string, string>
-  queryStringArrayFormat?: 'indices' | 'brackets'
+export interface InertiaLinkProps extends LinkComponentBaseProps {
+  as?: ValidComponent
   onClick?: (event: MouseEvent) => void
-  onCancelToken?: (cancelToken: unknown) => void
-  onBefore?: () => void
-  onStart?: () => void
-  onProgress?: (progress: Progress) => void
-  onFinish?: () => void
-  onCancel?: () => void
-  onSuccess?: () => void
-  onError?: () => void
 }
 
-const noop = () => {}
-
-export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentProps<InertiaLinkProps['as']>) {
+export default function Link(_props: ParentProps<InertiaLinkProps>) {
   let [props, attributes] = splitProps(_props, [
     'children',
     'as',
@@ -43,10 +37,13 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     'method',
     'preserveScroll',
     'preserveState',
+    'preserveUrl',
     'replace',
     'only',
+    'except',
     'headers',
     'queryStringArrayFormat',
+    'async',
     'onClick',
     'onCancelToken',
     'onBefore',
@@ -56,6 +53,11 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     'onCancel',
     'onSuccess',
     'onError',
+    'onPrefetching',
+    'onPrefetched',
+    'prefetch',
+    'cacheFor',
+    'cacheTags',
   ])
 
   // Set default prop values
@@ -63,72 +65,233 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     {
       as: 'a',
       data: {},
+      href: '',
       method: 'get',
       preserveScroll: false,
       preserveState: null,
+      preserveUrl: false,
       replace: false,
       only: [],
+      except: [],
       headers: {},
       queryStringArrayFormat: 'brackets',
+      async: false,
+      prefetch: false,
+      cacheFor: 0,
+      cacheTags: [],
     },
     props,
   )
 
-  // Mutate (once) props into proper values
-  props = mergeProps(props, {
-    as: props.as.toLowerCase() as InertiaLinkProps['as'],
-    method: props.method.toLowerCase() as Method,
-  })
+  const [inFlightCount, setInFlightCount] = createSignal(0)
+  let hoverTimeout: ReturnType<typeof setTimeout>
 
-  const mergedDataArray = createMemo(() =>
-    mergeDataIntoQueryString(props.method, props.href || '', props.data, props.queryStringArrayFormat),
+  const method = createMemo(() =>
+    isUrlMethodPair(props.href) ? props.href.method : (props.method.toLowerCase() as Method),
   )
 
-  const href = createMemo(() => mergedDataArray()[0])
-  const data = createMemo(() => mergedDataArray()[1])
+  const as = createMemo(() => {
+    if (typeof props.as !== 'string' || props.as.toLowerCase() !== 'a') {
+      // Custom component or element
+      return props.as
+    }
 
-  if (props.as === 'a' && props.method !== 'get') {
-    console.warn(
-      `Creating POST/PUT/PATCH/DELETE <a> links is discouraged as it causes "Open Link in New Tab/Window" accessibility issues.\n\nPlease specify a more appropriate element using the "as" attribute. For example:\n\n<Link href="${href()}" method="${props.method}" as="button">...</Link>`,
+    return method() !== 'get' ? 'button' : props.as.toLowerCase()
+  })
+
+  const mergeDataArray = createMemo(() =>
+    mergeDataIntoQueryString(
+      method(),
+      isUrlMethodPair(props.href) ? props.href.url : props.href,
+      props.data,
+      props.queryStringArrayFormat,
+    ),
+  )
+
+  const url = createMemo(() => mergeDataArray()[0])
+  const data = createMemo(() => mergeDataArray()[1])
+
+  const baseParams = createMemo<VisitOptions>(() => ({
+    data: data(),
+    method: method(),
+    preserveScroll: props.preserveScroll,
+    preserveState: props.preserveState ?? method() !== 'get',
+    preserveUrl: props.preserveUrl,
+    replace: props.replace,
+    only: props.only,
+    except: props.except,
+    headers: props.headers,
+    async: props.async,
+  }))
+
+  const visitParams = createMemo<VisitOptions>(() => ({
+    ...baseParams(),
+    onCancelToken: props.onCancelToken,
+    onBefore: props.onBefore,
+    onStart(visit: PendingVisit) {
+      setInFlightCount((count) => count + 1)
+      props.onStart?.(visit)
+    },
+    onProgress: props.onProgress,
+    onFinish(visit: ActiveVisit) {
+      setInFlightCount((count) => count - 1)
+      props.onFinish?.(visit)
+    },
+    onCancel: props.onCancel,
+    onSuccess: props.onSuccess,
+    onError: props.onError,
+  }))
+
+  const prefetchModes = createMemo<LinkPrefetchOption[]>(() => {
+    if (props.prefetch === true) {
+      return ['hover']
+    }
+
+    if (props.prefetch === false) {
+      return []
+    }
+
+    if (Array.isArray(props.prefetch)) {
+      return props.prefetch
+    }
+
+    return [props.prefetch]
+  })
+
+  const cacheForValue = createMemo(() => {
+    if (props.cacheFor !== 0) {
+      // If they've provided a value, respect it
+      return props.cacheFor
+    }
+
+    if (prefetchModes().length === 1 && prefetchModes()[0] === 'click') {
+      // If they've only provided a prefetch mode of 'click',
+      // we should only prefetch for the next request but not keep it around
+      return 0
+    }
+
+    // Otherwise, default to 30 seconds
+    return 30_000
+  })
+
+  const prefetch = () => {
+    if (isServer) return
+
+    router.prefetch(
+      url(),
+      {
+        ...baseParams(),
+        onPrefetching: props.onPrefetching,
+        onPrefetched: props.onPrefetched,
+      },
+      { cacheFor: cacheForValue(), cacheTags: props.cacheTags },
     )
   }
 
-  const visit = (event: MouseEvent) => {
-    if (isServer) return
-
-    props.onClick?.(event)
-
-    // @ts-ignore
-    if (shouldIntercept(event)) {
-      event.preventDefault()
-
-      router.visit(href(), {
-        data: data(),
-        method: props.method,
-        preserveScroll: props.preserveScroll,
-        preserveState: props.preserveState ?? props.method === 'get',
-        replace: props.replace,
-        only: props.only,
-        headers: props.headers,
-        onCancelToken: props.onCancelToken || noop,
-        onBefore: props.onBefore || noop,
-        onStart: props.onStart || noop,
-        onProgress: props.onProgress || noop,
-        onFinish: props.onFinish || noop,
-        onCancel: props.onCancel || noop,
-        onSuccess: props.onSuccess || noop,
-        onError: props.onError || noop,
-      })
+  onMount(() => {
+    if (prefetchModes().includes('mount')) {
+      prefetch()
     }
+  })
+
+  onCleanup(() => {
+    clearTimeout(hoverTimeout)
+  })
+
+  const regularEvents = {
+    onClick(event: MouseEvent) {
+      props.onClick?.(event)
+
+      if (shouldIntercept(event)) {
+        event.preventDefault()
+        router.visit(url(), visitParams())
+      }
+    },
   }
 
+  const prefetchHoverEvents = {
+    onMouseEnter() {
+      hoverTimeout = setTimeout(() => {
+        prefetch()
+      }, 75)
+    },
+    onMouseLeave() {
+      clearTimeout(hoverTimeout)
+    },
+    onClick: regularEvents.onClick,
+  }
+
+  const prefetchClickEvents = {
+    onMouseDown(event: MouseEvent) {
+      if (shouldIntercept(event)) {
+        event.preventDefault()
+        prefetch()
+      }
+    },
+    onKeyDown(event: KeyboardEvent) {
+      if (shouldNavigate(event)) {
+        event.preventDefault()
+        prefetch()
+      }
+    },
+    onMouseUp(event: MouseEvent) {
+      event.preventDefault()
+      router.visit(url(), visitParams())
+    },
+    onKeyUp(event: KeyboardEvent) {
+      if (shouldNavigate(event)) {
+        event.preventDefault()
+        router.visit(url(), visitParams())
+      }
+    },
+    onClick(event: MouseEvent) {
+      props.onClick?.(event)
+
+      if (shouldIntercept(event)) {
+        // Let the mouseup/keyup event handle the visit
+        event.preventDefault()
+      }
+    },
+  }
+
+  const elProps = createMemo(() => {
+    if (as() === 'button') {
+      return { type: 'button' }
+    }
+
+    if (as() === 'a' || typeof as() !== 'string') {
+      return { href: url() }
+    }
+
+    return {}
+  })
+
   return createDynamic(
-    () => props.as,
-    mergeProps(attributes, {
-      get children() {
-        return props.children
+    () => as(),
+    mergeProps(
+      attributes,
+      elProps,
+      {
+        get dataLoading() {
+          return inFlightCount() > 0 ? '' : undefined
+        },
+        get children() {
+          return props.children
+        },
       },
-      onClick: visit,
-    }),
+      () => {
+        if (isServer) return
+
+        if (prefetchModes().includes('hover')) {
+          return prefetchHoverEvents
+        }
+
+        if (prefetchModes().includes('click')) {
+          return prefetchClickEvents
+        }
+
+        return regularEvents
+      },
+    ),
   )
 }

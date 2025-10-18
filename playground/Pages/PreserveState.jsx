@@ -26,12 +26,17 @@ export default function PreserveState(props) {
             <ul>
               <li>
                 <Link href="/preserve-state" data={{ search: search() }}>
-                  [GET] Default Behaviour (preserves state)
+                  [GET] Default Behaviour (does not preserves state)
+                </Link>
+              </li>
+              <li>
+                <Link href="/preserve-state" data={{ search: search() }} preserveState>
+                  [GET] Preserve State
                 </Link>
               </li>
               <li>
                 <Link href="/preserve-state" data={{ search: search() }} preserveState={false}>
-                  [GET] Without Preserve State (re-renders component)
+                  [GET] Explicit Do not Preserve State
                 </Link>
               </li>
             </ul>
@@ -41,12 +46,12 @@ export default function PreserveState(props) {
             <ul>
               <li>
                 <Link href="/preserve-state" method="post" data={{ search: search() }}>
-                  Default Behaviour (does not preserve state, aka re-render component)
+                  Default Behaviour (preserves state)
                 </Link>
               </li>
               <li>
-                <Link href="/preserve-state" method="PoSt" data={{ search: search() }} preserveState>
-                  With Preserve State
+                <Link href="/preserve-state" method="post" data={{ search: search() }} preserveState={false}>
+                  Without Preserve State (aka re-render)
                 </Link>
               </li>
             </ul>
