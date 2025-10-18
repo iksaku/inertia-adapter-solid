@@ -59,7 +59,7 @@ function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | nu
 }
 
 export default function InfiniteScroll(_props: InfiniteScrollProps) {
-  const [props, childrenProps] = splitProps(
+  const [props, attributes] = splitProps(
     mergeProps(
       {
         buffer: 0,
@@ -291,7 +291,7 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
             })
           },
         },
-        childrenProps,
+        attributes,
       ),
     ),
 

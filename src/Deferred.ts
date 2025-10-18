@@ -1,4 +1,4 @@
-import { type JSX, type ParentProps, Show, createComponent, createMemo, createSignal } from 'solid-js'
+import { type JSX, type ParentProps, Show, createComponent, createMemo } from 'solid-js'
 import { usePage } from './index'
 
 type DeferredProps = ParentProps<{

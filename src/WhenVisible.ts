@@ -10,7 +10,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js'
-import { Dynamic } from 'solid-js/web'
+import { createDynamic } from 'solid-js/web'
 
 type WhenVisibleProps = ParentProps<{
   fallback?: JSX.Element
@@ -102,10 +102,7 @@ export default function WhenVisible(_props: WhenVisibleProps) {
         return props.always || !loaded()
       },
       get children() {
-        return createComponent(Dynamic, {
-          get component() {
-            return props.as
-          },
+        return createDynamic(() => props.as, {
           ref(el: Element) {
             currentElement = el
           },

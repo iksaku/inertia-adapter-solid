@@ -181,7 +181,7 @@ export default function useForm<TForm extends FormState>(
       if (fields.length === 0) {
         setErrors({})
       } else {
-        // @ts-ignore Typescript complains that the expected return type is wrapped with an Omit<> 🤦‍♂️
+        // @ts-ignore TypeScript complains that the expected return type is wrapped with an Omit<> 🤦‍♂️
         setErrors((errors) => omit(errors, fields))
       }
 

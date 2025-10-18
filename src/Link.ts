@@ -7,16 +7,8 @@ import {
   router,
   shouldIntercept,
 } from '@inertiajs/core'
-import {
-  type ComponentProps,
-  type JSX,
-  type ParentProps,
-  createComponent,
-  createMemo,
-  mergeProps,
-  splitProps,
-} from 'solid-js'
-import { Dynamic, isServer } from 'solid-js/web'
+import { type ComponentProps, type JSX, type ParentProps, createMemo, mergeProps, splitProps } from 'solid-js'
+import { createDynamic, isServer } from 'solid-js/web'
 
 type InertiaLinkProps = {
   as?: keyof JSX.IntrinsicElements
@@ -130,13 +122,9 @@ export default function Link(_props: ParentProps<InertiaLinkProps> & ComponentPr
     }
   }
 
-  return createComponent(
-    // @ts-ignore
-    Dynamic,
+  return createDynamic(
+    () => props.as,
     mergeProps(attributes, {
-      get component() {
-        return props.as
-      },
       get children() {
         return props.children
       },
