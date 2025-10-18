@@ -1,3 +1,4 @@
+import { ScrollMetadata } from '@antennajs/core'
 import { http, HttpResponse, delay } from 'msw'
 import Inertia from './Inertia'
 
@@ -45,6 +46,43 @@ export default [
       }),
     }),
   ),
+  http.get('/components/infinite-scroll', async ({ request }) => {
+    const url = new URL(request.url)
+
+    const perPage = 10
+    const lastPage = 5
+
+    const currentPage = Number(url.searchParams.get('page') ?? 1)
+    const previousPage = currentPage > 1 ? currentPage - 1 : null
+    const nextPage = currentPage < lastPage ? currentPage + 1 : null
+
+    const end = currentPage * perPage
+    const start = end - perPage + 1
+
+    function* getItemsForPage() {
+      for (let i = start; i <= end; i++) {
+        yield {
+          id: i,
+        }
+      }
+    }
+
+    if (currentPage !== 1) {
+      await delay(5_000)
+    }
+
+    const users = Inertia.scroll(
+      () => ({
+        data: getItemsForPage().toArray(),
+      }),
+      'data',
+      new ScrollMetadata('page', previousPage, nextPage, currentPage),
+    )
+
+    return Inertia.render(request, 'Components/InfiniteScroll', {
+      users,
+    })
+  }),
   http.get('/components/when-visible', ({ request }) =>
     Inertia.render(request, 'Components/WhenVisible', {
       messages: Inertia.optional(async () => {

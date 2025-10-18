@@ -45,6 +45,7 @@
     "@biomejs/biome": "^1.9.4",
     "@changesets/changelog-git": "^0.2.1",
     "@changesets/cli": "^2.29.7",
+    "@solid-primitives/memo": "^1.4.3",
     "@solidjs/meta": "^0.29.4",
     "@types/node": "^24.7.1",
     "esbuild": "^0.25.10",
