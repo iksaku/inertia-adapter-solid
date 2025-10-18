@@ -98,18 +98,15 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
     ],
   )
 
-  const [itemsElementRef, setItemsElementRef] = createSignal<HTMLElement | null>(null)
-  const [startElementRef, setStartElementRef] = createSignal<HTMLElement | null>(null)
-  const [endElementRef, setEndElementRef] = createSignal<HTMLElement | null>(null)
+  let itemsElementRef: HTMLElement
+  let startElementRef: HTMLElement
+  let endElementRef: HTMLElement
 
-  const resolvedItemsElement = createLazyMemo(() => resolveHTMLElement(props.itemsElement, itemsElementRef()))
-  const resolvedStartElement = createLazyMemo(() => resolveHTMLElement(props.startElement, startElementRef()))
-  const resolvedEndElement = createLazyMemo(() => resolveHTMLElement(props.endElement, endElementRef()))
+  const resolvedItemsElement = createLazyMemo(() => resolveHTMLElement(props.itemsElement, itemsElementRef))
+  const resolvedStartElement = createLazyMemo(() => resolveHTMLElement(props.startElement, startElementRef))
+  const resolvedEndElement = createLazyMemo(() => resolveHTMLElement(props.endElement, endElementRef))
 
   const scrollableParent = createLazyMemo(() => getScrollableParent(resolvedItemsElement()))
-
-  const manualMode = createMemo(() => props.manual || (props.manualAfter > 0 && requestCount() >= props.manualAfter))
-  const autoLoad = createMemo(() => !manualMode())
 
   const {
     dataManager,
@@ -125,10 +122,10 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
 
     // Elements
     getTriggerMargin: () => props.buffer,
-    getStartElement: () => resolvedStartElement(),
-    getEndElement: () => resolvedEndElement(),
-    getItemsElement: () => resolvedItemsElement(),
-    getScrollableParent: () => scrollableParent(),
+    getStartElement: resolvedStartElement,
+    getEndElement: resolvedEndElement,
+    getItemsElement: resolvedItemsElement,
+    getScrollableParent: scrollableParent,
 
     // Request callbacks
     onBeforePreviousRequest: () => setLoadingPrevious(true),
@@ -158,6 +155,9 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
   const [hasPrevious, setHasPrevious] = createSignal(dataManager.hasPrevious())
   const [hasNext, setHasNext] = createSignal(dataManager.hasNext())
 
+  const manualMode = createMemo(() => props.manual || (props.manualAfter > 0 && requestCount() >= props.manualAfter))
+  const autoLoad = createMemo(() => !manualMode())
+
   function scrollToBottom() {
     if (scrollableParent()) {
       scrollableParent().scrollTo({
@@ -176,7 +176,8 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
     elementManager.setupObservers()
     elementManager.processServerLoadedElements(dataManager.getLastLoadedPage())
 
-    const shouldAutoScroll = props.autoScroll !== undefined ? props.autoScroll : props.reverse
+    // autoScroll defaults to reverse value if not explicitly set
+    const shouldAutoScroll = props.autoScroll ?? props.reverse
 
     if (shouldAutoScroll) {
       scrollToBottom()
@@ -226,44 +227,32 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
 
   const renderedChildren = children(() => [
     // Start Element
-    createComponent(Show, {
-      keyed: undefined,
-      get when() {
-        return !props.startElement
-      },
-      get children() {
-        return createDynamic(() => 'div', {
+    createBoundaryElement(
+      mergeProps(
+        {
+          get when() {
+            return !props.startElement
+          },
+          get component() {
+            return props.previous || (props.loading && loadingPrevious()) ? props.loading : undefined
+          },
           ref(el: HTMLElement) {
-            setStartElementRef(el)
+            startElementRef = el
           },
-          get children() {
-            const headerAutoMode = createMemo(() => autoLoad() && !props.onlyNext)
-
-            return createDynamic(
-              () => (props.previous ? props.previous : props.loading && loadingPrevious() ? props.loading : undefined),
-              mergeProps(
-                {
-                  get loading() {
-                    return loadingPrevious()
-                  },
-                  fetch: dataManager?.fetchPrevious ?? (() => {}),
-                  get autoMode() {
-                    return headerAutoMode()
-                  },
-                  get manualMode() {
-                    return !headerAutoMode()
-                  },
-                  get hasMore() {
-                    return hasPrevious()
-                  },
-                },
-                sharedExposed,
-              ),
-            )
+          get autoMode() {
+            return autoLoad() && !props.onlyNext
           },
-        })
-      },
-    }),
+          get loading() {
+            return loadingPrevious()
+          },
+          fetch: dataManager?.fetchPrevious ?? (() => {}),
+          get hasMore() {
+            return hasPrevious()
+          },
+        },
+        sharedExposed,
+      ),
+    ),
 
     // Children
     createDynamic(
@@ -271,7 +260,7 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
       mergeProps(
         {
           ref(el: HTMLElement) {
-            setItemsElementRef(el)
+            itemsElementRef = el
           },
           get children() {
             if (typeof props.children !== 'function') {
@@ -296,44 +285,32 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
     ),
 
     // End Element
-    createComponent(Show, {
-      keyed: undefined,
-      get when() {
-        return !props.endElement
-      },
-      get children() {
-        return createDynamic(() => 'div', {
+    createBoundaryElement(
+      mergeProps(
+        {
+          get when() {
+            return !props.endElement
+          },
+          get component() {
+            return props.next || (props.loading && loadingNext()) ? props.loading : undefined
+          },
           ref(el: HTMLElement) {
-            setEndElementRef(el)
+            endElementRef = el
           },
-          get children() {
-            const footerAutoMode = createMemo(() => autoLoad() && !props.onlyPrevious)
-
-            return createDynamic(
-              () => (props.next ? props.next : props.loading && loadingNext() ? props.loading : undefined),
-              mergeProps(
-                {
-                  get loading() {
-                    return loadingNext()
-                  },
-                  fetch: dataManager?.fetchNext ?? (() => {}),
-                  get autoMode() {
-                    return footerAutoMode()
-                  },
-                  get manualMode() {
-                    return !footerAutoMode()
-                  },
-                  get hasMore() {
-                    return hasNext()
-                  },
-                },
-                sharedExposed,
-              ),
-            )
+          get autoMode() {
+            return autoLoad() && !props.onlyPrevious
           },
-        })
-      },
-    }),
+          get loading() {
+            return loadingNext()
+          },
+          fetch: dataManager?.fetchNext ?? (() => {}),
+          get hasMore() {
+            return hasNext()
+          },
+        },
+        sharedExposed,
+      ),
+    ),
   ])
 
   return createMemo(() => {
@@ -346,5 +323,37 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
 
       return renderedChildren()
     })
+  })
+}
+
+function createBoundaryElement(
+  _props: {
+    when: boolean
+    component?: SlotComponent<InfiniteScrollActionSlotProps>
+    ref(el: HTMLElement): void
+  } & Omit<InfiniteScrollActionSlotProps, 'manualMode'>,
+) {
+  const [control, props] = splitProps(_props, ['when', 'component', 'ref'])
+
+  return createComponent(Show, {
+    keyed: undefined,
+    get when() {
+      return control.when
+    },
+    get children() {
+      return createDynamic(() => 'div', {
+        ref: control.ref,
+        get children() {
+          return createDynamic(
+            () => control.component,
+            mergeProps(props, {
+              get manualMode() {
+                return !props.autoMode
+              },
+            }),
+          )
+        },
+      })
+    },
   })
 }

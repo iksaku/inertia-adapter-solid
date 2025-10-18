@@ -36,9 +36,6 @@ export default function MainLayout(props) {
                   <Link href="/utilities/use-poll">UsePoll</Link>
                 </li>
                 <li>
-                  <Link href="/utilities/use-prefetch">UsePrefetch</Link>
-                </li>
-                <li>
                   <Link href="/utilities/use-remember">UseRemember</Link>
                 </li>
               </ul>
