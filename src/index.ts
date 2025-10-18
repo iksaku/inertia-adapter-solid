@@ -1,9 +1,10 @@
-export { router } from '@inertiajs/core'
+export { progress, router } from '@inertiajs/core'
 export { default as createInertiaApp } from './createInertiaApp'
 export { default as Deferred } from './Deferred'
+// TODO: <Form />
 export { default as InfiniteScroll } from './InfiniteScroll'
-export { default as Link } from './Link'
-export { default as useForm } from './useForm'
+export { default as Link, type InertiaLinkProps } from './Link'
+export { default as useForm, type InertiaFormProps } from './useForm'
 export { default as usePage } from './usePage'
 export { default as usePoll } from './usePoll'
 export { default as usePrefetch } from './usePrefetch'
