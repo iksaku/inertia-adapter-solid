@@ -7,8 +7,6 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
 
-    "types": ["node"],
-
     "declaration": true,
     "declarationDir": "dist/types"
   },

@@ -1,18 +1,10 @@
-import { http, HttpResponse } from 'msw'
+import { ScrollMetadata } from '@antennajs/core'
+import { http, HttpResponse, delay } from 'msw'
 import Inertia from './Inertia'
 
 export default [
   http.get('/', ({ request }) => Inertia.render(request, 'Home')),
-  http.get('/preserve-state', ({ request }) => Inertia.render(request, 'PreserveState')),
-  http.post(
-    '/preserve-state',
-    async ({ request }) =>
-      await Inertia.render(request, 'PreserveState', {
-        data: await request.json(),
-      }),
-  ),
-  http.get('/use-remember', ({ request }) => Inertia.render(request, 'UseRemember')),
-  http.get('/use-form', ({ request }) => Inertia.render(request, 'UseForm')),
+
   http.get('/layouts/no-layout', ({ request }) => Inertia.render(request, 'Layouts/NoLayout')),
   http.get('/layouts/own-layout', ({ request }) => Inertia.render(request, 'Layouts/OwnLayout')),
   http.get<{ page?: string }>('/layouts/:page?', ({ request, params }) => {
@@ -22,4 +14,108 @@ export default [
 
     return Inertia.render(request, `Layouts/Page${page.toUpperCase()}`)
   }),
+
+  http.get('/preserve-state', ({ request }) => Inertia.render(request, 'PreserveState')),
+  http.post(
+    '/preserve-state',
+    async ({ request }) =>
+      await Inertia.render(request, 'PreserveState', {
+        data: await request.json(),
+      }),
+  ),
+
+  /* Components */
+  http.get('/components/deferred', ({ request }) =>
+    Inertia.render(request, 'Components/Deferred', {
+      messages: Inertia.defer(async () => {
+        await delay(3_000)
+        return ['Hello world!', 'This works!']
+      }),
+      users: Inertia.defer(async () => {
+        await delay(3_000)
+        return [
+          {
+            id: 1,
+            name: 'iksaku',
+          },
+          {
+            id: 2,
+            name: 'lugro',
+          },
+        ]
+      }),
+    }),
+  ),
+  http.get('/components/form', ({ request }) => Inertia.render(request, 'Components/Form')),
+  http.post('/components/form', async ({ request }) => {
+    const data = (await request.json()) as Record<string, unknown>
+
+    return Inertia.render(request, 'Components/Form', data)
+  }),
+  http.get('/components/infinite-scroll', async ({ request }) => {
+    const url = new URL(request.url)
+
+    const perPage = 10
+    const lastPage = 5
+
+    const currentPage = Number(url.searchParams.get('page') ?? 1)
+    const previousPage = currentPage > 1 ? currentPage - 1 : null
+    const nextPage = currentPage < lastPage ? currentPage + 1 : null
+
+    const end = currentPage * perPage
+    const start = end - perPage + 1
+
+    function* getItemsForPage() {
+      for (let i = start; i <= end; i++) {
+        yield {
+          id: i,
+        }
+      }
+    }
+
+    if (currentPage !== 1) {
+      await delay(5_000)
+    }
+
+    const users = Inertia.scroll(
+      () => ({
+        data: getItemsForPage().toArray(),
+      }),
+      'data',
+      new ScrollMetadata('page', previousPage, nextPage, currentPage),
+    )
+
+    return Inertia.render(request, 'Components/InfiniteScroll', {
+      users,
+    })
+  }),
+  http.get('/components/when-visible', ({ request }) =>
+    Inertia.render(request, 'Components/WhenVisible', {
+      messages: Inertia.optional(async () => {
+        // await delay(3_000)
+        return ['Hello world!', 'This works!']
+      }),
+      users: Inertia.optional(async () => {
+        return [
+          {
+            id: 1,
+            name: 'iksaku',
+          },
+          {
+            id: 2,
+            name: 'lugro',
+          },
+        ]
+      }),
+    }),
+  ),
+
+  /* Utilities */
+  http.get('/utilities/use-form', ({ request }) => Inertia.render(request, 'Util/UseForm')),
+  http.get('/utilities/use-poll', ({ request }) =>
+    Inertia.render(request, 'Util/UsePoll', {
+      now: new Date().toISOString(),
+    }),
+  ),
+  http.get('/utilities/use-remember', ({ request }) => Inertia.render(request, 'Util/UseRemember')),
 ]

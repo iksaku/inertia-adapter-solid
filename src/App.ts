@@ -71,10 +71,10 @@ export default function App(props: ParentProps<InertiaAppProps>) {
   })
 
   const renderChildren = (i = 0) => {
-    const component = createMemo(() => layouts()[i])
+    const layout = createMemo(() => layouts()[i])
 
     return children(() => {
-      if (!component()) {
+      if (!layout()) {
         return createComponent(
           current.component,
           mergeProps({ key: current.key }, () => current.page.props),
@@ -83,7 +83,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
 
       // @ts-ignore
       return createComponent(
-        component(),
+        layout(),
         mergeProps(() => current.page.props, {
           get children() {
             return renderChildren(i + 1)

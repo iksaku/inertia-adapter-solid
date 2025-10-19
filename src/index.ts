@@ -1,10 +1,12 @@
-export { router } from '@inertiajs/core'
+export { progress, router } from '@inertiajs/core'
 export { default as createInertiaApp } from './createInertiaApp'
-// TODO: Deferred
-export { default as Link } from './Link'
-export { default as useForm } from './useForm'
+export { default as Deferred } from './Deferred'
+export { default as Form } from './Form'
+export { default as InfiniteScroll } from './InfiniteScroll'
+export { default as Link, type InertiaLinkProps } from './Link'
+export { default as useForm, type InertiaFormProps } from './useForm'
 export { default as usePage } from './usePage'
-// TODO: usePoll
-// TODO: usePrefetch
+export { default as usePoll } from './usePoll'
+export { default as usePrefetch } from './usePrefetch'
 export { default as useRemember } from './useRemember'
-// TODO: WhenVisible
+export { default as WhenVisible } from './WhenVisible'

@@ -13,10 +13,35 @@ export default function MainLayout(props) {
               <Link href="/preserve-state">Preserve State</Link>
             </li>
             <li>
-              <Link href="/use-remember">UseRemember</Link>
+              Components
+              <ul>
+                <li>
+                  <Link href="/components/deferred">Deferred</Link>
+                </li>
+                <li>
+                  <Link href="/components/form">Form</Link>
+                </li>
+                <li>
+                  <Link href="/components/infinite-scroll">InfiniteScroll</Link>
+                </li>
+                <li>
+                  <Link href="/components/when-visible">WhenVisible</Link>
+                </li>
+              </ul>
             </li>
             <li>
-              <Link href="/use-form">UseForm</Link>
+              Utilities
+              <ul>
+                <li>
+                  <Link href="/utilities/use-form">UseForm</Link>
+                </li>
+                <li>
+                  <Link href="/utilities/use-poll">UsePoll</Link>
+                </li>
+                <li>
+                  <Link href="/utilities/use-remember">UseRemember</Link>
+                </li>
+              </ul>
             </li>
             <li>
               Layouts

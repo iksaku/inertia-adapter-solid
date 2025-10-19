@@ -1,6 +1,6 @@
-import { type Page, type PageResolver, setupProgress } from '@inertiajs/core'
+import { type Page, type PageResolver, router, setupProgress } from '@inertiajs/core'
 import { createComponent } from 'solid-js'
-import { Dynamic, generateHydrationScript, getAssets, isServer, renderToString } from 'solid-js/web'
+import { createDynamic, generateHydrationScript, getAssets, isServer, renderToString } from 'solid-js/web'
 import App, { type InertiaAppProps } from './App'
 
 type CreateInertiaBaseOptions = {
@@ -41,21 +41,24 @@ export default async function createInertiaApp({
 > {
   const el = isServer ? null : document.getElementById(id)
   const initialPage = page || JSON.parse(el.dataset.page)
-  /* @ts-ignore */
+  // @ts-expect-error
   const resolveComponent = (name) => Promise.resolve(resolve(name)).then((module) => module.default || module)
 
   const props: InertiaAppProps = {
     initialPage,
-    initialComponent: await resolveComponent(initialPage.component),
+    initialComponent: await Promise.all([
+      resolveComponent(initialPage.component),
+      await router.decryptHistory().catch(() => {}),
+    ]).then(([initialComponent]) => initialComponent),
     resolveComponent,
   }
 
   if (isServer) {
     const body = renderToString(() =>
-      createComponent(Dynamic, {
-        component: 'div',
+      createDynamic(() => 'div', {
         children: createComponent(App, props),
         id,
+        // @ts-expect-error: data-* attributes are not typed.
         'data-page': JSON.stringify(initialPage),
       }),
     )
