@@ -4,5 +4,14 @@
   "initialVersions": {
     "inertia-adapter-solid": "0.3.1"
   },
-  "changesets": []
+  "changesets": [
+    "fine-papayas-agree",
+    "fresh-drinks-follow",
+    "humble-icons-doubt",
+    "long-feet-hear",
+    "olive-owls-play",
+    "proud-rice-notice",
+    "swift-ads-press",
+    "wacky-chefs-double"
+  ]
 }
