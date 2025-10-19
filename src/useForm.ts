@@ -41,14 +41,15 @@ export interface InertiaFormProps<TForm extends FormState, TFormKey extends Stri
   setError(errors: Record<TFormKey, string>): this
   clearErrors(...fields: TFormKey[]): this
 
-  transform(callback: TransformCallback<TForm>): void
+  transform(callback: TransformCallback<TForm>): this
 
   get processing(): boolean
   get progress(): GlobalEventsMap['progress']['parameters'][0]
   get wasSuccessful(): boolean
   get recentlySuccessful(): boolean
 
-  submit(...args: SubmitArgs): void
+  submit(method: Method, url: string, options?: FormOptions): void
+  submit(url: UrlMethodPair, options?: FormOptions): void
   get(url: string, options?: FormOptions): void
   post(url: string, options?: FormOptions): void
   put(url: string, options?: FormOptions): void

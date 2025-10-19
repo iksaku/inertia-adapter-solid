@@ -26,7 +26,7 @@ import { createDynamic } from 'solid-js/web'
 
 type InfiniteScrollRef = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
 
-type SlotComponent<TProps = unknown> = keyof JSX.IntrinsicElements | Component<TProps> | (string & {})
+type SlotComponent<TProps = unknown> = (string & {}) | Component<TProps>
 
 type InfiniteScrollProps = Omit<InfiniteScrollComponentBaseProps, 'as'> & {
   as?: keyof JSX.IntrinsicElements
@@ -39,7 +39,7 @@ type InfiniteScrollProps = Omit<InfiniteScrollComponentBaseProps, 'as'> & {
   loading?: SlotComponent<InfiniteScrollActionSlotProps>
   previous?: SlotComponent<InfiniteScrollActionSlotProps>
   next?: SlotComponent<InfiniteScrollActionSlotProps>
-  children: SlotComponent
+  children: JSX.Element | Component
 }
 
 function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | null): HTMLElement | null {

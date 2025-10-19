@@ -28,6 +28,8 @@ export interface InertiaLinkProps extends LinkComponentBaseProps {
   onClick?: (event: MouseEvent) => void
 }
 
+const noop = () => {}
+
 export default function Link(_props: ParentProps<InertiaLinkProps>) {
   let [props, attributes] = splitProps(_props, [
     'children',
@@ -126,20 +128,20 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
 
   const visitParams = createMemo<VisitOptions>(() => ({
     ...baseParams(),
-    onCancelToken: props.onCancelToken,
-    onBefore: props.onBefore,
+    onCancelToken: props.onCancelToken ?? noop,
+    onBefore: props.onBefore ?? noop,
     onStart(visit: PendingVisit) {
       setInFlightCount((count) => count + 1)
       props.onStart?.(visit)
     },
-    onProgress: props.onProgress,
+    onProgress: props.onProgress ?? noop,
     onFinish(visit: ActiveVisit) {
       setInFlightCount((count) => count - 1)
       props.onFinish?.(visit)
     },
-    onCancel: props.onCancel,
-    onSuccess: props.onSuccess,
-    onError: props.onError,
+    onCancel: props.onCancel ?? noop,
+    onSuccess: props.onSuccess ?? noop,
+    onError: props.onError ?? noop,
   }))
 
   const prefetchModes = createMemo<LinkPrefetchOption[]>(() => {
@@ -181,8 +183,8 @@ export default function Link(_props: ParentProps<InertiaLinkProps>) {
       url(),
       {
         ...baseParams(),
-        onPrefetching: props.onPrefetching,
-        onPrefetched: props.onPrefetched,
+        onPrefetching: props.onPrefetching ?? noop,
+        onPrefetched: props.onPrefetched ?? noop,
       },
       { cacheFor: cacheForValue(), cacheTags: props.cacheTags },
     )
