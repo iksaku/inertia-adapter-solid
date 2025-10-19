@@ -19,6 +19,9 @@ export default function MainLayout(props) {
                   <Link href="/components/deferred">Deferred</Link>
                 </li>
                 <li>
+                  <Link href="/components/form">Form</Link>
+                </li>
+                <li>
                   <Link href="/components/infinite-scroll">InfiniteScroll</Link>
                 </li>
                 <li>

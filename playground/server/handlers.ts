@@ -46,6 +46,12 @@ export default [
       }),
     }),
   ),
+  http.get('/components/form', ({ request }) => Inertia.render(request, 'Components/Form')),
+  http.post('/components/form', async ({ request }) => {
+    const data = (await request.json()) as Record<string, unknown>
+
+    return Inertia.render(request, 'Components/Form', data)
+  }),
   http.get('/components/infinite-scroll', async ({ request }) => {
     const url = new URL(request.url)
 

@@ -1,7 +1,7 @@
 export { progress, router } from '@inertiajs/core'
 export { default as createInertiaApp } from './createInertiaApp'
 export { default as Deferred } from './Deferred'
-// TODO: <Form />
+export { default as Form } from './Form'
 export { default as InfiniteScroll } from './InfiniteScroll'
 export { default as Link, type InertiaLinkProps } from './Link'
 export { default as useForm, type InertiaFormProps } from './useForm'
