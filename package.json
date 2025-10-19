@@ -39,16 +39,15 @@
   "dependencies": {
     "@inertiajs/core": "^2.2.8",
     "@solid-primitives/deep": "^0.3.3",
+    "@solid-primitives/memo": "^1.4.3",
     "es-toolkit": "^1.40.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@changesets/changelog-git": "^0.2.1",
     "@changesets/cli": "^2.29.7",
-    "@solid-primitives/memo": "^1.4.3",
     "@solidjs/meta": "^0.29.4",
-    "@types/node": "^24.7.1",
-    "esbuild": "^0.25.10",
+    "esbuild": "^0.25.11",
     "esbuild-node-externals": "^1.18.0",
     "solid-js": "^1.9.9",
     "typescript": "^5.9.3"
