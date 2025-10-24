@@ -14,6 +14,7 @@ import {
 import {
   type ParentProps,
   type ValidComponent,
+  type JSX,
   createMemo,
   createSignal,
   mergeProps,
@@ -23,10 +24,14 @@ import {
 } from 'solid-js'
 import { createDynamic, isServer } from 'solid-js/web'
 
-export interface InertiaLinkProps extends LinkComponentBaseProps {
+interface BaseInertiaLinkProps extends LinkComponentBaseProps {
   as?: ValidComponent
   onClick?: (event: MouseEvent) => void
 }
+
+export type InertiaLinkProps = BaseInertiaLinkProps &
+  Omit<JSX.HTMLAttributes<HTMLElement>, keyof BaseInertiaLinkProps> &
+  Omit<JSX.HTMLAttributes<HTMLElement>, keyof BaseInertiaLinkProps>
 
 const noop = () => {}
 
