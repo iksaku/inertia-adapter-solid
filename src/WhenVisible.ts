@@ -11,17 +11,20 @@ import {
   onMount,
 } from 'solid-js'
 import { createDynamic } from 'solid-js/web'
+import type { DynamicProps } from './types'
 
-type WhenVisibleProps = ParentProps<{
-  fallback?: JSX.Element
-  data?: string | string[]
-  params?: ReloadOptions
-  buffer?: number
-  as?: ValidComponent
-  always?: boolean
-}>
+type WhenVisibleProps<T extends ValidComponent = 'div'> = DynamicProps<
+  T,
+  ParentProps<{
+    fallback?: JSX.Element
+    data?: string | string[]
+    params?: ReloadOptions
+    buffer?: number
+    always?: boolean
+  }>
+>
 
-export default function WhenVisible(_props: WhenVisibleProps) {
+export default function WhenVisible<T extends ValidComponent = 'div'>(_props: WhenVisibleProps<T>) {
   const props = mergeProps(
     {
       fallback: null,
@@ -42,7 +45,7 @@ export default function WhenVisible(_props: WhenVisibleProps) {
       }
     }
 
-    if (!props.params.data) {
+    if (!props.params) {
       throw new Error('You must provide either a `data` or `params` prop.')
     }
 

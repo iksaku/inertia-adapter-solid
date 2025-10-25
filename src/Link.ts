@@ -12,9 +12,10 @@ import {
   shouldNavigate,
 } from '@inertiajs/core'
 import {
-  type ParentProps,
-  type ValidComponent,
   type JSX,
+  type ParentProps,
+  type Ref,
+  type ValidComponent,
   createMemo,
   createSignal,
   mergeProps,
@@ -23,19 +24,20 @@ import {
   splitProps,
 } from 'solid-js'
 import { createDynamic, isServer } from 'solid-js/web'
+import type { DynamicProps, ElementOf } from './types'
 
-interface BaseInertiaLinkProps extends LinkComponentBaseProps {
-  as?: ValidComponent
-  onClick?: (event: MouseEvent) => void
-}
-
-export type InertiaLinkProps = BaseInertiaLinkProps &
-  Omit<JSX.HTMLAttributes<HTMLElement>, keyof BaseInertiaLinkProps> &
-  Omit<JSX.HTMLAttributes<HTMLElement>, keyof BaseInertiaLinkProps>
+export type InertiaLinkProps<T extends ValidComponent = 'a'> = DynamicProps<
+  T,
+  ParentProps<
+    LinkComponentBaseProps & {
+      onClick?: JSX.EventHandler<ElementOf<T>, MouseEvent>
+    }
+  >
+>
 
 const noop = () => {}
 
-export default function Link(_props: ParentProps<InertiaLinkProps>) {
+export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLinkProps<T>) {
   let [props, attributes] = splitProps(_props, [
     'children',
     'as',

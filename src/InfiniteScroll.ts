@@ -1,6 +1,7 @@
 import {
   type InfiniteScrollActionSlotProps,
   type InfiniteScrollComponentBaseProps,
+  type InfiniteScrollSlotProps,
   getScrollableParent,
   useInfiniteScroll,
 } from '@inertiajs/core'
@@ -9,6 +10,7 @@ import {
   type Component,
   type JSX,
   Show,
+  type ValidComponent,
   batch,
   children,
   createComponent,
@@ -23,24 +25,26 @@ import {
   untrack,
 } from 'solid-js'
 import { createDynamic } from 'solid-js/web'
+import type { DynamicProps } from './types'
 
 type InfiniteScrollRef = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
 
 type SlotComponent<TProps = unknown> = (string & {}) | Component<TProps>
 
-type InfiniteScrollProps = Omit<InfiniteScrollComponentBaseProps, 'as'> & {
-  as?: keyof JSX.IntrinsicElements
+type InfiniteScrollProps<T extends ValidComponent = 'div'> = DynamicProps<
+  T,
+  InfiniteScrollComponentBaseProps & {
+    itemsElement?: InfiniteScrollRef
+    startElement?: InfiniteScrollRef
+    endElement?: InfiniteScrollRef
 
-  itemsElement?: InfiniteScrollRef
-  startElement?: InfiniteScrollRef
-  endElement?: InfiniteScrollRef
-
-  // Children Slots
-  loading?: SlotComponent<InfiniteScrollActionSlotProps>
-  previous?: SlotComponent<InfiniteScrollActionSlotProps>
-  next?: SlotComponent<InfiniteScrollActionSlotProps>
-  children: JSX.Element | Component
-}
+    // Children Slots
+    loading?: SlotComponent<InfiniteScrollActionSlotProps>
+    previous?: SlotComponent<InfiniteScrollActionSlotProps>
+    next?: SlotComponent<InfiniteScrollActionSlotProps>
+    children: JSX.Element | Component<InfiniteScrollSlotProps>
+  }
+>
 
 function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | null): HTMLElement | null {
   if (!value) {
@@ -58,12 +62,11 @@ function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | nu
   return fallback
 }
 
-export default function InfiniteScroll(_props: InfiniteScrollProps) {
+export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props: InfiniteScrollProps<T>) {
   const [props, attributes] = splitProps(
     mergeProps(
       {
         buffer: 0,
-        as: 'div',
         manual: false,
         manualAfter: 0,
         preserveUrl: false,
@@ -256,7 +259,7 @@ export default function InfiniteScroll(_props: InfiniteScrollProps) {
 
     // Children
     createDynamic(
-      () => props.as,
+      () => props.as ?? 'div',
       mergeProps(
         {
           ref(el: HTMLElement) {
