@@ -1,5 +1,11 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- 0df24d7: bug: Fix typings for dynamic components (InfiniteScroll, Link, WhenVisible)
+
 ## 1.0.0-beta.0
 
 ### Major Changes
