@@ -37,10 +37,10 @@
     "prepublish": "pnpm build"
   },
   "dependencies": {
-    "@inertiajs/core": "^2.2.8",
+    "@inertiajs/core": "^2.2.11",
     "@solid-primitives/deep": "^0.3.3",
     "@solid-primitives/memo": "^1.4.3",
-    "es-toolkit": "^1.40.0"
+    "es-toolkit": "^1.41.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
