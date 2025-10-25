@@ -1,5 +1,11 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- 848af0b: chore: Bump `@inertiajs/core` to v2.2.11
+
 ## 1.0.0-beta.1
 
 ### Patch Changes
