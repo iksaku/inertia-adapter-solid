@@ -1,6 +1,7 @@
 import {
   type Errors,
   type FormComponentProps,
+  type FormComponentRef,
   type FormComponentSlotProps,
   type FormDataConvertible,
   type Method,
@@ -14,14 +15,16 @@ import { isEqual } from 'es-toolkit'
 import {
   type Component,
   type JSX,
+  createContext,
   createMemo,
   createSignal,
   mergeProps,
   onCleanup,
   onMount,
   splitProps,
+  useContext,
 } from 'solid-js'
-import { createDynamic } from 'solid-js/web'
+import { createComponent, createDynamic } from 'solid-js/web'
 import useForm from './useForm'
 
 type FormProps = FormComponentProps & {
@@ -31,6 +34,8 @@ type FormProps = FormComponentProps & {
 type FormSubmitOptions = Omit<VisitOptions, 'data' | 'onPrefetched' | 'onPrefetching'>
 
 const noop = () => {}
+
+const FormContext = createContext<FormComponentRef | undefined>(undefined)
 
 export default function Form(_props: FormProps) {
   let [props, attributes] = splitProps(_props, [
@@ -213,32 +218,41 @@ export default function Form(_props: FormProps) {
     defaults,
   }
 
-  return createDynamic(
-    () => 'form',
-    mergeProps(attributes, {
-      ref(el: HTMLFormElement) {
-        formElement = el
-      },
-      get action() {
-        return isUrlMethodPair(props.action) ? props.action.url : props.action
-      },
-      get method() {
-        return method() as JSX.HTMLFormMethod
-      },
-      onSubmit(event: Event) {
-        event.preventDefault()
-        submit()
-      },
-      get inert() {
-        return props.disableWhileProcessing && form.processing
-      },
-      get children() {
-        if (typeof props.children !== 'function') {
-          return props.children
-        }
+  return createComponent(FormContext.Provider, {
+    value: exposed,
+    get children() {
+      return createDynamic(
+        () => 'form',
+        mergeProps(attributes, {
+          ref(el: HTMLFormElement) {
+            formElement = el
+          },
+          get action() {
+            return isUrlMethodPair(props.action) ? props.action.url : props.action
+          },
+          get method() {
+            return method() as JSX.HTMLFormMethod
+          },
+          onSubmit(event: Event) {
+            event.preventDefault()
+            submit()
+          },
+          get inert() {
+            return props.disableWhileProcessing && form.processing
+          },
+          get children() {
+            if (typeof props.children !== 'function') {
+              return props.children
+            }
 
-        return props.children(exposed)
-      },
-    }),
-  )
+            return props.children(exposed)
+          },
+        }),
+      )
+    },
+  })
+}
+
+export function useFormContext(): FormComponentRef | undefined {
+  return useContext(FormContext)
 }
