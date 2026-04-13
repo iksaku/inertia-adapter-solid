@@ -1,4 +1,4 @@
-import { type Page, type PageResolver, router, setupProgress } from '@inertiajs/core'
+import { type Page, type PageResolver, config, router, setupProgress } from '@inertiajs/core'
 import { createComponent } from 'solid-js'
 import { createDynamic, generateHydrationScript, getAssets, isServer, renderToString } from 'solid-js/web'
 import App, { type InertiaAppProps } from './App'
@@ -7,6 +7,7 @@ type CreateInertiaBaseOptions = {
   id?: string
   page?: Page
   resolve: PageResolver
+  defaults?: object
 }
 
 type CreateInertiaCSROptions = CreateInertiaBaseOptions & {
@@ -36,9 +37,12 @@ export default async function createInertiaApp({
   resolve,
   setup,
   progress = {},
+  defaults = {},
 }: CreateInertiaCSROptions | CreateInertiaSSROptions): Promise<
   CreateInertiaCSRReturnType | CreateInertiaSSRReturnType
 > {
+  config.replace(defaults)
+
   const el = isServer ? null : document.getElementById(id)
   const initialPage = page || JSON.parse(el.dataset.page)
   // @ts-expect-error

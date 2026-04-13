@@ -5,6 +5,7 @@ import {
   type RequestPayload,
   type UrlMethodPair,
   type VisitOptions,
+  config,
   router,
 } from '@inertiajs/core'
 import { trackStore } from '@solid-primitives/deep'
@@ -275,7 +276,10 @@ export default function useForm<TForm extends FormState>(
             store.clearErrors()
           })
 
-          recentlySuccessfulTimeoutId = setTimeout(() => setRecentlySuccessful(false), 2000)
+          recentlySuccessfulTimeoutId = setTimeout(
+            () => setRecentlySuccessful(false),
+            config.get('form.recentlySuccessfulDuration'),
+          )
 
           const onSuccess = options.onSuccess ? await options.onSuccess(page) : null
 

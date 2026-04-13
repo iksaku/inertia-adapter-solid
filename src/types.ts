@@ -1,5 +1,8 @@
 import type { ComponentProps, JSX, ValidComponent } from 'solid-js'
 
+// biome-ignore lint/complexity/noBannedTypes: Other adapters do this, so let's keep it simple
+export type SolidInertiaAppConfig = {}
+
 /*
  * Based on the work done for @corvu packages.
  * Original code available at:

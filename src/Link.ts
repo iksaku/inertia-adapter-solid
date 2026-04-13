@@ -5,6 +5,7 @@ import {
   type Method,
   type PendingVisit,
   type VisitOptions,
+  config,
   isUrlMethodPair,
   mergeDataIntoQueryString,
   router,
@@ -14,7 +15,6 @@ import {
 import {
   type JSX,
   type ParentProps,
-  type Ref,
   type ValidComponent,
   createMemo,
   createSignal,
@@ -179,8 +179,8 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       return 0
     }
 
-    // Otherwise, default to 30 seconds
-    return 30_000
+    // Otherwise, use the configured default
+    return config.get('prefetch.cacheFor')
   })
 
   const prefetch = () => {
