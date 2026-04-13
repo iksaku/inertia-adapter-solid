@@ -41,6 +41,7 @@ export interface InertiaFormProps<TForm extends FormState, TFormKey extends Stri
   setError(field: TFormKey, value: string): this
   setError(errors: Record<TFormKey, string>): this
   clearErrors(...fields: TFormKey[]): this
+  resetAndClearErrors(...fields: TFormKey[]): this
 
   transform(callback: TransformCallback<TForm>): this
 
@@ -196,6 +197,14 @@ export default function useForm<TForm extends FormState>(
         // @ts-ignore TypeScript complains that the expected return type is wrapped with an Omit<> 🤦‍♂️
         setErrors((errors) => omit(errors, fields))
       }
+
+      return this
+    },
+    resetAndClearErrors(...fields: StringKeyOf<TForm>[]) {
+      batch(() => {
+        this.reset(...fields)
+        this.clearErrors(...fields)
+      })
 
       return this
     },
