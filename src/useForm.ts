@@ -1,5 +1,10 @@
 import {
+  type ErrorValue,
   type FormDataConvertible,
+  type FormDataErrors,
+  type FormDataKeys,
+  type FormDataType,
+  type FormDataValues,
   type GlobalEventsMap,
   type Method,
   type RequestPayload,
@@ -16,32 +21,27 @@ import { type SetStoreFunction, type Store, createStore, produce, reconcile, unw
 import { isServer } from 'solid-js/web'
 import useRemember from './useRemember'
 
-type StringKeyOf<T> = Extract<keyof T, string>
-
-type FormState = Record<string, FormDataConvertible>
-type FormErrors<TForm extends FormState> = Partial<Record<StringKeyOf<TForm>, string>>
-
 type FormOptions = Omit<VisitOptions, 'data'>
 type SubmitArgs = [Method, string, FormOptions?] | [UrlMethodPair, FormOptions?]
 type TransformCallback<TForm> = (data: TForm) => object
 
-export interface InertiaFormProps<TForm extends FormState, TFormKey extends StringKeyOf<TForm> = StringKeyOf<TForm>> {
+export interface InertiaFormProps<TForm extends Record<string, FormDataConvertible>> {
   get data(): Store<TForm>
   setData: SetStoreFunction<TForm>
   get isDirty(): boolean
 
   defaults(): this
-  defaults(field: TFormKey, value: FormDataConvertible): this
+  defaults<K extends FormDataKeys<TForm>>(field: K, value: FormDataValues<TForm, K>): this
   defaults(fields: Partial<TForm>): this
 
-  reset(...fields: TFormKey[]): this
+  reset<K extends FormDataKeys<TForm>>(...fields: K[]): this
 
-  get errors(): Store<FormErrors<TForm>>
+  get errors(): Store<FormDataErrors<TForm>>
   get hasErrors(): boolean
-  setError(field: TFormKey, value: string): this
-  setError(errors: Record<TFormKey, string>): this
-  clearErrors(...fields: TFormKey[]): this
-  resetAndClearErrors(...fields: TFormKey[]): this
+  setError<K extends FormDataKeys<TForm>>(field: K, value: ErrorValue): this
+  setError(errors: FormDataErrors<TForm>): this
+  clearErrors<K extends FormDataKeys<TForm>>(...fields: K[]): this
+  resetAndClearErrors<K extends FormDataKeys<TForm>>(...fields: K[]): this
 
   transform(callback: TransformCallback<TForm>): this
 
@@ -60,7 +60,7 @@ export interface InertiaFormProps<TForm extends FormState, TFormKey extends Stri
   cancel(): void
 }
 
-function cloneStore<TStore extends Store<FormState>>(store: TStore): TStore {
+function cloneStore<TStore extends Store<Record<string, FormDataConvertible>>>(store: TStore): TStore {
   return cloneDeep(unwrap(store))
 }
 
@@ -91,12 +91,12 @@ function createRememberStore<TValue extends object>(
   return [store, setStoreTrap]
 }
 
-export default function useForm<TForm extends FormState>(initialValues?: TForm): InertiaFormProps<TForm>
-export default function useForm<TForm extends FormState>(
+export default function useForm<TForm extends FormDataType<TForm>>(initialValues?: TForm): InertiaFormProps<TForm>
+export default function useForm<TForm extends FormDataType<TForm>>(
   rememberKey: string,
   initialValues?: TForm,
 ): InertiaFormProps<TForm>
-export default function useForm<TForm extends FormState>(
+export default function useForm<TForm extends FormDataType<TForm>>(
   rememberKeyOrInitialValues?: string | TForm,
   maybeInitialValues?: TForm,
 ): InertiaFormProps<TForm> {
@@ -116,8 +116,8 @@ export default function useForm<TForm extends FormState>(
   })
 
   const [errors, setErrors] = rememberKey
-    ? useRemember<FormErrors<TForm>>({}, `${rememberKey}:errors`)
-    : createSignal<FormErrors<TForm>>({})
+    ? useRemember<FormDataErrors<TForm>>({} as FormDataErrors<TForm>, `${rememberKey}:errors`)
+    : createSignal<FormDataErrors<TForm>>({} as FormDataErrors<TForm>)
 
   const hasErrors = createMemo<boolean>(() => Object.keys(errors()).length > 0)
 
@@ -143,7 +143,7 @@ export default function useForm<TForm extends FormState>(
       return isDirty()
     },
 
-    defaults(fieldOrFields?: StringKeyOf<TForm> | Partial<TForm>, maybeValue?: FormDataConvertible) {
+    defaults(fieldOrFields?: FormDataKeys<TForm> | Partial<TForm>, maybeValue?: unknown) {
       defaultsCalledInOnSuccess = true
 
       if (typeof fieldOrFields === 'undefined') {
@@ -151,7 +151,12 @@ export default function useForm<TForm extends FormState>(
       } else {
         setDefaults(
           produce((defaults) => {
-            Object.assign(defaults, typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields)
+            if (typeof fieldOrFields === 'string') {
+              // Allows for dot-notation key assignment
+              set(defaults, fieldOrFields, maybeValue)
+            } else {
+              Object.assign(defaults, fieldOrFields)
+            }
           }),
         )
       }
@@ -183,24 +188,28 @@ export default function useForm<TForm extends FormState>(
     get hasErrors() {
       return hasErrors()
     },
-    setError(fieldOrFields: StringKeyOf<TForm> | Record<StringKeyOf<TForm>, string>, maybeValue?: string) {
-      setErrors((errors) =>
-        toMerged(errors, typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields),
+    setError(fieldOrFields: FormDataKeys<TForm> | FormDataErrors<TForm>, maybeValue?: ErrorValue) {
+      setErrors(
+        (errors) =>
+          toMerged(
+            errors,
+            typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields,
+          ) as FormDataErrors<TForm>,
       )
 
       return this
     },
-    clearErrors(...fields: StringKeyOf<TForm>[]) {
+    clearErrors(...fields: FormDataKeys<TForm>[]) {
       if (fields.length === 0) {
-        setErrors({})
+        setErrors(() => ({}) as FormDataErrors<TForm>)
       } else {
         // @ts-ignore TypeScript complains that the expected return type is wrapped with an Omit<> 🤦‍♂️
-        setErrors((errors) => omit(errors, fields))
+        setErrors((errors) => omit(errors, fields) as FormDataErrors<TForm>)
       }
 
       return this
     },
-    resetAndClearErrors(...fields: StringKeyOf<TForm>[]) {
+    resetAndClearErrors(...fields: FormDataKeys<TForm>[]) {
       batch(() => {
         this.reset(...fields)
         this.clearErrors(...fields)

@@ -1,4 +1,5 @@
 import {
+  type ErrorValue,
   type Errors,
   type FormComponentProps,
   type FormComponentRef,
@@ -84,7 +85,8 @@ export default function Form(_props: FormProps) {
     props,
   )
 
-  const form = useForm<Record<string, FormDataConvertible>>({})
+  // biome-ignore lint/suspicious/noExplicitAny: Matches dynamicity of official adapters
+  const form = useForm<Record<string, any>>({})
 
   let formElement: HTMLFormElement
 
@@ -105,6 +107,7 @@ export default function Form(_props: FormProps) {
   const [isDirty, setIsDirty] = createSignal(false)
 
   const [defaultData, setDefaultData] = createSignal(new FormData())
+
   function defaults() {
     setDefaultData(getFormData())
     setIsDirty(false)
@@ -208,8 +211,8 @@ export default function Form(_props: FormProps) {
     },
     clearErrors: (...fields: string[]) => form.clearErrors(...fields),
     resetAndClearErrors,
-    setError: (fieldOrFields: string | Record<string, string>, maybeValue?: string) =>
-      form.setError((typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields) as Errors),
+    setError: (fieldOrFields: string | Errors, maybeValue?: ErrorValue) =>
+      form.setError(typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields),
     get isDirty() {
       return isDirty()
     },
