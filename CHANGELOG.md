@@ -1,5 +1,18 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.3
+
+### Minor Changes
+
+- aa14a47: Add support for Inertia config to change default values
+- 080f23f: Added useFormContext hook for accessing Form state from child components
+- 959c534: Added `useForm().resetAndClearErrors()` method
+- ba34618: Match some `useForm` and `Form` typings with official adapters
+
+### Patch Changes
+
+- 9218012: Ensure Defer component is reactive to page prop changes
+
 ## 1.0.0-beta.2
 
 ### Patch Changes
