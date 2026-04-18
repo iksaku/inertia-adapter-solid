@@ -15,13 +15,14 @@ export default function Deferred(props: DeferredProps) {
     throw new Error('`<Deferred>` requires a `fallback` prop')
   }
 
-  const pageProps = usePage().props
   const keys = createMemo(() => (Array.isArray(props.data) ? props.data : [props.data]))
+
+  const page = usePage()
 
   return createComponent(Show, {
     keyed: undefined,
     get when() {
-      return keys().every((key) => pageProps[key] !== undefined)
+      return keys().every((key) => page.props[key] !== undefined)
     },
     get children() {
       return props.children
