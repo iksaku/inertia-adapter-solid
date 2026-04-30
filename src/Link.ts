@@ -53,6 +53,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     'headers',
     'queryStringArrayFormat',
     'async',
+    'viewTransition',
     'onClick',
     'onCancelToken',
     'onBefore',
@@ -131,6 +132,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     except: props.except,
     headers: props.headers,
     async: props.async,
+    viewTransition: props.viewTransition,
   }))
 
   const visitParams = createMemo<VisitOptions>(() => ({
