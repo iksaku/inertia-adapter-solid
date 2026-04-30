@@ -3,23 +3,29 @@ import {
   type Errors,
   type FormComponentProps,
   type FormComponentRef,
+  FormComponentResetSymbol,
   type FormComponentSlotProps,
   type FormDataConvertible,
   type Method,
+  UseFormUtils,
   type VisitOptions,
+  config,
   formDataToObject,
   isUrlMethodPair,
   mergeDataIntoQueryString,
   resetFormFields,
 } from '@inertiajs/core'
 import { isEqual } from 'es-toolkit'
+import type { NamedInputEvent, ValidationConfig } from 'laravel-precognition'
 import {
   type Component,
   type JSX,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   mergeProps,
+  on,
   onCleanup,
   onMount,
   splitProps,
@@ -33,6 +39,7 @@ type FormProps = FormComponentProps & {
 }
 
 type FormSubmitOptions = Omit<VisitOptions, 'data' | 'onPrefetched' | 'onPrefetching'>
+type FormSubmitter = HTMLElement | null
 
 const noop = () => {}
 
@@ -63,6 +70,9 @@ export default function Form(_props: FormProps) {
     'resetOnSuccess',
     'setDefaultsOnSuccess',
     'invalidateCacheTags',
+    'validateFiles',
+    'validationTimeout',
+    'withAllErrors',
     'children',
   ])
 
@@ -81,24 +91,56 @@ export default function Form(_props: FormProps) {
       resetOnSuccess: false,
       setDefaultsOnSuccess: false,
       invalidateCacheTags: [],
+      validateFiles: false,
+      validationTimeout: 1500,
+      withAllErrors: null,
     },
     props,
   )
 
-  // biome-ignore lint/suspicious/noExplicitAny: Matches dynamicity of official adapters
+  const getTransformedData = (): Record<string, FormDataConvertible> => {
+    const [_url, data] = getUrlAndData()
+
+    return props.transform(data)
+  }
+
+  // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
   const form = useForm<Record<string, any>>({})
+    .withPrecognition(
+      () => method(),
+      () => getUrlAndData()[0],
+    )
+    .transform(getTransformedData)
+    .setValidationTimeout(props.validationTimeout)
+
+  if (props.validateFiles) {
+    form.validateFiles()
+  }
+
+  if (props.withAllErrors ?? config.get('form.withAllErrors')) {
+    form.withAllErrors()
+  }
 
   let formElement: HTMLFormElement
 
-  function getFormData(): FormData {
-    return new FormData(formElement)
+  function getFormData(submitter?: FormSubmitter): FormData {
+    return new FormData(formElement, submitter)
   }
 
   // Convert the FormData to an object because we can't compare two FormData
   // instances directly (which is needed for isDirty), mergeDataIntoQueryString()
   // expects an object, and submitting a FormData instance directly causes problems with nested objects.
-  function getData(): Record<string, FormDataConvertible> {
-    return formDataToObject(getFormData())
+  function getData(submitter?: FormSubmitter): Record<string, FormDataConvertible> {
+    return formDataToObject(getFormData(submitter))
+  }
+
+  function getUrlAndData(submitter?: FormSubmitter): [string, Record<string, FormDataConvertible>] {
+    return mergeDataIntoQueryString(
+      method(),
+      isUrlMethodPair(props.action) ? props.action.url : props.action,
+      getData(submitter),
+      props.queryStringArrayFormat,
+    )
   }
 
   const method = createMemo(() => (isUrlMethodPair(props.action) ? props.action.method : (props.method as Method)))
@@ -116,6 +158,11 @@ export default function Form(_props: FormProps) {
   const formEvents: Array<keyof HTMLElementEventMap> = ['input', 'change', 'reset']
 
   function onFormUpdate(event: Event) {
+    if (event.type === 'reset' && (event as CustomEvent).detail?.[FormComponentResetSymbol]) {
+      // When the form is reset programatically, prevent native reset behavior
+      event.preventDefault()
+    }
+
     // If the form is reset, we set isDirty to false as we already know it's back
     // to defaults. Also, the fields are updated after the reset event, so the
     // comparison will be incorrect unless we use the nextTick / setTimeout.
@@ -124,29 +171,51 @@ export default function Form(_props: FormProps) {
 
   onMount(() => {
     setDefaultData(getFormData())
+
+    form.defaults(getData())
+
     formEvents.forEach((e) => formElement.addEventListener(e, onFormUpdate))
   })
+
+  createEffect(
+    on(
+      () => props.validateFiles,
+      (value) => (value ? form.validateFiles() : form.withoutFileValidation()),
+    ),
+  )
+
+  createEffect(
+    on(
+      () => props.validationTimeout,
+      (value) => form.setValidationTimeout(value),
+    ),
+  )
 
   onCleanup(() => {
     formEvents.forEach((e) => formElement?.removeEventListener(e, onFormUpdate))
   })
 
   function reset(...fields: string[]) {
-    resetFormFields(formElement.value, defaultData(), fields)
+    resetFormFields(formElement, defaultData(), fields)
+  }
+
+  function clearErrors(...fields: string[]) {
+    form.clearErrors(...fields)
   }
 
   function resetAndClearErrors(...fields: string[]) {
-    form.clearErrors(...fields)
+    clearErrors(...fields)
     reset(...fields)
   }
 
-  function submit() {
-    const [action, data] = mergeDataIntoQueryString(
-      method(),
-      isUrlMethodPair(props.action) ? props.action.url : props.action,
-      getData(),
-      props.queryStringArrayFormat,
-    )
+  function submit(submitter?: FormSubmitter) {
+    const [url, data] = getUrlAndData(submitter)
+    const formTarget = (submitter as HTMLButtonElement | HTMLInputElement | null)?.getAttribute('formtarget')
+
+    if (formTarget === '_blank' && method() === 'get') {
+      window.open(url, '_blank')
+      return
+    }
 
     function maybeReset(resetOption: boolean | string[]) {
       if (!resetOption) return
@@ -160,6 +229,7 @@ export default function Form(_props: FormProps) {
 
     const submitOptions: FormSubmitOptions = {
       headers: props.headers,
+      queryStringArrayFormat: props.queryStringArrayFormat,
       errorBag: props.errorBag,
       showProgress: props.showProgress,
       invalidateCacheTags: props.invalidateCacheTags,
@@ -186,8 +256,11 @@ export default function Form(_props: FormProps) {
       ...props.options,
     }
 
-    // We need to transform because we can't override the default data with different keys (by design)
-    form.transform(() => props.transform(data)).submit(method(), action, submitOptions)
+    // We need transform because we can't override the default data with different keys (by design)
+    form.transform(() => props.transform(data)).submit(method(), url, submitOptions)
+
+    // Reset the transformer back so the submitter is not used for future submissions
+    form.transform(getTransformedData)
   }
 
   const exposed: FormComponentSlotProps = {
@@ -209,16 +282,30 @@ export default function Form(_props: FormProps) {
     get recentlySuccessful() {
       return form.recentlySuccessful
     },
+    get isDirty() {
+      return isDirty()
+    },
     clearErrors: (...fields: string[]) => form.clearErrors(...fields),
     resetAndClearErrors,
     setError: (fieldOrFields: string | Errors, maybeValue?: ErrorValue) =>
       form.setError(typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields),
-    get isDirty() {
-      return isDirty()
-    },
     reset,
     submit,
     defaults,
+    getData,
+    getFormData,
+
+    // Precognition
+    touch: form.touch,
+    touched: form.touched,
+    get validating() {
+      return form.validating
+    },
+    valid: form.valid,
+    invalid: form.invalid,
+    validate: (field?: string | NamedInputEvent | ValidationConfig, config?: ValidationConfig) =>
+      form.validate(...UseFormUtils.mergeHeadersForValidation(field, config, props.headers)),
+    validator: () => form.validator(),
   }
 
   return createComponent(FormContext.Provider, {
@@ -236,9 +323,9 @@ export default function Form(_props: FormProps) {
           get method() {
             return method() as JSX.HTMLFormMethod
           },
-          onSubmit(event: Event) {
+          onSubmit(event: SubmitEvent) {
             event.preventDefault()
-            submit()
+            submit(event.submitter)
           },
           get inert() {
             return props.disableWhileProcessing && form.processing

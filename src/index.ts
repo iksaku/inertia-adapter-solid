@@ -8,7 +8,11 @@ export { default as Deferred } from './Deferred'
 export { default as Form, useFormContext } from './Form'
 export { default as InfiniteScroll } from './InfiniteScroll'
 export { default as Link, type InertiaLinkProps } from './Link'
-export { default as useForm, type InertiaFormProps } from './useForm'
+export {
+  default as useForm,
+  type InertiaFormProps,
+  type InertiaPrecognitiveFormProps,
+} from './useForm'
 export { default as usePage } from './usePage'
 export { default as usePoll } from './usePoll'
 export { default as usePrefetch } from './usePrefetch'

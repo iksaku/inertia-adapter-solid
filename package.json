@@ -37,10 +37,11 @@
     "prepublish": "pnpm build"
   },
   "dependencies": {
-    "@inertiajs/core": "^2.2.11",
+    "@inertiajs/core": "^2.3.21",
     "@solid-primitives/deep": "^0.3.3",
     "@solid-primitives/memo": "^1.4.3",
-    "es-toolkit": "^1.41.0"
+    "es-toolkit": "^1.41.0",
+    "laravel-precognition": "^1.0.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
