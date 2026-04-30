@@ -1,5 +1,13 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- 6e7e44c: Ability to reference `Form` API via SolidJS `ref`
+- d7873bd: View Transitions support for `Link` component
+- ab9f9df: Form Precognition support
+
 ## 1.0.0-beta.3
 
 ### Minor Changes
