@@ -35,6 +35,7 @@ import { createComponent, createDynamic } from 'solid-js/web'
 import useForm from './useForm'
 
 type FormProps = FormComponentProps & {
+  ref?: (val: FormComponentRef) => void
   children: JSX.Element | Component<FormComponentSlotProps>
 }
 
@@ -73,6 +74,7 @@ export default function Form(_props: FormProps) {
     'validateFiles',
     'validationTimeout',
     'withAllErrors',
+    'ref',
     'children',
   ])
 
@@ -307,6 +309,8 @@ export default function Form(_props: FormProps) {
       form.validate(...UseFormUtils.mergeHeadersForValidation(field, config, props.headers)),
     validator: () => form.validator(),
   }
+
+  props.ref?.(exposed)
 
   return createComponent(FormContext.Provider, {
     value: exposed,
