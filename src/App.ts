@@ -1,4 +1,4 @@
-import { type Page, type PageResolver, router } from '@inertiajs/core'
+import { type Page, type PageProps, type PageResolver, router } from '@inertiajs/core'
 import { MetaProvider } from '@solidjs/meta'
 import {
   type Component,
@@ -19,8 +19,8 @@ type InertiaComponent = Component<Page['props']> & {
   layout?: InertiaLayoutComponent | InertiaLayoutComponent[]
 }
 
-export type InertiaAppProps = {
-  initialPage: Page
+export type InertiaAppProps<SharedProps extends PageProps = PageProps> = {
+  initialPage: Page<SharedProps>
   initialComponent?: InertiaComponent
   resolveComponent?: PageResolver
 }

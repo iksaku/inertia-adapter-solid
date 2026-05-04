@@ -278,9 +278,39 @@ createServer((page) =>
       const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
       return pages[`./Pages/${name}.jsx`]
     },
+    setup: ({ App, props }) => <App {...props} />,
   }),
 )
 ```
+
+By default, we use the [`renderToString`](https://docs.solidjs.com/reference/rendering/render-to-string) function for SSR,
+but you may also pass a custom renderer to the `render` option:
+```js
+import { createInertiaApp } from 'inertia-adapter-solid'
+import createServer from 'inertia-adapter-solid/server'
+import { renderToStringAsync } from 'solid-js/web'
+
+createServer((page) =>
+  createInertiaApp({
+    // ...
+    render: renderToStringAsync
+  }),
+)
+```
+
+### Script Element for Initial Page
+
+By default, the initial page data is injected as a `data-page` attribute on the root `<div>`.
+You can switch to using a `<script type="application/json">` tag instead by enabling the
+`useScriptElementForInitialPage` future flag:
+
+```js
+import { config } from 'inertia-adapter-solid'
+
+config.set('future.useScriptElementForInitialPage', true)
+```
+
+This can help avoid issues with large page data exceeding HTML attribute size limits.
 
 ## Client-side Hydration
 
