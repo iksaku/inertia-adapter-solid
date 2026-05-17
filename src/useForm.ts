@@ -123,7 +123,7 @@ function createRememberStore<TValue extends object>(
   value: TValue,
   key: string | null,
   keySuffix: string,
-  dontRememberKeys: Set<string>,
+  dontRememberKeys: Set<FormDataKeys<TValue>>,
 ): ReturnType<typeof createStore<TValue>> {
   let restored = undefined
 
@@ -142,6 +142,7 @@ function createRememberStore<TValue extends object>(
     if (!isServer && !!key) {
       let dataToRemember = unwrap(store)
       if (dontRememberKeys.size > 0) {
+        // @ts-ignore
         dataToRemember = omit(dataToRemember, [...dontRememberKeys]) as TValue
       }
       router.remember(dataToRemember, key)
@@ -309,6 +310,7 @@ export default function useForm<TForm extends FormDataType<TForm> & ValidateForm
         return precognitiveForm
       },
       forgetError: (field: FormDataKeys<TForm> | NamedInputEvent) => {
+        // @ts-ignore
         setErrors((errors) => omit(errors, [resolveName(field as string | NamedInputEvent)]) as FormDataErrors<TForm>)
         return precognitiveForm
       },
