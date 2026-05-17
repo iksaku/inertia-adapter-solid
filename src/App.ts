@@ -2,9 +2,9 @@ import { type Page, type PageProps, type PageResolver, router } from '@inertiajs
 import { MetaProvider } from '@solidjs/meta'
 import {
   type Component,
+  type JSX,
   type ParentComponent,
   type ParentProps,
-  children,
   createComponent,
   createMemo,
   mergeProps,
@@ -70,27 +70,24 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     return []
   })
 
-  const renderChildren = (i = 0) => {
+  const renderChildren = (i = 0): JSX.Element => {
     const layout = createMemo(() => layouts()[i])
 
-    return children(() => {
-      if (!layout()) {
-        return createComponent(
-          current.component,
-          mergeProps({ key: current.key }, () => current.page.props),
-        )
-      }
-
-      // @ts-ignore
+    if (!layout()) {
       return createComponent(
-        layout(),
-        mergeProps(() => current.page.props, {
-          get children() {
-            return renderChildren(i + 1)
-          },
-        }),
+        current.component,
+        mergeProps({ key: current.key }, () => current.page.props),
       )
-    })
+    }
+
+    return createComponent(
+      layout(),
+      mergeProps(() => current.page.props, {
+        get children() {
+          return renderChildren(i + 1)
+        },
+      }),
+    )
   }
 
   return createComponent(MetaProvider, {
