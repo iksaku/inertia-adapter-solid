@@ -1,5 +1,65 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.5
+
+### Major Changes
+
+
+- 1f879da: Enhancements to SSR configuration
+  
+  ### Breaking Changes
+  - Server-Side Rendering configuration now expects a `setup` function to be provided:
+    ```js
+    createServer(
+      createInertiaApp({
+        // ...
+        setup: ({ App, props }) => <App {...props} />,
+      })
+    );
+    ```
+    This helps in customizing the setup process for SSR to match the CSR setup.
+
+  ### Enhancements
+
+  - Initial page loading now uses `getInitialPageFromDOM` from `@inertiajs/core`, enabling support for the `future.useScriptElementForInitialPage` config option. When enabled, the initial page data is injected as a `<script type="application/json">` tag instead of `data-page`.
+  - Server-Side Rendering configuration now supports defining a custom `render` function.
+
+    - Supported functions are [`renderToString`](https://docs.solidjs.com/reference/rendering/render-to-string) and [`renderToStringAsync`](https://docs.solidjs.com/reference/rendering/render-to-string-async):
+
+      ```js
+      import { renderToString } from "solid-js/web";
+
+      createServer(
+        createInertiaApp({
+          // ...
+          render: renderToString,
+        })
+      );
+
+      // Or...
+
+      import { renderToStringAsync } from "solid-js/web";
+
+      createServer(
+        createInertiaApp({
+          // ...
+          render: renderToStringAsync,
+        })
+      );
+      ```
+
+      If no `render` function is provided, `renderToString` will be used by default, as it was the behavior in previous versions of the adapter.
+
+  - `InertiaAppProps` is now generic: `InertiaAppProps<SharedProps>`. The default remains `PageProps`, so existing code continues to work unchanged.
+
+### Patch Changes
+
+- dfcdaa0: Bump dependencies
+- 4bd1a29: Support `useForm()` with zero arguments
+- 1c0d1ed: Simplify layout rendering
+- 618c737: Fix types in useForm
+- 45b4712: Export `App` component
+
 ## 1.0.0-beta.4
 
 ### Patch Changes
