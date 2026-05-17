@@ -224,7 +224,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     onMouseEnter() {
       hoverTimeout = setTimeout(() => {
         prefetch()
-      }, 75)
+      }, config.get('prefetch.hoverDelay'))
     },
     onMouseLeave() {
       clearTimeout(hoverTimeout)
