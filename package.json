@@ -33,7 +33,9 @@
   },
   "scripts": {
     "dev": "./build.js --watch",
-    "build": "rm -rf dist && ./build.js && tsc --emitDeclarationOnly",
+    "prebuild": "rm -rf dist",
+    "build": "./build.js",
+    "postbuild": "tsc --emitDeclarationOnly",
     "prepublish": "pnpm build"
   },
   "dependencies": {
@@ -50,11 +52,11 @@
     "@solidjs/meta": "^0.29.4",
     "esbuild": "^0.25.12",
     "esbuild-node-externals": "^1.22.0",
-    "solid-js": "^1.9.12",
+    "solid-js": "^1.9.13",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@solidjs/meta": "^0.29.3",
-    "solid-js": "^1.8.0"
+    "@solidjs/meta": "^0.29.4",
+    "solid-js": "^1.9.13"
   }
 }
