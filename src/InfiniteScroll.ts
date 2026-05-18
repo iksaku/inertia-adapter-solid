@@ -1,6 +1,7 @@
 import {
   type InfiniteScrollActionSlotProps,
   type InfiniteScrollComponentBaseProps,
+  type InfiniteScrollRef,
   type InfiniteScrollSlotProps,
   getScrollableParent,
   useInfiniteScroll,
@@ -27,16 +28,17 @@ import {
 import { createDynamic } from 'solid-js/web'
 import type { DynamicProps } from './types'
 
-type InfiniteScrollRef = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
+type InfiniteScrollRefProp = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
 
 type SlotComponent<TProps = unknown> = (string & {}) | Component<TProps>
 
 type InfiniteScrollProps<T extends ValidComponent = 'div'> = DynamicProps<
   T,
   InfiniteScrollComponentBaseProps & {
-    itemsElement?: InfiniteScrollRef
-    startElement?: InfiniteScrollRef
-    endElement?: InfiniteScrollRef
+    itemsElement?: InfiniteScrollRefProp
+    startElement?: InfiniteScrollRefProp
+    endElement?: InfiniteScrollRefProp
+    ref?: (val: InfiniteScrollRef) => void
 
     // Children Slots
     loading?: SlotComponent<InfiniteScrollActionSlotProps>
@@ -46,7 +48,7 @@ type InfiniteScrollProps<T extends ValidComponent = 'div'> = DynamicProps<
   }
 >
 
-function resolveHTMLElement(value: InfiniteScrollRef, fallback: HTMLElement | null): HTMLElement | null {
+function resolveHTMLElement(value: InfiniteScrollRefProp, fallback: HTMLElement | null): HTMLElement | null {
   if (!value) {
     return fallback
   }
@@ -81,6 +83,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
       _props,
     ),
     [
+      'ref',
       'data',
       'buffer',
       'as',
@@ -111,6 +114,14 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
 
   const scrollableParent = createLazyMemo(() => getScrollableParent(resolvedItemsElement()))
 
+  function syncStateFromDataManager() {
+    batch(() => {
+      setRequestCount(dataManager.getRequestCount())
+      setHasPrevious(dataManager.hasPrevious())
+      setHasNext(dataManager.hasNext())
+    })
+  }
+
   const {
     dataManager,
     elementManager,
@@ -136,20 +147,19 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     onCompletePreviousRequest: () => {
       batch(() => {
         setLoadingPrevious(false)
-        setRequestCount(dataManager.getRequestCount())
+        syncStateFromDataManager()
       })
-
-      setHasPrevious(dataManager.hasPrevious())
     },
     onCompleteNextRequest: () => {
       batch(() => {
         setLoadingNext(false)
-        setRequestCount(dataManager.getRequestCount())
+        syncStateFromDataManager()
       })
-
-      setHasNext(dataManager.hasNext())
     },
+    onDataReset: syncStateFromDataManager,
   })
+
+  syncStateFromDataManager()
 
   const [loadingPrevious, setLoadingPrevious] = createSignal(false)
   const [loadingNext, setLoadingNext] = createSignal(false)
@@ -189,6 +199,13 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     if (autoLoad()) {
       elementManager.enableTriggers()
     }
+
+    props.ref?.({
+      fetchNext: dataManager.fetchNext,
+      fetchPrevious: dataManager.fetchPrevious,
+      hasPrevious: dataManager.hasPrevious,
+      hasNext: dataManager.hasNext,
+    })
   })
 
   onCleanup(() => {
