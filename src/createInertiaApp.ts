@@ -84,11 +84,12 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     if (isServer) {
       const ssrSetup = setup as (options: SetupOptions<null, SharedProps>) => JSX.Element
 
-      return ssrSetup({
-        el: null,
-        App,
-        props,
-      })
+      return () =>
+        ssrSetup({
+          el: null,
+          App,
+          props,
+        })
     }
 
     const csrSetup = setup as (options: SetupOptions<Element, SharedProps>) => void
@@ -108,7 +109,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     const element = () => {
       if (!useScriptElementForInitialPage) {
         return createDynamic(() => 'div', {
-          children: solidApp,
+          children: solidApp(),
           id,
           // @ts-expect-error: data-* attributes are not typed.
           'data-page': JSON.stringify(initialPage),
@@ -123,7 +124,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
           'data-page': id,
         }),
         createDynamic(() => 'div', {
-          children: solidApp,
+          children: solidApp(),
           id,
         }),
       ]
