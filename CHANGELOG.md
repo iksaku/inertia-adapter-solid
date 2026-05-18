@@ -1,13 +1,22 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- b90f08f: Bump dependencies
+- 6475742: Fix SSR hydration mismatch error
+- a969f67: Pull Link hover delay from config
+- ba29830: Fix missing `InfiniteScroll.onDataReset`. Expose InfiniteScroll API via `ref`
+
 ## 1.0.0-beta.5
 
 ### Major Changes
 
-
 - 1f879da: Enhancements to SSR configuration
-  
+
   ### Breaking Changes
+
   - Server-Side Rendering configuration now expects a `setup` function to be provided:
     ```js
     createServer(
