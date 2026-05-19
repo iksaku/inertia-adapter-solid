@@ -2,6 +2,10 @@
 
 An adapter to bring [SolidJS](https://www.solidjs.com) compatibility to systems using [InertiaJS](https://inertiajs.com/).
 
+> [!Important]
+> This version of the adapter is compatible with Inertia.js v3.x.
+> If you are using Inertia.js v2.x, please use an earlier version of this adapter.
+
 # Installation
 
 ```sh
@@ -18,28 +22,57 @@ pnpm add -D solid-js vite-plugin-solid @solidjs/meta inertia-adapter-solid
 ## Setup Vite
 
 In your `vite.config.js` file, you will need to add the SolidJS plugin if not done already.
+You will also need to register the Solid framework configuration with Inertia's Vite plugin.
 
 ```diff
   import { defineConfig } from 'vite'
 + import solid from 'vite-plugin-solid'
++ import inertiaSolidFramework from 'inertia-adapter-solid/vite'
 
   export default defineConfig({
-      plugins: [
-          laravel({
-              input: ['resources/css/app.css', 'resources/js/app.js'],
-              refresh: true,
-          }),
-+         solid(),
-          // ...
-      ]
+    plugins: [
+      laravel({
+        input: ['resources/js/app.jsx'],
+        refresh: true,
+      }),
++     solid({ ssr: true }),
++     inertia({
++       frameworks: inertiaSolidFramework,
++     })
+      // ...
+    ]
   })
 ```
+
+When adding the Solid Framework configuration for Inertia,
+the Inertia Vite plugin will automatically handle:
+* Component resolution
+* [Server-Side rendering](#server-side-rendering-ssr)
 
 ## Initialize the Inertia app
 
 Next, update your main JavaScript file to boot your Inertia app.
-To accomplish this, we'll initialize SolidJS with
-the base Inertia component.
+
+```jsx
+import { createInertiaApp } from 'inertia-adapter-solid'
+
+createInertiaApp()
+```
+
+> [!TIP]
+> You can also customize Inertia's configuration like other official adapters.
+> 
+> Learn more at the official [Client-Side Setup](https://inertiajs.com/docs/v3/installation/client-side-setup)
+> documentation.
+
+### Manual Setup
+
+If you prefer not to use the Vite plugin,
+you may provide the `resolve` and `setup` callbacks manually.
+The `resolve` callback tells Inertia how to load a page
+component and receives the component name and the full
+[page object](https://inertiajs.com/docs/v3/core-concepts/the-protocol).
+The `setup` callback initializes the client-side framework.
 
 ```jsx
 import { createInertiaApp } from 'inertia-adapter-solid'
@@ -47,39 +80,13 @@ import { render } from 'solid-js/web'
 
 createInertiaApp({
   resolve(name) {
-    const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
-    return pages[`./Pages/${name}.jsx`]
+    const pages = import.meta.glob('./Pages/**/*.jsx')
+    return pages[`./Pages/${name}.jsx`]()
   },
   setup({ el, App, props }) {
     render(() => <App {...props} />, el)
   },
 })
-```
-
-### Defining a root element
-
-By default, Inertia assumes that yoru application's root template has a root element
-with an `id` of `app`. If your application's root element has a different `id`, you
-can provide it using the `id` property.
-
-```js
-createInertiaApp({
-  id: 'my-app',
-  // ...
-})
-```
-
-### Code splitting
-
-Vite enables code splitting (or lazy-loading as they call it) by default when using
-their `import.meta.glob()` function, so simply omit the `{ eager: true }` option,
-or set it to `false`, to disable eager loading.
-
-```diff
-- const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
-- return pages[`./Pages/${name}.jsx`]
-+ const pages = import.meta.glob('./Pages/**/*.jsx')
-+ return pages[`./Pages/${name}.jsx`]()
 ```
 
 ## Pages
@@ -91,23 +98,29 @@ import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user = () => props.user
-
   return (
     <Layout>
         <Title>Welcome</Title>
         <h1>Welcome</h1>
-        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+        <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
     </Layout>
   )
 }
 ```
 
+> [!TIP]
+> Learn more at the official [Pages](https://inertiajs.com/docs/v3/the-basics/pages)
+> documentation.
+
+> [!IMPORTANT]
+> Remember that
+> [destructuring props](https://docs.solidjs.com/concepts/components/props#destructuring-props)
+> breaks SolidJS reactivity!
+
 ### Creating Layouts
 
-While not required, for most projects it makes sense to create a site layout that all
-of your pages can extend. You may have noticed in our example above that we're wrapping
-the page content within a `<Layout>` component. Here's an example of such component:
+A layout is a standard component that accepts child content.
+There is nothing Inertia-specific about it.
 
 ```jsx
 import { Link } from 'inertia-adapter-solid'
@@ -126,31 +139,45 @@ export default function Layout(props) {
 }
 ```
 
-As you can see, this is a typical Solid component.
+You may use a layout by wrapping your page content with it directly.
+However, this approach forces the layout instance to be destroyed
+and recreated between visits.
+
+```jsx
+import Layout from './Layout'
+
+export default function Welcome(props) {
+  return (
+    <Layout>
+      <h1>Welcome</h1>
+      <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
+    </Layout>
+  )
+}
+```
 
 ### Persistent Layouts
 
-While it's simple to implement layouts as children of page components, it forces the
-layout instance to be destroyed and recreated between visits. This means that you cannot
-have persistent layout state when navigating between pages.
-
-For example, maybe you have an audio player on a podcast website that you want to continue
-playinh as users navigate the site. Or, maybe, you simply want to maintain the scroll
-position in your sidebar navigation between page visits. In these situations, the solution
-is to leverage Inertia's persistent layouts.
+Wrapping a page with a layout as a child component works,
+but it means the layout is destroyed and recreated on every
+visit.
+This prevents maintaining layout state across navigations,
+such as an audio player that should keep playing or a sidebar
+that should retain its scroll position.
+Persistent layouts solve this by telling Inertia which layout
+to use for a page. Inertia then manages the layout instance
+separately, keeping it alive between visits.
 
 ```jsx
 import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user = () => props.user
-
   return (
     <>
         <Title>Welcome</Title>
         <h1>Welcome</h1>
-        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+        <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
     </>
   )
 }
@@ -166,13 +193,11 @@ import NestedLayout from './NestedLayout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user = () => props.user
-
   return (
     <>
         <Title>Welcome</Title>
         <h1>Welcome</h1>
-        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+        <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
     </>
   )
 }
@@ -187,13 +212,11 @@ import Layout from './Layout'
 import { Title } from '@solidjs/meta'
 
 export default function Welcome(props) {
-  const user = () => props.user
-
   return (
     <Layout>
         <Title>Welcome</Title>
         <h1>Welcome</h1>
-        <p>Hello {user().name}, welcome to your first Inertia app!</p>
+        <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
     </Layout>
   )
 }
@@ -206,6 +229,10 @@ Welcome.layout = (props) => {
   </SiteLayout>
 }
 ```
+
+> [!TIP]
+> Learn more at the official [Layouts](https://inertiajs.com/docs/v3/the-basics/layouts)
+> documentation.
 
 ## Title & Metadata
 
@@ -240,32 +267,49 @@ Actually, the fix is really simple. Add the following to your `tsconfig.json` fi
 }
 ```
 
+> [!TIP]
+> Learn more at the official [Typescript](https://inertiajs.com/docs/v3/advanced/typescript)
+> documentation.
+
 # Server-side Rendering (SSR)
 
-Server-side rendering pre-renders your JavaScript pages on the server, allowing your
-visitors to receive fully rendered HTML when they visit your application. Since fully
-rendered HTML is served by your application, it's also easier for search engines to index
-your site.
+Server-side rendering pre-renders your JavaScript pages on the server,
+allowing your visitors to receive fully rendered HTML when they visit
+your application.
+Since fully rendered HTML is served by your application, it’s also
+easier for search engines to index your site.
 
-> **Warning**
-> Server-side rendering uses Node.js to render your pages in a background process;
-> therefore, Node must be available on your server for server-side rendering to function
-> properly.
+Server-side rendering uses Node.js to render your pages in a background
+process; therefore, Node must be available on your server for
+server-side rendering to function properly.
+Inertia’s SSR server requires Node.js 22 or higher.
 
-> **Note**
-> For this adapter, no additional dependencies are required.
+## Update build script
 
-## Add server entry-point
+Update the `build` script in your `package.json` to build both bundles.
 
-Create a `resources/js/ssr.js` file whitin your Laravel project that will serve as the SSR
-entry point.
-
-```sh
-touch resources/js/ssr.js
+```diff
+  "scripts" {
+      "dev": "vite",
+-     "build": "vite build"
++     "build": "vite build && vite build --ssr"
+  }
 ```
 
-This file is going to look very similar to your `resources/js/app.js` file, except it's not
-going to run in the browser, but rather in Node.js. Here's a complete example.
+> [!TIP]
+> Learn more at the official [Server-Side Rendering](https://inertiajs.com/docs/v3/advanced/server-side-rendering)
+> documentation.
+
+## SSR Manual Setup
+
+The Vite plugin reuses your app.js entry point for SSR by default,
+so no separate file is needed.
+
+For more control, such as providing a [manual setup callback](#manual-setup),
+you may create a separate `resources/js/ssr.jsx` entry point and
+update your `app.jsx` to use [client-side hydration](#client-side-hydration).
+
+### SSR Entrypoint
 
 ```jsx
 import { createInertiaApp } from 'inertia-adapter-solid'
@@ -275,13 +319,16 @@ createServer((page) =>
   createInertiaApp({
     page,
     resolve(name) {
-      const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
-      return pages[`./Pages/${name}.jsx`]
+      const pages = import.meta.glob('./Pages/**/*.jsx')
+      return pages[`./Pages/${name}.jsx`]()
     },
     setup: ({ App, props }) => <App {...props} />,
   }),
 )
 ```
+
+Be sure to add anything that’s missing from your `app.js` file that
+makes sense to run in SSR mode, such as plugins or custom mixins.
 
 By default, we use the [`renderToString`](https://docs.solidjs.com/reference/rendering/render-to-string) function for SSR,
 but you may also pass a custom renderer to the `render` option:
@@ -298,24 +345,12 @@ createServer((page) =>
 )
 ```
 
-### Script Element for Initial Page
+### Client-side Hydration
 
-By default, the initial page data is injected as a `data-page` attribute on the root `<div>`.
-You can switch to using a `<script type="application/json">` tag instead by enabling the
-`useScriptElementForInitialPage` future flag:
-
-```js
-import { config } from 'inertia-adapter-solid'
-
-config.set('future.useScriptElementForInitialPage', true)
-```
-
-This can help avoid issues with large page data exceeding HTML attribute size limits.
-
-## Client-side Hydration
-
-Since your website will now be server-side rendered, you can instruct SolidJS to "hydrate" the
-static markup and make it interactive instead of re-rendering all the HTML that we just generated.
+You should also update your app.js to use hydration instead of normal
+rendering.
+This allows React to pick up the server-rendered HTML and make it
+interactive without re-rendering it.
 
 ```diff
   import { createInertiaApp } from 'inertia-adapter-solid'
@@ -323,63 +358,17 @@ static markup and make it interactive instead of re-rendering all the HTML that 
 + import { hydrate } from 'solid-js/web'
 
   createInertiaApp({
-      resolve(name) {
-          const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
-          return pages[`./Pages/${name}.jsx`]
-      },
-      setup({ el, App, props }) {
--         render(() => <App {...props} />, el)
-+         hydrate(() => <App {...props} />, el)
-      },
+    resolve(name) {
+      const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true })
+      return pages[`./Pages/${name}.jsx`]
+    },
+    setup({ el, App, props }) {
+-     render(() => <App {...props} />, el)
++     hydrate(() => <App {...props} />, el)
+    },
   })
-```
-
-## Setup Vite
-
-Next, we need to update our Vite configuration to build our new ssr.js file. We can do this
-by adding a ssr property to Laravel's Vite plugin configuration in our vite.config.js file.
-
-```diff
-  export default defineConfig({
-      plugins: [
-          laravel({
-              input: ['resources/css/app.css', 'resources/js/app.js'],
-+             ssr: 'resources/js/ssr.js',
-              refresh: true,
-          }),
--         solid(),
-+         solid({ ssr: true }),
-          // ...
-      ],
-  })
-```
-
-## Update build script
-
-Next, let's update the `build` script in our `pacakge.json` file to also build
-our new `ssr.js` file.
-
-```diff
-  "scripts" {
-      "dev": "vite",
--     "build": "vite build"
-+     "build": "vite build && vite build --ssr"
-  }
-```
-
-Now you can build both your client-side and server-side bundles.
-
-```sh
-# Using NPM
-npm run build
-
-# Using Yarn
-yarn build
-
-# Using PNPM
-pnpm build
 ```
 
 ## Next steps
 
-You can read the full documentation on Server-side Rendering on [InertiaJS's Offial Guide](https://inertiajs.com/server-side-rendering).
+You can read the full documentation on Server-side Rendering on [InertiaJS's Official Guide](https://inertiajs.com/docs/v3).

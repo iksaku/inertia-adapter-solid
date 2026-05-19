@@ -3,5 +3,6 @@
 .idea
 /.vscode/
 dist
+types
 explorations
 node_modules

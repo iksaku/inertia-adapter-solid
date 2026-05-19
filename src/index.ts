@@ -1,7 +1,7 @@
 import { config as coreConfig } from '@inertiajs/core'
 import type { SolidInertiaAppConfig } from './types'
 
-export { progress, router } from '@inertiajs/core'
+export { http, progress, router } from '@inertiajs/core'
 export { default as App } from './App'
 export { default as createInertiaApp } from './createInertiaApp'
 

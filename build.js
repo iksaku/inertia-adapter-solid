@@ -1,16 +1,29 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
 import esbuild from 'esbuild'
 import { nodeExternalsPlugin } from 'esbuild-node-externals'
 
 const watch = process.argv.slice(1).includes('--watch')
+const withDeps = process.argv.slice(1).includes('--with-deps')
+
+// For regular builds, externalize all dependencies to keep the bundle size small (using nodeExternalsPlugin).
+// For builds with dependencies, only externalize peer dependencies and bundle everything
+// else so we can check ES2022 compatibility without checking framework code.
+let externalDependencies = undefined
+
+if (withDeps) {
+  const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
+  externalDependencies = Object.keys(pkg.peerDependencies || {})
+}
 
 const config = {
   bundle: true,
   minify: false,
-  sourcemap: true,
-  target: 'es2020',
+  sourcemap: !withDeps,
+  target: 'es2022',
+  external: externalDependencies,
   plugins: [
-    nodeExternalsPlugin(),
+    ...(withDeps ? [] : [nodeExternalsPlugin()]),
     {
       name: 'inertia',
       setup(build) {
@@ -26,13 +39,11 @@ const config = {
 }
 
 const builds = [
-  { entryPoints: ['src/index.ts'], format: 'esm', outfile: 'dist/index.esm.js', platform: 'browser' },
-  { entryPoints: ['src/index.ts'], format: 'cjs', outfile: 'dist/index.js', platform: 'browser' },
-  { entryPoints: ['src/server.ts'], format: 'esm', outfile: 'dist/server.esm.js', platform: 'node' },
-  { entryPoints: ['src/server.ts'], format: 'cjs', outfile: 'dist/server.js', platform: 'node' },
+  { entryPoints: ['src/index.ts'], format: 'esm', outfile: 'dist/index.js', platform: 'browser' },
+  { entryPoints: ['src/server.ts'], format: 'esm', outfile: 'dist/server.js', platform: 'node' },
+  { entryPoints: ['src/vite.ts'], format: 'esm', outfile: 'dist/vite.js', platform: 'node' },
 ]
 
-// biome-ignore lint/complexity/noForEach: <explanation>
 builds.forEach(async (build) => {
   const context = await esbuild.context({ ...config, ...build })
 
@@ -42,6 +53,6 @@ builds.forEach(async (build) => {
   } else {
     await context.rebuild()
     context.dispose()
-    console.log(`Built ${build.entryPoints} (${build.format})...`)
+    console.log(`Built ${build.entryPoints} (${build.format}) ${withDeps ? '(with-deps)' : ''}...`)
   }
 })

@@ -1,14 +1,21 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "rootDir": "src",
+    "noEmitOnError": true,
 
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "lib": ["DOM", "DOM.Iterable", "es2022"],
+    "target": "es2022",
 
     "declaration": true,
-    "declarationDir": "dist/types"
+    "declarationDir": "types",
+    "emitDeclarationOnly": true,
+
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js"
   },
-  "include": ["src/index.ts", "src/server.ts"]
+  "include": ["src/index.ts", "src/server.ts", "src/vite.ts"]
 }

@@ -26,7 +26,8 @@
       },
       "style": { "noParameterAssign": "off" },
       "suspicious": {
-        "noRedeclare": "off"
+        "noRedeclare": "off",
+        "noConfusingVoidType": "off"
       }
     }
   },

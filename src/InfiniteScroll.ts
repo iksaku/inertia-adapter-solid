@@ -338,7 +338,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
 
     return untrack(() => {
       if (reverse) {
-        return renderedChildren.toArray().toReversed()
+        return [...renderedChildren.toArray()].reverse()
       }
 
       return renderedChildren()
