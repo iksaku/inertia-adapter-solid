@@ -8,6 +8,7 @@ import {
   config,
   isUrlMethodPair,
   mergeDataIntoQueryString,
+  resolveUrlMethodPairComponent,
   router,
   shouldIntercept,
   shouldNavigate,
@@ -53,7 +54,6 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     'headers',
     'queryStringArrayFormat',
     'async',
-    'viewTransition',
     'onClick',
     'onCancelToken',
     'onBefore',
@@ -68,6 +68,10 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     'prefetch',
     'cacheFor',
     'cacheTags',
+    'viewTransition',
+    'component',
+    'instant',
+    'pageProps',
   ])
 
   // Set default prop values
@@ -86,9 +90,24 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       headers: {},
       queryStringArrayFormat: 'brackets',
       async: false,
+      onClick: noop,
+      onCancelToken: noop,
+      onBefore: noop,
+      onStart: noop,
+      onProgress: noop,
+      onFinish: noop,
+      onCancel: noop,
+      onSuccess: noop,
+      onError: noop,
+      onPrefetching: noop,
+      onPrefetched: noop,
       prefetch: false,
       cacheFor: 0,
       cacheTags: [],
+      viewTransition: false,
+      component: null,
+      instant: false,
+      pageProps: null,
     },
     props,
   )
@@ -96,9 +115,21 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
   const [inFlightCount, setInFlightCount] = createSignal(0)
   let hoverTimeout: ReturnType<typeof setTimeout>
 
-  const method = createMemo(() =>
+  const method = createMemo<Method>(() =>
     isUrlMethodPair(props.href) ? props.href.method : (props.method.toLowerCase() as Method),
   )
+
+  const resolvedComponent = createMemo(() => {
+    if (props.component) {
+      return props.component
+    }
+
+    if (props.instant && isUrlMethodPair(props.href)) {
+      return resolveUrlMethodPairComponent(props.href)
+    }
+
+    return null
+  })
 
   const as = createMemo(() => {
     if (typeof props.as !== 'string' || props.as.toLowerCase() !== 'a') {
@@ -132,25 +163,27 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     except: props.except,
     headers: props.headers,
     async: props.async,
-    viewTransition: props.viewTransition,
+    component: resolvedComponent(),
+    pageProps: props.pageProps,
   }))
 
   const visitParams = createMemo<VisitOptions>(() => ({
     ...baseParams(),
-    onCancelToken: props.onCancelToken ?? noop,
-    onBefore: props.onBefore ?? noop,
+    viewTransition: props.viewTransition,
+    onCancelToken: props.onCancelToken,
+    onBefore: props.onBefore,
     onStart(visit: PendingVisit) {
       setInFlightCount((count) => count + 1)
-      props.onStart?.(visit)
+      props.onStart(visit)
     },
-    onProgress: props.onProgress ?? noop,
+    onProgress: props.onProgress,
     onFinish(visit: ActiveVisit) {
       setInFlightCount((count) => count - 1)
-      props.onFinish?.(visit)
+      props.onFinish(visit)
     },
-    onCancel: props.onCancel ?? noop,
-    onSuccess: props.onSuccess ?? noop,
-    onError: props.onError ?? noop,
+    onCancel: props.onCancel,
+    onSuccess: props.onSuccess,
+    onError: props.onError,
   }))
 
   const prefetchModes = createMemo<LinkPrefetchOption[]>(() => {
@@ -192,8 +225,8 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       url(),
       {
         ...baseParams(),
-        onPrefetching: props.onPrefetching ?? noop,
-        onPrefetched: props.onPrefetched ?? noop,
+        onPrefetching: props.onPrefetching,
+        onPrefetched: props.onPrefetched,
       },
       { cacheFor: cacheForValue(), cacheTags: props.cacheTags },
     )
@@ -211,7 +244,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
 
   const regularEvents = {
     onClick(event: MouseEvent) {
-      props.onClick?.(event)
+      props.onClick(event)
 
       if (shouldIntercept(event)) {
         event.preventDefault()
@@ -246,8 +279,10 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       }
     },
     onMouseUp(event: MouseEvent) {
-      event.preventDefault()
-      router.visit(url(), visitParams())
+      if (shouldIntercept(event)) {
+        event.preventDefault()
+        router.visit(url(), visitParams())
+      }
     },
     onKeyUp(event: KeyboardEvent) {
       if (shouldNavigate(event)) {
@@ -256,7 +291,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       }
     },
     onClick(event: MouseEvent) {
-      props.onClick?.(event)
+      props.onClick(event)
 
       if (shouldIntercept(event)) {
         // Let the mouseup/keyup event handle the visit
