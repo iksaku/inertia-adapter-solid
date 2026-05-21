@@ -9,6 +9,7 @@ import {
   buildSSRBody,
   config,
   getInitialPageFromDOM,
+  http as httpModule,
   router,
   setupProgress,
 } from '@inertiajs/core'
@@ -36,7 +37,7 @@ type ComponentResolver = (
   page?: Page<SharedPageProps>,
 ) => Component | Promise<Component> | { default: Component }
 
-type SolidWithApp = (app: JSX.Element, options: { ssr: boolean }) => void
+type SolidWithApp = (app: Component, options: { ssr: boolean }) => JSX.Element
 
 type InertiaAppOptionsForCSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForCSR<
   SharedProps,
@@ -96,10 +97,10 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     page,
     render = renderToString,
     defaults = {},
-    // TODO: nonce
-    // TODO: http
+    nonce,
+    http,
     // TODO: layout
-    // TODO: withApp
+    withApp,
   }:
     | InertiaAppOptionsForCSR<SharedProps>
     | InertiaAppOptionsForSSR<SharedProps>
@@ -107,8 +108,13 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
 ): Promise<InertiaAppSSRResponse | RenderFunction<SharedProps> | void> {
   config.replace(defaults)
 
-  // TODO: nonce
-  // TODO: http
+  if (nonce) {
+    config.set('nonce', nonce)
+  }
+
+  if (http) {
+    httpModule.setClient(http)
+  }
 
   const resolveComponent = (name: string, page?: Page) =>
     Promise.resolve(resolve(name, page)).then((module) => {
@@ -140,7 +146,10 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
       } else {
         solidApp = () => createComponent(App, props)
 
-        // TODO: withApp
+        if (withApp) {
+          const _solidApp = solidApp
+          solidApp = () => withApp(_solidApp, { ssr: true })
+        }
       }
 
       const html = await render(solidApp)
@@ -188,7 +197,12 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
       return
     }
 
-    const appElement = () => createComponent(App, props)
+    let appElement = () => createComponent(App, props)
+
+    if (withApp) {
+      const _appElement = appElement
+      appElement = () => withApp(_appElement, { ssr: false })
+    }
 
     if (el.hasAttribute('data-server-rendered')) {
       hydrateRoot(appElement, el)
