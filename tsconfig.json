@@ -12,10 +12,11 @@
 
     "module": "es2022",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
 
     "jsx": "preserve",
     "jsxImportSource": "solid-js"
   },
-  "include": ["src/index.ts", "src/server.ts", "src/vite.ts"]
+  "include": ["src/index.ts", "src/server.ts", "src/vite.ts", "src/create-inertia-app.type-test.d.ts"]
 }
