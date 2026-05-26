@@ -1,6 +1,6 @@
 import type { Page, PageProps, SharedPageProps } from '@inertiajs/core'
 import type { Component } from 'solid-js'
-import createInertiaApp from './createInertiaApp.ts'
+import createInertiaApp from './createInertiaApp'
 
 type Assert<T extends true> = T
 
