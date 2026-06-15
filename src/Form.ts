@@ -14,6 +14,7 @@ import {
   isUrlMethodPair,
   mergeDataIntoQueryString,
   resetFormFields,
+  resolveUrlMethodPairComponent,
 } from '@inertiajs/core'
 import { isEqual } from 'es-toolkit'
 import type { NamedInputEvent, ValidationConfig } from 'laravel-precognition'
@@ -73,7 +74,10 @@ export default function Form(_props: FormProps) {
     'invalidateCacheTags',
     'validateFiles',
     'validationTimeout',
+    'optimistic',
     'withAllErrors',
+    'component',
+    'instant',
     'ref',
     'children',
   ])
@@ -95,7 +99,10 @@ export default function Form(_props: FormProps) {
       invalidateCacheTags: [],
       validateFiles: false,
       validationTimeout: 1500,
+      optimistic: null,
       withAllErrors: null,
+      component: null,
+      instant: false,
     },
     props,
   )
@@ -146,6 +153,18 @@ export default function Form(_props: FormProps) {
   }
 
   const method = createMemo(() => (isUrlMethodPair(props.action) ? props.action.method : (props.method as Method)))
+
+  const resolvedComponent = createMemo(() => {
+    if (props.component) {
+      return props.component
+    }
+
+    if (props.instant && isUrlMethodPair(props.action)) {
+      return resolveUrlMethodPairComponent(props.action)
+    }
+
+    return null
+  })
 
   // Can't use computed because FormData is not reactive
   const [isDirty, setIsDirty] = createSignal(false)
@@ -235,6 +254,8 @@ export default function Form(_props: FormProps) {
       errorBag: props.errorBag,
       showProgress: props.showProgress,
       invalidateCacheTags: props.invalidateCacheTags,
+      component: resolvedComponent(),
+      optimistic: props.optimistic ? (pageProps) => props.optimistic(pageProps, data) : undefined,
       onCancelToken: props.onCancelToken ?? noop,
       onBefore: props.onBefore ?? noop,
       onBeforeUpdate: props.onBeforeUpdate ?? noop,
