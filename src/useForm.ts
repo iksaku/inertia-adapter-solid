@@ -9,6 +9,7 @@ import {
   type FormDataValues,
   type GlobalEventsMap,
   type Method,
+  type OptimisticCallback,
   type Page,
   type PendingVisit,
   type RequestPayload,
@@ -79,6 +80,8 @@ export interface InertiaFormProps<TForm extends Record<string, FormDataConvertib
   cancel(): void
 
   dontRemember<K extends FormDataKeys<TForm>>(...fields: K[]): this
+
+  optimistic<TProps>(callback: OptimisticCallback<TProps>): this
 
   withPrecognition(...args: UseFormWithPrecognitionArguments): InertiaPrecognitiveFormProps<TForm>
 }
@@ -196,6 +199,7 @@ export default function useForm<TForm extends FormDataType<TForm> & ValidateForm
   let cancelToken = null
   let recentlySuccessfulTimeoutId = null
   let transform: UseFormTransformCallback<TForm> = (data) => data
+  let pendingOptimisticCallback: OptimisticCallback | null = null
 
   // Track if defaults was called manually during onSuccess to avoid
   // overriding user's custom defaults with automatic behavior.
@@ -524,6 +528,9 @@ export default function useForm<TForm extends FormDataType<TForm> & ValidateForm
         },
       }
 
+      _options.optimistic = _options.optimistic ?? pendingOptimisticCallback ?? undefined
+      pendingOptimisticCallback = null
+
       const transformedData = transform(unwrap(data)) as RequestPayload
 
       if (method === 'delete') {
@@ -552,6 +559,11 @@ export default function useForm<TForm extends FormDataType<TForm> & ValidateForm
       if (cancelToken) {
         cancelToken.cancel()
       }
+    },
+
+    optimistic<TProps>(callback: OptimisticCallback<TProps>) {
+      pendingOptimisticCallback = callback as OptimisticCallback
+      return this
     },
 
     dontRemember(...fields: FormDataKeys<TForm>[]) {
