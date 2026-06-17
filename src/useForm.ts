@@ -39,6 +39,8 @@ export interface InertiaFormProps<TForm extends Record<string, FormDataConvertib
   withPrecognition(...args: UseFormWithPrecognitionArguments): InertiaPrecognitiveFormProps<TForm>
 }
 
+export type InertiaForm<TForm extends Record<string, FormDataConvertible> = Record<string, FormDataConvertible>> = InertiaFormProps<TForm>
+
 export interface InertiaFormValidationProps<TForm extends Record<string, FormDataConvertible>> {
   invalid<K extends FormDataKeys<TForm>>(field: K): boolean
   setValidationTimeout(duration: number): InertiaPrecognitiveFormProps<TForm>
