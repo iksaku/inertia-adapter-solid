@@ -26,6 +26,7 @@ import { type Setter, batch, createEffect, createMemo, createSignal, untrack } f
 import { type SetStoreFunction, type Store, createStore, produce, reconcile, unwrap } from 'solid-js/store'
 import { isServer } from 'solid-js/web'
 import useRemember from './useRemember'
+import { cloneStore } from './util'
 
 export type PrecognitionValidationConfig<TKeys> = ValidationConfig & {
   only?: TKeys[] | Iterable<TKeys> | ArrayLike<TKeys>
@@ -470,8 +471,4 @@ export default function useFormState<TForm extends object>(
       },
     },
   }
-}
-
-function cloneStore<TStore extends Store<object>>(store: TStore): TStore {
-  return cloneDeep(unwrap(store))
 }

@@ -14,6 +14,7 @@ export {
   type InertiaFormProps,
   type InertiaPrecognitiveFormProps,
 } from './useForm'
+export { default as useHttp } from './useHttp'
 export { default as usePage } from './usePage'
 export { default as usePoll } from './usePoll'
 export { default as usePrefetch } from './usePrefetch'

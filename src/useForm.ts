@@ -110,7 +110,7 @@ export default function useForm<TForm extends FormDataType<TForm>>(
       form.submit(method, url, options)
     }
 
-  const originalWithPrecognition = baseForm.withPrecognition
+  const originalWithPrecognition = form.withPrecognition
 
   Object.assign(form, {
     submit: (...args: UseFormSubmitArguments) => {
@@ -207,7 +207,7 @@ export default function useForm<TForm extends FormDataType<TForm>>(
 
     withPrecognition(...args: UseFormWithPrecognitionArguments): InertiaPrecognitiveFormProps<TForm> {
       originalWithPrecognition(...args)
-      return form as unknown as InertiaPrecognitiveFormProps<TForm>
+      return this as unknown as InertiaPrecognitiveFormProps<TForm>
     },
   })
 
