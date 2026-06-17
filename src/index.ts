@@ -2,7 +2,7 @@ import { config as coreConfig } from '@inertiajs/core'
 import type { SolidInertiaAppConfig } from './types'
 
 export { http, progress, router } from '@inertiajs/core'
-export { default as App } from './App'
+export { default as App, type InertiaAppProps } from './App'
 export { default as createInertiaApp } from './createInertiaApp'
 
 export { default as Deferred } from './Deferred'
@@ -11,9 +11,11 @@ export { default as InfiniteScroll } from './InfiniteScroll'
 export { default as Link, type InertiaLinkProps } from './Link'
 export {
   default as useForm,
+  type InertiaForm,
   type InertiaFormProps,
   type InertiaPrecognitiveFormProps,
 } from './useForm'
+export { default as useHttp } from './useHttp'
 export { default as usePage } from './usePage'
 export { default as usePoll } from './usePoll'
 export { default as usePrefetch } from './usePrefetch'
