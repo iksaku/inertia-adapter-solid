@@ -1,5 +1,26 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.8
+
+### Minor Changes
+
+- 473c293: enhancement: Implemented `useHttp` hook
+- 839e184: enhancement: Split useForm logic to useFormState
+
+### Patch Changes
+
+- ea227be: chore: Fix `tsc` complains
+- d711d1e: enhancement(Form): Await user-provided Form onSuccess before completing submission
+- a652ff2: fix(form): Fix defaults typo in `Form` component as well as typings in `useForm` and `useHttp`
+- 5aec4dc: enhancement(Form): Add support for From `optimistic`, `component` and `instant` props
+- e6013f7: feature: Update `Link` component to support Inertia v3 props
+- 0136f28: deps: Bump dependencies
+- ac82432: feature: `createInertiaApp` with `nonce`, `http` and `withApp` options
+- fb95768: enhancement: Update `WhenVisible` component to match logic of official adapters
+- 3c65030: enhancement(useForm): Add support for `useForm` helper's `optimistic` method
+- ab0ffdf: misc: Add some missing type exports
+- 9590ef2: cleanup: Remove old `HeadContext.ts` file
+
 ## 1.0.0-beta.7
 
 ### Major Changes
