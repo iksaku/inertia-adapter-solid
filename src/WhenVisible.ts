@@ -1,17 +1,21 @@
 import { type ReloadOptions, router } from '@inertiajs/core'
+import { get } from 'es-toolkit/compat'
 import {
   type JSX,
   type ParentProps,
   Show,
   type ValidComponent,
   createComponent,
+  createEffect,
+  createMemo,
   createSignal,
   mergeProps,
+  on,
   onCleanup,
-  onMount,
 } from 'solid-js'
-import { createDynamic } from 'solid-js/web'
+import { createDynamic, isServer } from 'solid-js/web'
 import type { DynamicProps } from './types'
+import usePage from './usePage'
 
 type WhenVisibleProps<T extends ValidComponent = 'div'> = DynamicProps<
   T,
@@ -35,34 +39,38 @@ export default function WhenVisible<T extends ValidComponent = 'div'>(_props: Wh
     _props,
   )
 
+  const page = usePage()
+
   const [loaded, setLoaded] = createSignal(false)
   const [fetching, setFetching] = createSignal(false)
 
+  const keys = createMemo<string[]>(() => (props.data ? (Array.isArray(props.data) ? props.data : [props.data]) : []))
+
   const getReloadParams = (): Partial<ReloadOptions> => {
-    if (props.data) {
-      return {
-        only: (Array.isArray(props.data) ? props.data : [props.data]) as string[],
-      }
+    const reloadParams: Partial<ReloadOptions> = { preserveErrors: true, ...props.params }
+
+    if (keys().length > 0) {
+      reloadParams.only = keys()
     }
 
-    if (!props.params) {
-      throw new Error('You must provide either a `data` or `params` prop.')
-    }
-
-    return props.params
+    return reloadParams
   }
 
   let observer: IntersectionObserver | null = null
 
   let currentElement: Element | null
 
-  onMount(() => {
-    observer = new IntersectionObserver(
+  const createObserver = () => {
+    if (isServer) {
+      return
+    }
+
+    const newObserver = new IntersectionObserver(
       (entries) => {
         if (!entries[0].isIntersecting) return
 
         if (!props.always) {
-          observer.disconnect()
+          newObserver.disconnect()
         }
 
         if (fetching()) {
@@ -75,6 +83,7 @@ export default function WhenVisible<T extends ValidComponent = 'div'>(_props: Wh
 
         router.reload({
           ...reloadParams,
+          preserveErrors: reloadParams.preserveErrors ?? true,
           onStart: (e) => {
             setFetching(true)
             reloadParams.onStart?.(e)
@@ -91,8 +100,30 @@ export default function WhenVisible<T extends ValidComponent = 'div'>(_props: Wh
       },
     )
 
-    observer.observe(currentElement)
-  })
+    observer = newObserver
+
+    if (currentElement) {
+      newObserver.observe(currentElement)
+    }
+  }
+
+  createEffect(
+    on(
+      () => keys().every((key) => get(page.props, key)),
+      () => {
+        const exists = keys().length > 0 && keys().every((key) => get(page.props, key) !== undefined)
+        setLoaded(exists)
+
+        if (exists && !props.always) {
+          return
+        }
+
+        if (!observer || !exists) {
+          queueMicrotask(createObserver)
+        }
+      },
+    ),
+  )
 
   onCleanup(() => {
     observer?.disconnect()
@@ -100,7 +131,8 @@ export default function WhenVisible<T extends ValidComponent = 'div'>(_props: Wh
 
   return [
     createComponent(Show, {
-      keyed: undefined,
+      // @ts-ignore: This is the intended `keyed` behavior. See: https://docs.solidjs.com/reference/components/show#behavior
+      keyed: false,
       get when() {
         return props.always || !loaded()
       },
@@ -114,7 +146,8 @@ export default function WhenVisible<T extends ValidComponent = 'div'>(_props: Wh
     }),
 
     createComponent(Show, {
-      keyed: undefined,
+      // @ts-ignore: This is the intended `keyed` behavior. See: https://docs.solidjs.com/reference/components/show#behavior
+      keyed: false,
       get when() {
         return loaded()
       },
