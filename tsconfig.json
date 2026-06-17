@@ -17,5 +17,5 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js"
   },
-  "include": ["src/index.ts", "src/server.ts", "src/vite.ts", "src/**/*.d.ts"]
+  "include": ["src/index.ts", "src/server.ts", "src/vite.ts"]
 }
