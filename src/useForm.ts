@@ -11,6 +11,7 @@ import {
   type UseFormArguments,
   type UseFormSubmitArguments,
   type UseFormSubmitOptions,
+  type UseFormTransformCallback,
   UseFormUtils,
   type UseFormWithPrecognitionArguments,
   type VisitOptions,
@@ -23,7 +24,7 @@ import { isServer } from 'solid-js/web'
 import useFormState, { type FormStateProps, type PrecognitionValidationConfig } from './useFormState'
 
 export interface InertiaFormProps<TForm extends Record<string, FormDataConvertible>>
-  extends Omit<FormStateProps<TForm>, 'withPrecognition'> {
+  extends Omit<FormStateProps<TForm>, 'withPrecognition' | 'transform'> {
   submit(...args: UseFormSubmitArguments): void
   get(url: string, options?: UseFormSubmitOptions): void
   post(url: string, options?: UseFormSubmitOptions): void
@@ -36,10 +37,13 @@ export interface InertiaFormProps<TForm extends Record<string, FormDataConvertib
 
   optimistic<TProps>(callback: OptimisticCallback<TProps>): this
 
+  transform(callback: UseFormTransformCallback<TForm>): this
+
   withPrecognition(...args: UseFormWithPrecognitionArguments): InertiaPrecognitiveFormProps<TForm>
 }
 
-export type InertiaForm<TForm extends Record<string, FormDataConvertible> = Record<string, FormDataConvertible>> = InertiaFormProps<TForm>
+export type InertiaForm<TForm extends Record<string, FormDataConvertible> = Record<string, FormDataConvertible>> =
+  InertiaFormProps<TForm>
 
 export interface InertiaFormValidationProps<TForm extends Record<string, FormDataConvertible>> {
   invalid<K extends FormDataKeys<TForm>>(field: K): boolean

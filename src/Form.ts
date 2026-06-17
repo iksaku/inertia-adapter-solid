@@ -7,6 +7,7 @@ import {
   type FormComponentSlotProps,
   type FormDataConvertible,
   type Method,
+  type QueryStringArrayFormatOption,
   UseFormUtils,
   type VisitOptions,
   config,
@@ -85,9 +86,9 @@ export default function Form(_props: FormProps) {
   props = mergeProps(
     {
       action: '',
-      method: 'get',
+      method: 'get' as Method,
       headers: {},
-      queryStringFormat: 'brackets',
+      queryStringArrayFormat: 'brackets' as QueryStringArrayFormatOption,
       errorBag: null,
       showProgress: true,
       transform: (data: Record<string, FormDataConvertible>) => data,
@@ -99,9 +100,9 @@ export default function Form(_props: FormProps) {
       invalidateCacheTags: [],
       validateFiles: false,
       validationTimeout: 1500,
-      optimistic: null,
+      optimistic: undefined,
       withAllErrors: null,
-      component: null,
+      component: undefined,
       instant: false,
     },
     props,
@@ -110,7 +111,8 @@ export default function Form(_props: FormProps) {
   const getTransformedData = (): Record<string, FormDataConvertible> => {
     const [_url, data] = getUrlAndData()
 
-    return props.transform(data)
+    // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+    return props.transform!(data)
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
@@ -120,7 +122,8 @@ export default function Form(_props: FormProps) {
       () => getUrlAndData()[0],
     )
     .transform(getTransformedData)
-    .setValidationTimeout(props.validationTimeout)
+    // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+    .setValidationTimeout(props.validationTimeout!)
 
   if (props.validateFiles) {
     form.validateFiles()
@@ -146,7 +149,8 @@ export default function Form(_props: FormProps) {
   function getUrlAndData(submitter?: FormSubmitter): [string, Record<string, FormDataConvertible>] {
     return mergeDataIntoQueryString(
       method(),
-      isUrlMethodPair(props.action) ? props.action.url : props.action,
+      // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+      isUrlMethodPair(props.action) ? props.action.url : props.action!,
       getData(submitter),
       props.queryStringArrayFormat,
     )
@@ -207,7 +211,8 @@ export default function Form(_props: FormProps) {
 
   createEffect(
     on(
-      () => props.validationTimeout,
+      // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+      () => props.validationTimeout!,
       (value) => form.setValidationTimeout(value),
     ),
   )
@@ -255,7 +260,8 @@ export default function Form(_props: FormProps) {
       showProgress: props.showProgress,
       invalidateCacheTags: props.invalidateCacheTags,
       component: resolvedComponent(),
-      optimistic: props.optimistic ? (pageProps) => props.optimistic(pageProps, data) : undefined,
+      // biome-ignore lint/style/noNonNullAssertion: We do a boolean check before calling it.
+      optimistic: props.optimistic ? (pageProps) => props.optimistic!(pageProps, data) : undefined,
       onCancelToken: props.onCancelToken ?? noop,
       onBefore: props.onBefore ?? noop,
       onBeforeUpdate: props.onBeforeUpdate ?? noop,
@@ -266,7 +272,8 @@ export default function Form(_props: FormProps) {
       onSuccess: async (...args) => {
         const result = await props.onSuccess?.(...args)
         props.onSubmitComplete?.(exposed)
-        maybeReset(props.resetOnSuccess)
+        // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+        maybeReset(props.resetOnSuccess!)
 
         if (props.setDefaultsOnSuccess === true) {
           defaults()
@@ -276,13 +283,15 @@ export default function Form(_props: FormProps) {
       },
       onError: (...args) => {
         props.onError?.(...args)
-        maybeReset(props.resetOnError)
+        // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+        maybeReset(props.resetOnError!)
       },
       ...props.options,
     }
 
     // We need transform because we can't override the default data with different keys (by design)
-    form.transform(() => props.transform(data)).submit(method(), url, submitOptions)
+    // biome-ignore lint/style/noNonNullAssertion: It is available because of default mergeProps
+    form.transform(() => props.transform!(data)).submit(method(), url, submitOptions)
 
     // Reset the transformer back so the submitter is not used for future submissions
     form.transform(getTransformedData)
@@ -299,7 +308,7 @@ export default function Form(_props: FormProps) {
       return form.processing
     },
     get progress() {
-      return form.progress
+      return form.progress ?? null
     },
     get wasSuccessful() {
       return form.wasSuccessful
@@ -313,7 +322,8 @@ export default function Form(_props: FormProps) {
     clearErrors: (...fields: string[]) => form.clearErrors(...fields),
     resetAndClearErrors,
     setError: (fieldOrFields: string | Errors, maybeValue?: ErrorValue) =>
-      form.setError(typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue } : fieldOrFields),
+      // biome-ignore lint/style/noNonNullAssertion: maybeValue is provided when fieldOrFields is a string
+      form.setError(typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue! } : fieldOrFields),
     reset,
     submit,
     defaults,

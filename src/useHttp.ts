@@ -11,6 +11,7 @@ import {
   type Method,
   type UrlMethodPair,
   type UseFormArguments,
+  type UseFormTransformCallback,
   UseFormUtils,
   type UseFormWithPrecognitionArguments,
   type UseHttpSubmitArguments,
@@ -34,7 +35,7 @@ import useFormState, { type FormStateProps, type PrecognitionValidationConfig } 
 import { cloneStore } from './util'
 
 export interface HttpFormProps<TForm extends Record<string, FormDataConvertible>, TResponse = unknown>
-  extends Omit<FormStateProps<TForm>, 'withPrecognition'> {
+  extends Omit<FormStateProps<TForm>, 'transform' | 'withPrecognition'> {
   response: TResponse | null
 
   submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse>
@@ -50,6 +51,8 @@ export interface HttpFormProps<TForm extends Record<string, FormDataConvertible>
   optimistic(callback: (currentData: TForm) => Partial<TForm> | void): this
 
   withAllErrors(): this
+
+  transform(callback: UseFormTransformCallback<TForm>): this
 
   withPrecognition(...args: UseFormWithPrecognitionArguments): HttpPrecognitiveFormProps<TForm, TResponse>
 }
