@@ -20,7 +20,8 @@ export default function Deferred(props: DeferredProps) {
   const page = usePage()
 
   return createComponent(Show, {
-    keyed: undefined,
+    // @ts-ignore: This is the intended `keyed` behavior. See: https://docs.solidjs.com/reference/components/show#behavior
+    keyed: false,
     get when() {
       return keys().every((key) => page.props[key] !== undefined)
     },

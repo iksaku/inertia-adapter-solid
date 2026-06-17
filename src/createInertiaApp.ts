@@ -117,7 +117,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
   }
 
   const resolveComponent = (name: string, page?: Page) =>
-    Promise.resolve(resolve(name, page)).then((module) => {
+    Promise.resolve(resolve!(name, page)).then((module) => {
       // return 'default' in module ? module.default : module
       return ((module as { default?: Component }).default || module) as Component
     })
@@ -138,7 +138,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
 
       if (setup) {
         solidApp = () =>
-          (setup as (options: SetupOptions<Element, SharedProps>) => JSX.Element)({
+          (setup as (options: SetupOptions<null, SharedProps>) => JSX.Element)({
             el: null,
             App,
             props,
@@ -162,7 +162,6 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     }
   }
 
-  // biome-ignore lint/style/noNonNullAssertion: Matching official adapters
   const initialPage = page || getInitialPageFromDOM<Page<SharedProps>>(id)!
 
   const solidApp = await Promise.all([
@@ -184,7 +183,6 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
         })
     }
 
-    // biome-ignore lint/style/noNonNullAssertion: Matching official adapters
     const el = document.getElementById(id)!
 
     if (setup) {
@@ -216,7 +214,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
   }
 
   if (isServer) {
-    const html = await render(solidApp)
+    const html = await render(solidApp!)
     const body = buildSSRBody(id, initialPage, html)
 
     return {

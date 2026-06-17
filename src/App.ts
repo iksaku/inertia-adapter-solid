@@ -41,7 +41,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
   if (!isServer) {
     router.init({
       initialPage: props.initialPage,
-      resolveComponent: props.resolveComponent,
+      resolveComponent: props.resolveComponent!,
       async swapComponent({ component, page, preserveState }) {
         setCurrent(
           reconcile({
@@ -75,7 +75,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
 
     if (!layout()) {
       return createComponent(
-        current.component,
+        current.component!,
         mergeProps({ key: current.key }, () => current.page.props),
       )
     }
@@ -84,7 +84,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
       layout(),
       mergeProps(() => current.page.props, {
         get children() {
-          return renderChildren(i + 1)
+          return renderChildren(i + 1) as Element
         },
       }),
     )

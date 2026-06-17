@@ -5,7 +5,7 @@ export default function usePoll(
   interval: number,
   requestOptions: ReloadOptions = {},
   options: PollOptions = { keepAlive: false, autoStart: true },
-): ReturnType<(typeof router)['poll']> {
+): { start: VoidFunction; stop: VoidFunction } {
   const { start, stop } = router.poll(interval, requestOptions, {
     ...options,
     autoStart: false,

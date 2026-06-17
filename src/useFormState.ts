@@ -204,7 +204,6 @@ export default function useFormState<TForm extends object>(
     if (!validatorRef) {
       const validator = createValidator(
         (client) => {
-          // biome-ignore lint/style/noNonNullAssertion: Matching official adapters
           const { method, url } = precognitionEndpoint!()
           const transformedData = cloneDeep(transform(unwrap(data))) as Record<string, unknown>
 
@@ -241,7 +240,6 @@ export default function useFormState<TForm extends object>(
       get validating() {
         return validating()
       },
-      // biome-ignore lint/style/noNonNullAssertion: Matching official adapters
       validator: () => validatorRef!,
       valid: (field: string) => validFields().includes(field),
       invalid: (field: string) => field in errors(),

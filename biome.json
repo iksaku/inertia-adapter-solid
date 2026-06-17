@@ -24,7 +24,7 @@
       "complexity": {
         "noForEach": "off"
       },
-      "style": { "noParameterAssign": "off" },
+      "style": { "noParameterAssign": "off", "noNonNullAssertion": "off" },
       "suspicious": {
         "noRedeclare": "off",
         "noConfusingVoidType": "off"

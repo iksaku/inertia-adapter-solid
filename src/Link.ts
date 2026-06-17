@@ -4,6 +4,8 @@ import {
   type LinkPrefetchOption,
   type Method,
   type PendingVisit,
+  type PreserveStateOption,
+  type QueryStringArrayFormatOption,
   type VisitOptions,
   config,
   isUrlMethodPair,
@@ -77,18 +79,18 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
   // Set default prop values
   props = mergeProps(
     {
-      as: 'a',
+      as: 'a' as T,
       data: {},
       href: '',
-      method: 'get',
+      method: 'get' as Method,
       preserveScroll: false,
-      preserveState: null,
+      preserveState: null as unknown as PreserveStateOption,
       preserveUrl: false,
       replace: false,
       only: [],
       except: [],
       headers: {},
-      queryStringArrayFormat: 'brackets',
+      queryStringArrayFormat: 'brackets' as QueryStringArrayFormatOption,
       async: false,
       onClick: noop,
       onCancelToken: noop,
@@ -116,7 +118,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
   let hoverTimeout: ReturnType<typeof setTimeout>
 
   const method = createMemo<Method>(() =>
-    isUrlMethodPair(props.href) ? props.href.method : (props.method.toLowerCase() as Method),
+    isUrlMethodPair(props.href) ? props.href.method : (props.method!.toLowerCase() as Method),
   )
 
   const resolvedComponent = createMemo(() => {
@@ -144,7 +146,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     mergeDataIntoQueryString(
       method(),
       isUrlMethodPair(props.href) ? props.href.url : props.href,
-      props.data,
+      props.data!,
       props.queryStringArrayFormat,
     ),
   )
@@ -174,12 +176,12 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     onBefore: props.onBefore,
     onStart(visit: PendingVisit) {
       setInFlightCount((count) => count + 1)
-      props.onStart(visit)
+      props.onStart!(visit)
     },
     onProgress: props.onProgress,
     onFinish(visit: ActiveVisit) {
       setInFlightCount((count) => count - 1)
-      props.onFinish(visit)
+      props.onFinish!(visit)
     },
     onCancel: props.onCancel,
     onSuccess: props.onSuccess,
@@ -199,7 +201,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       return props.prefetch
     }
 
-    return [props.prefetch]
+    return [props.prefetch!]
   })
 
   const cacheForValue = createMemo(() => {
@@ -244,7 +246,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
 
   const regularEvents = {
     onClick(event: MouseEvent) {
-      props.onClick(event)
+      props.onClick!(event)
 
       if (shouldIntercept(event)) {
         event.preventDefault()
@@ -291,7 +293,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       }
     },
     onClick(event: MouseEvent) {
-      props.onClick(event)
+      props.onClick!(event)
 
       if (shouldIntercept(event)) {
         // Let the mouseup/keyup event handle the visit

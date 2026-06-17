@@ -30,7 +30,7 @@ import type { DynamicProps } from './types'
 
 type InfiniteScrollRefProp = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
 
-type SlotComponent<TProps = unknown> = (string & {}) | Component<TProps>
+type SlotComponent<TProps extends object> = (string & {}) | Component<TProps>
 
 type InfiniteScrollProps<T extends ValidComponent = 'div'> = DynamicProps<
   T,
@@ -108,9 +108,9 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
   let startElementRef: HTMLElement
   let endElementRef: HTMLElement
 
-  const resolvedItemsElement = createLazyMemo(() => resolveHTMLElement(props.itemsElement, itemsElementRef))
-  const resolvedStartElement = createLazyMemo(() => resolveHTMLElement(props.startElement, startElementRef))
-  const resolvedEndElement = createLazyMemo(() => resolveHTMLElement(props.endElement, endElementRef))
+  const resolvedItemsElement = createLazyMemo(() => resolveHTMLElement(props.itemsElement, itemsElementRef)!)
+  const resolvedStartElement = createLazyMemo(() => resolveHTMLElement(props.startElement, startElementRef)!)
+  const resolvedEndElement = createLazyMemo(() => resolveHTMLElement(props.endElement, endElementRef)!)
 
   const scrollableParent = createLazyMemo(() => getScrollableParent(resolvedItemsElement()))
 
@@ -173,8 +173,8 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
 
   function scrollToBottom() {
     if (scrollableParent()) {
-      scrollableParent().scrollTo({
-        top: scrollableParent().scrollHeight,
+      scrollableParent()!.scrollTo({
+        top: scrollableParent()!.scrollHeight,
         behavior: 'instant',
       })
     } else {
@@ -356,7 +356,8 @@ function createBoundaryElement(
   const [control, props] = splitProps(_props, ['when', 'component', 'ref'])
 
   return createComponent(Show, {
-    keyed: undefined,
+    // @ts-ignore: This is the intended `keyed` behavior. See: https://docs.solidjs.com/reference/components/show#behavior
+    keyed: false,
     get when() {
       return control.when
     },
