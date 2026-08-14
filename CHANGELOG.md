@@ -1,5 +1,11 @@
 # inertia-adapter-solid
 
+## 1.0.0-beta.9
+
+### Patch Changes
+
+- 5cc9949: enhancement: Ship Laravel Boost AI guidelines & `inertia-solid-development` skill
+
 ## 1.0.0-beta.8
 
 ### Minor Changes
