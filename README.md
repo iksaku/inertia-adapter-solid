@@ -252,6 +252,19 @@ export default function Page() {
 }
 ```
 
+# AI Guidelines (Laravel Boost)
+
+This package ships AI guidelines and an `inertia-solid-development` skill for
+[Laravel Boost](https://laravel.com/docs/boost), mirroring the official Inertia
+adapters. When you run `php artisan boost:install` (or `boost:update --discover`)
+in a Laravel project that has this package installed, Boost detects them
+automatically and offers to install them — no extra setup required.
+
+The guidelines teach AI coding agents how to use this adapter with SolidJS best
+practices: pages and persistent layouts, `<Link>`, `<Form>`, `useForm` (including
+Precognition), `useHttp`, deferred props, polling, prefetching, and the SolidJS
+reactivity rules that apply to all of them.
+
 # Configuring Typescript
 
 While this library is Typescript-ready, your bundler may complain as it tries to compile TSX components
