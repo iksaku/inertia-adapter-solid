@@ -327,10 +327,12 @@ update your `app.jsx` to use [client-side hydration](#client-side-hydration).
 ```jsx
 import { createInertiaApp } from 'inertia-adapter-solid'
 import createServer from 'inertia-adapter-solid/server'
+import { renderToString } from 'solid-js/web'
 
 createServer((page) =>
   createInertiaApp({
     page,
+    render: renderToString,
     resolve(name) {
       const pages = import.meta.glob('./Pages/**/*.jsx')
       return pages[`./Pages/${name}.jsx`]()
@@ -343,8 +345,9 @@ createServer((page) =>
 Be sure to add anything that’s missing from your `app.js` file that
 makes sense to run in SSR mode, such as plugins or custom mixins.
 
-By default, we use the [`renderToString`](https://docs.solidjs.com/reference/rendering/render-to-string) function for SSR,
-but you may also pass a custom renderer to the `render` option:
+For a manual SSR entry point, pass Solid's renderer through the `render` option.
+The example above uses synchronous `renderToString`; you can pass
+`renderToStringAsync` when your app needs asynchronous SSR:
 ```js
 import { createInertiaApp } from 'inertia-adapter-solid'
 import createServer from 'inertia-adapter-solid/server'
@@ -353,7 +356,7 @@ import { renderToStringAsync } from 'solid-js/web'
 createServer((page) =>
   createInertiaApp({
     // ...
-    render: renderToStringAsync
+    render: renderToStringAsync,
   }),
 )
 ```
@@ -362,7 +365,7 @@ createServer((page) =>
 
 You should also update your app.js to use hydration instead of normal
 rendering.
-This allows React to pick up the server-rendered HTML and make it
+This allows Solid to pick up the server-rendered HTML and make it
 interactive without re-rendering it.
 
 ```diff

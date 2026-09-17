@@ -95,7 +95,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     setup,
     progress = {},
     page,
-    render = renderToString,
+    render,
     defaults = {},
     nonce,
     http,
@@ -124,7 +124,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
 
   // SSR render function factory - when on server without page/render, return a render function
   // This is used by the Vite plugin's SSR transform
-  if (isServer && !page) {
+  if (isServer && !page && !render) {
     return async (page: Page<SharedProps>, renderToString: RenderToString) => {
       const initialComponent = await resolveComponent(page.component, page)
 
@@ -152,7 +152,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
         }
       }
 
-      const html = await render(solidApp)
+      const html = await renderToString(solidApp)
       const body = buildSSRBody(id, page, html)
 
       return {
@@ -213,7 +213,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     setupProgress(progress)
   }
 
-  if (isServer) {
+  if (isServer && render) {
     const html = await render(solidApp!)
     const body = buildSSRBody(id, initialPage, html)
 
