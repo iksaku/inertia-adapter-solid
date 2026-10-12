@@ -38,12 +38,12 @@ export interface HttpFormProps<TForm extends Record<string, FormDataConvertible>
   extends Omit<FormStateProps<TForm>, 'transform' | 'withPrecognition'> {
   response: TResponse | null
 
-  submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse>
-  get(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse>
-  post(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse>
-  put(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse>
-  patch(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse>
-  delete(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse>
+  submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse | undefined>
+  get(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse | undefined>
+  post(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse | undefined>
+  put(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse | undefined>
+  patch(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse | undefined>
+  delete(url: string, options?: UseHttpSubmitOptions<TResponse, TForm>): Promise<TResponse | undefined>
   cancel(): void
 
   dontRemember<K extends FormDataKeys<TForm>>(...fields: K[]): this
@@ -135,7 +135,7 @@ export default function useHttp<TForm extends FormDataType<TForm>, TResponse = u
     method: Method,
     url: string,
     options: UseHttpSubmitOptions<TResponse, TForm>,
-  ): Promise<TResponse> => {
+  ): Promise<TResponse | undefined> => {
     if (isServer) {
       return Promise.reject(new Error('useHttp cannot be used during server-side rendering.'))
     }
@@ -243,10 +243,11 @@ export default function useHttp<TForm extends FormDataType<TForm>, TResponse = u
           })
 
           options.onError?.(processedErrors as Errors)
-        } else {
-          options.onHttpException?.(error.response)
+
+          return undefined
         }
 
+        options.onHttpException?.(error.response)
         throw error
       }
 
@@ -277,7 +278,7 @@ export default function useHttp<TForm extends FormDataType<TForm>, TResponse = u
     get response() {
       return response()
     },
-    submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse> {
+    submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse | undefined> {
       // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
       const parsed = UseFormUtils.parseSubmitArguments(args as any, getPrecognitionEndpoint())
 

@@ -20,7 +20,7 @@ import {
   hydrate as hydrateRoot,
   isServer,
   render as renderRoot,
-  renderToString,
+  type renderToString,
   type renderToStringAsync,
 } from 'solid-js/web'
 import App, { type InertiaAppProps } from './App'
@@ -45,7 +45,7 @@ type InertiaAppOptionsForCSR<SharedProps extends PageProps> = CreateInertiaAppOp
   SetupOptions<Element, SharedProps>,
   void,
   SolidInertiaAppConfig
-> & { title?: never; withApp?: never }
+> & { title?: never; serverHead?: never; withApp?: never }
 
 type InertiaAppOptionsForSSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForSSR<
   SharedProps,
@@ -53,7 +53,7 @@ type InertiaAppOptionsForSSR<SharedProps extends PageProps> = CreateInertiaAppOp
   SetupOptions<null, SharedProps>,
   JSX.Element,
   SolidInertiaAppConfig
-> & { title?: never; render: RenderToString; withApp?: never }
+> & { title?: never; serverHead?: never; render: RenderToString; withApp?: never }
 
 type InertiaAppOptionsAuto<SharedProps extends PageProps> = Omit<
   CreateInertiaAppOptions<
@@ -65,6 +65,7 @@ type InertiaAppOptionsAuto<SharedProps extends PageProps> = Omit<
   'setup'
 > & {
   title?: never
+  serverHead?: never
   page?: Page<SharedProps>
   render?: undefined
 } & (

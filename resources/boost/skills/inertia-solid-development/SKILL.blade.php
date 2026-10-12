@@ -1,6 +1,6 @@
 ---
 name: inertia-solid-development
-description: "Develops Inertia.js v3 SolidJS client-side applications. Activates when creating SolidJS pages, forms, or navigation; using <Link>, <Form>, useForm, useHttp, usePage, or router; working with deferred props, prefetching, optimistic updates, instant visits, or polling; or when user mentions SolidJS with Inertia, Solid pages, Solid forms, or Solid navigation."
+description: "Develops Inertia.js v3 SolidJS client-side applications. Activates when creating SolidJS pages, forms, navigation, or app providers; using <Link>, <Form>, useForm, useHttp, usePage, useRemember, useFormContext, or router; or working with deferred props, prefetching, optimistic updates, instant visits, polling, or browser-only content with WhenMounted."
 license: MIT
 metadata:
   author: iksaku
@@ -17,7 +17,8 @@ Activate this skill when:
 - Creating or modifying SolidJS page components for Inertia
 - Working with forms in SolidJS (using `<Form>`, `useForm`, or `useHttp`)
 - Implementing client-side navigation with `<Link>` or `router`
-- Using v3 features: deferred props, prefetching, optimistic updates, instant visits, HTTP requests, WhenVisible, InfiniteScroll, once props, flash data, or polling
+- Using v3 features: deferred props, prefetching, optimistic updates, instant visits, HTTP requests, WhenMounted, WhenVisible, InfiniteScroll, once props, flash data, or polling
+- Wrapping the app with providers or remembering local state across visits
 - Building SolidJS-specific features with the Inertia protocol
 
 ## Documentation
@@ -31,6 +32,27 @@ Use `search-docs` for detailed Inertia v3 patterns and documentation. The offici
 - Layout props (`setLayoutProps` / `useLayoutProps`) are not supported by this adapter.
 
 ## Basic Usage
+
+### App Providers
+
+Use `withApp` with automatic app setup to wrap the app in providers. The callback receives a Solid component function: render it as `<App />` and return JSX. Its second argument contains `{ ssr }`. When providing a manual `setup` callback, wrap `<App {...props} />` there instead.
+
+@verbatim
+@boostsnippet("App Providers with withApp", "jsx")
+import { createInertiaApp } from 'inertia-adapter-solid'
+import ThemeProvider from './ThemeProvider'
+
+createInertiaApp({
+    withApp(App) {
+        return (
+            <ThemeProvider>
+                <App />
+            </ThemeProvider>
+        )
+    },
+})
+@endboostsnippet
+@endverbatim
 
 ### Page Components Location
 
@@ -77,6 +99,27 @@ export default function Layout(props) {
             <span>{page.props.auth.user.name}</span>
             <main>{props.children}</main>
         </header>
+    )
+}
+@endboostsnippet
+@endverbatim
+
+### Remembering Local State
+
+`useRemember(initialState, key)` returns a Solid signal pair: `[accessor, setter]`. Call the accessor to read the current value. Use a stable, unique key for each remembered component instance; Inertia restores the state during browser history navigation.
+
+@verbatim
+@boostsnippet("Remembered Search Input", "jsx")
+import { useRemember } from 'inertia-adapter-solid'
+
+export default function UsersIndex() {
+    const [query, setQuery] = useRemember('', 'UsersIndex:query')
+
+    return (
+        <input
+            value={query()}
+            onInput={(e) => setQuery(e.currentTarget.value)}
+        />
     )
 }
 @endboostsnippet
@@ -204,41 +247,65 @@ export default function CreateUser() {
 @endboostsnippet
 @endverbatim
 
-### Form Component With All Props
+### Form Component Cancellation
+
+Call `form.cancel()` to cancel the active submission. `cancelOnUnmount` opts into canceling it when the component unmounts; it defaults to `false`.
 
 @verbatim
-@boostsnippet("Form Component Full Example", "jsx")
+@boostsnippet("Cancelable Form Component", "jsx")
 import { Form } from 'inertia-adapter-solid'
-import { Show } from 'solid-js'
 
-<Form action="/users" method="post">
+<Form action="/users" method="post" cancelOnUnmount>
     {(form) => (
         <>
             <input type="text" name="name" />
-            <Show when={form.errors.name}>
-                <div>{form.errors.name}</div>
-            </Show>
-
             <button type="submit" disabled={form.processing}>
                 {form.processing ? 'Saving...' : 'Save'}
             </button>
-
-            <Show when={form.progress}>
-                <progress value={form.progress.percentage} max="100">
-                    {form.progress.percentage}%
-                </progress>
-            </Show>
-
-            <Show when={form.wasSuccessful}>
-                <div>Saved!</div>
-            </Show>
+            <button type="button" disabled={!form.processing} onClick={() => form.cancel()}>
+                Cancel
+            </button>
         </>
     )}
 </Form>
 @endboostsnippet
 @endverbatim
 
-Available slot props: `errors`, `hasErrors`, `processing`, `progress`, `wasSuccessful`, `recentlySuccessful`, `isDirty`, `clearErrors`, `resetAndClearErrors`, `setError`, `reset`, `submit`, `defaults`, `validating`, `valid`, `invalid`, `validate`, `touch`, and `touched`.
+Available slot props: `errors`, `hasErrors`, `processing`, `progress`, `wasSuccessful`, `recentlySuccessful`, `isDirty`, `clearErrors`, `resetAndClearErrors`, `setError`, `reset`, `submit`, `cancel`, `defaults`, `validating`, `valid`, `invalid`, `validate`, `touch`, and `touched`.
+
+The component also accepts `onHttpException`, `onNetworkError`, and `onFlash` callbacks. Use the official forms and events documentation for their payloads and behavior.
+
+### Form Refs and Context
+
+The `<Form>` `ref` prop is a callback receiving the exposed form API, not the HTML form element. For example, `ref={(form) => { formRef = form }}` captures the API for later calls such as `formRef.submit()` or `formRef.cancel()`.
+
+Call `useFormContext()` inside a descendant component to access the same API without passing slot props through each component. It returns `undefined` outside a `<Form>`.
+
+@verbatim
+@boostsnippet("Form Context in a Child Component", "jsx")
+import { Form, useFormContext } from 'inertia-adapter-solid'
+
+function CancelButton() {
+    const form = useFormContext()
+
+    return (
+        <button type="button" disabled={!form?.processing} onClick={() => form?.cancel()}>
+            Cancel
+        </button>
+    )
+}
+
+export default function CreateUser() {
+    return (
+        <Form action="/users" method="post">
+            <input type="text" name="name" />
+            <button type="submit">Save</button>
+            <CancelButton />
+        </Form>
+    )
+}
+@endboostsnippet
+@endverbatim
 
 ### Form Component Reset Props
 
@@ -508,7 +575,7 @@ export default function UsersIndex(props) {
 
 ### Polling
 
-Use the `usePoll` helper to automatically refresh data at intervals. It handles cleanup on unmount and throttles polling when the tab is inactive.
+Use the `usePoll` helper to automatically refresh data at intervals. It destroys the poll on unmount. Read the reactive `polling` property from the returned object instead of destructuring it; it reflects whether polling is enabled, not whether a request is in flight.
 
 @verbatim
 @boostsnippet("Basic Polling", "jsx")
@@ -532,7 +599,7 @@ export default function Dashboard(props) {
 import { usePoll } from 'inertia-adapter-solid'
 
 export default function Dashboard(props) {
-    const { start, stop } = usePoll(5000, {
+    const poll = usePoll(5000, {
         only: ['stats'],
         onStart() {
             console.log('Polling request started')
@@ -542,15 +609,16 @@ export default function Dashboard(props) {
         },
     }, {
         autoStart: false,
-        keepAlive: true,
+        background: 'pause',
     })
 
     return (
         <div>
             <h1>Dashboard</h1>
             <div>Active Users: {props.stats.activeUsers}</div>
-            <button onClick={start}>Start Polling</button>
-            <button onClick={stop}>Stop Polling</button>
+            <button onClick={() => poll.polling ? poll.stop() : poll.start()}>
+                {poll.polling ? 'Stop Polling' : 'Start Polling'}
+            </button>
         </div>
     )
 }
@@ -558,7 +626,27 @@ export default function Dashboard(props) {
 @endverbatim
 
 - `autoStart` (default `true`) - set to `false` to start polling manually via the returned `start()` function
-- `keepAlive` (default `false`) - set to `true` to prevent throttling when the browser tab is inactive
+- `background` - `'throttle'` (default) reduces polling in inactive tabs; `'pause'` pauses it while the tab is inactive; `'continue'` keeps the normal interval
+- Prefer `background: 'continue'` over the deprecated `keepAlive: true`
+
+### WhenMounted
+
+Wrap browser-only components in `<WhenMounted>`. It renders the fallback during SSR and initial hydration, then renders its children after mounting. Ordinary client renders and subsequent navigation render children immediately. Keep browser API access inside the guarded component; module-scope code still executes during SSR.
+
+@verbatim
+@boostsnippet("Browser-Only Content with WhenMounted", "jsx")
+import { WhenMounted } from 'inertia-adapter-solid'
+import BrowserOnlyChart from './BrowserOnlyChart'
+
+export default function Dashboard() {
+    return (
+        <WhenMounted fallback={<div>Loading chart...</div>}>
+            <BrowserOnlyChart />
+        </WhenMounted>
+    )
+}
+@endboostsnippet
+@endverbatim
 
 ### WhenVisible
 

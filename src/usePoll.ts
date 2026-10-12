@@ -1,15 +1,26 @@
 import { type PollOptions, type ReloadOptions, router } from '@inertiajs/core'
-import { onCleanup, onMount } from 'solid-js'
+import { createSignal, onCleanup, onMount } from 'solid-js'
 
 export default function usePoll(
   interval: number,
   requestOptions: ReloadOptions = {},
-  options: PollOptions = { keepAlive: false, autoStart: true },
-): { start: VoidFunction; stop: VoidFunction } {
-  const { start, stop } = router.poll(interval, requestOptions, {
+  options: PollOptions = {},
+): { readonly polling: boolean; start: VoidFunction; stop: VoidFunction } {
+  const [polling, setPolling] = createSignal(options.autoStart ?? true)
+  const poll = router.poll(interval, requestOptions, {
     ...options,
     autoStart: false,
   })
+
+  function start() {
+    setPolling(true)
+    poll.start()
+  }
+
+  function stop() {
+    setPolling(false)
+    poll.stop()
+  }
 
   onMount(() => {
     if (options.autoStart ?? true) {
@@ -18,8 +29,14 @@ export default function usePoll(
   })
 
   onCleanup(() => {
-    stop()
+    poll.destroy()
   })
 
-  return { start, stop }
+  return {
+    get polling() {
+      return polling()
+    },
+    start,
+    stop,
+  }
 }

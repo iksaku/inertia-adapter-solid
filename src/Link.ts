@@ -249,6 +249,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       props.onClick!(event)
 
       if (shouldIntercept(event)) {
+        clearTimeout(hoverTimeout)
         event.preventDefault()
         router.visit(url(), visitParams())
       }

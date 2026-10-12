@@ -66,9 +66,13 @@ export default function Form(_props: FormProps) {
     'onCancel',
     'onSuccess',
     'onError',
+    'onHttpException',
+    'onNetworkError',
+    'onFlash',
     'onCancelToken',
     'onSubmitComplete',
     'disableWhileProcessing',
+    'cancelOnUnmount',
     'resetOnError',
     'resetOnSuccess',
     'setDefaultsOnSuccess',
@@ -94,6 +98,7 @@ export default function Form(_props: FormProps) {
       transform: (data: Record<string, FormDataConvertible>) => data,
       options: {},
       disableWhileProcessing: false,
+      cancelOnUnmount: false,
       resetOnError: false,
       resetOnSuccess: false,
       setDefaultsOnSuccess: false,
@@ -134,7 +139,7 @@ export default function Form(_props: FormProps) {
   let formElement: HTMLFormElement
 
   function getFormData(submitter?: FormSubmitter): FormData {
-    return new FormData(formElement, submitter)
+    return formElement ? new FormData(formElement, submitter) : new FormData()
   }
 
   // Convert the FormData to an object because we can't compare two FormData
@@ -215,6 +220,10 @@ export default function Form(_props: FormProps) {
 
   onCleanup(() => {
     formEvents.forEach((e) => formElement?.removeEventListener(e, onFormUpdate))
+
+    if (props.cancelOnUnmount) {
+      form.cancel()
+    }
   })
 
   function reset(...fields: string[]) {
@@ -264,6 +273,9 @@ export default function Form(_props: FormProps) {
       onProgress: props.onProgress ?? noop,
       onFinish: props.onFinish ?? noop,
       onCancel: props.onCancel ?? noop,
+      onHttpException: props.onHttpException,
+      onNetworkError: props.onNetworkError,
+      onFlash: props.onFlash,
       onSuccess: async (...args) => {
         const result = await props.onSuccess?.(...args)
         props.onSubmitComplete?.(exposed)
@@ -317,6 +329,7 @@ export default function Form(_props: FormProps) {
       form.setError(typeof fieldOrFields === 'string' ? { [fieldOrFields]: maybeValue! } : fieldOrFields),
     reset,
     submit,
+    cancel: () => form.cancel(),
     defaults,
     getData,
     getFormData,

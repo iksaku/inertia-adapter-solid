@@ -252,6 +252,38 @@ export default function Page() {
 }
 ```
 
+## Browser-only content
+
+Use `<WhenMounted>` for content that requires browser APIs. It renders the
+fallback during SSR and initial hydration, then renders its children after
+mounting. On ordinary client renders and subsequent navigation, children render
+immediately.
+
+```jsx
+import { WhenMounted } from 'inertia-adapter-solid'
+
+<WhenMounted fallback={<div>Loading chart...</div>}>
+  <BrowserOnlyChart />
+</WhenMounted>
+```
+
+## Polling status
+
+`usePoll` exposes a reactive `polling` property alongside `start()` and `stop()`.
+Read it from the returned object rather than destructuring it, to preserve
+Solid's reactivity. The `background` option accepts `'throttle'` (default),
+`'pause'`, or `'continue'`; prefer `'continue'` over the deprecated `keepAlive`.
+
+```jsx
+import { usePoll } from 'inertia-adapter-solid'
+
+const poll = usePoll(5000, {}, { background: 'pause' })
+
+<button onClick={() => (poll.polling ? poll.stop() : poll.start())}>
+  {poll.polling ? 'Pause polling' : 'Resume polling'}
+</button>
+```
+
 # AI Guidelines (Laravel Boost)
 
 This package ships AI guidelines and an `inertia-solid-development` skill for

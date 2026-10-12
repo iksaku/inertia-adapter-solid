@@ -8,9 +8,14 @@ const inertiaSolidFramework: FrameworkConfig = {
 import createServer from 'inertia-adapter-solid/server'
 import { renderToString } from 'solid-js/web'
 
-const render = await ${configureCall}
+const renderPromise = ${configureCall}
 
-const renderPage = (page) => render(page, renderToString)
+renderPromise.catch((error) => console.error(error))
+
+const renderPage = async (page) => {
+    const render = await renderPromise
+    return render(page, renderToString)
+}
 
 if (import.meta.env.PROD) {
     createServer(renderPage${options})
