@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 process.env.PACKAGE = 'solid'
 const ssr = process.env.SSR === 'true'
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+const suite = ssr ? 'ssr' : process.env.VITE_HTTP_CLIENT === 'axios' ? 'browser-axios' : 'browser-fetch'
 
 export default defineConfig({
   testDir: './tests/upstream',
@@ -12,7 +13,12 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 4,
   timeout: 10_000,
-  reporter: [['list'], ['json', { outputFile: 'test-results/results.json' }], ['html', { open: 'never' }]],
+  outputDir: `test-results/${suite}`,
+  reporter: [
+    ['list'],
+    ['json', { outputFile: `test-results/${suite}/results.json` }],
+    ['html', { outputFolder: `playwright-report/${suite}`, open: 'never' }],
+  ],
   use: {
     baseURL: 'http://localhost:13721',
     trace: 'retain-on-failure',

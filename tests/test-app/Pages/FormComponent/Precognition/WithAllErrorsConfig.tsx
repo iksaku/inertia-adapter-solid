@@ -1,4 +1,5 @@
 import { config, Form } from 'inertia-adapter-solid'
+import { For } from 'solid-js'
 export default () => {
   // Set global config for withAllErrors (no prop on the Form component)
   config.set('form.withAllErrors', true)
@@ -14,7 +15,9 @@ export default () => {
               {props1.invalid('name') && (
                 <div>
                   {Array.isArray(props1.errors!.name) ? (
-                    props1.errors!.name.map((error, index) => <p id={`name-error-${index}`}>{error}</p>)
+                    <For each={props1.errors!.name}>
+                      {(error, index) => <p id={`name-error-${index()}`}>{error}</p>}
+                    </For>
                   ) : (
                     <p id="name-error-0">{props1.errors!.name}</p>
                   )}
@@ -28,7 +31,9 @@ export default () => {
               {props1.invalid('email') && (
                 <div>
                   {Array.isArray(props1.errors!.email) ? (
-                    props1.errors!.email.map((error, index) => <p id={`email-error-${index}`}>{error}</p>)
+                    <For each={props1.errors!.email}>
+                      {(error, index) => <p id={`email-error-${index()}`}>{error}</p>}
+                    </For>
                   ) : (
                     <p id="email-error-0">{props1.errors!.email}</p>
                   )}

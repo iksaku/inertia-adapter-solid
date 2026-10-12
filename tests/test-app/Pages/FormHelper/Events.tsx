@@ -1,4 +1,4 @@
-import { createEffect, on, onMount } from 'solid-js'
+import { onMount } from 'solid-js'
 import type { CancelToken, Errors, HttpProgressEvent, Page, PendingVisit } from '@inertiajs/core'
 import { useForm, usePage } from 'inertia-adapter-solid'
 declare global {
@@ -11,9 +11,6 @@ declare global {
     }>
   }
 }
-const pushEvent = (message: string) => {
-  window.events.push(message)
-}
 const pushData = (type: string, data: unknown) => {
   const currentEvent = window.events[window.events.length - 1] ?? null
   window.data.push({
@@ -22,56 +19,41 @@ const pushData = (type: string, data: unknown) => {
     event: currentEvent,
   })
 }
-const callbacks = (overrides = {}) => ({
-  onBefore: () => pushEvent('onBefore'),
-  onCancelToken: () => pushEvent('onCancelToken'),
-  onStart: () => pushEvent('onStart'),
-  onProgress: () => pushEvent('onProgress'),
-  onFinish: () => pushEvent('onFinish'),
-  onCancel: () => pushEvent('onCancel'),
-  onSuccess: () => pushEvent('onSuccess'),
-  onError: () => pushEvent('onError'),
-  ...overrides,
-})
 export default () => {
   const form = useForm({ name: 'foo', remember: false })
   const page = usePage()
-  onMount(() => {
-    window.events = []
-    window.data = []
+  window.events = []
+  window.data = []
+  // Signals update before callbacks, unlike React effects. Sample the public
+  // state at the callback boundary rather than attributing an effect to an event.
+  const pushEvent = (message: string) => {
+    window.events.push(message)
+    if (message === 'onStart') pushData('processing', form.processing)
+    if (message === 'onProgress') pushData('progress', { ...form.progress })
+    if (message === 'onFinish') {
+      pushData('processing', form.processing)
+      pushData('progress', form.progress)
+      pushData('errors', { ...form.errors })
+      pushData('hasErrors', form.hasErrors)
+    }
+  }
+  const callbacks = (overrides = {}) => ({
+    onBefore: () => pushEvent('onBefore'),
+    onCancelToken: () => pushEvent('onCancelToken'),
+    onStart: () => pushEvent('onStart'),
+    onProgress: () => pushEvent('onProgress'),
+    onFinish: () => pushEvent('onFinish'),
+    onCancel: () => pushEvent('onCancel'),
+    onSuccess: () => pushEvent('onSuccess'),
+    onError: () => pushEvent('onError'),
+    ...overrides,
   })
-  createEffect(
-    on(
-      () => [form.processing],
-      () => {
-        pushData('processing', form.processing)
-      },
-    ),
-  )
-  createEffect(
-    on(
-      () => [form.progress],
-      () => {
-        pushData('progress', form.progress)
-      },
-    ),
-  )
-  createEffect(
-    on(
-      () => [form.errors],
-      () => {
-        pushData('errors', form.errors)
-      },
-    ),
-  )
-  createEffect(
-    on(
-      () => [form.hasErrors],
-      () => {
-        pushData('hasErrors', form.hasErrors)
-      },
-    ),
-  )
+  onMount(() => {
+    pushData('processing', form.processing)
+    pushData('progress', form.progress)
+    pushData('errors', { ...form.errors })
+    pushData('hasErrors', form.hasErrors)
+  })
   const submit = () => {
     form.post(page.url)
   }

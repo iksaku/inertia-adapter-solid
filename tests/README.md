@@ -36,7 +36,7 @@ Run one browser spec with, for example:
 ```sh
 pnpm test:browser tests/upstream/remember.spec.ts
 pnpm exec playwright test --project=firefox tests/upstream/links.spec.ts
-pnpm exec playwright show-report
+pnpm exec playwright show-report playwright-report/browser-fetch
 ```
 
 The backend listens on **13721**; the manual and automatic SSR renderers use
@@ -47,8 +47,10 @@ is an explicit development opt-in; rebuild the assets yourself when using it.
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` optionally selects an existing Chromium
 binary; normal runs use Playwright's pinned browser revision.
 
-Failure traces, screenshots, and JSON results are in `test-results/`; the HTML
-report is in `playwright-report/`. These outputs are ignored by Git. CI runs the
+Failure traces, screenshots, and JSON results are in `test-results/`; HTML reports
+are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
+and `ssr` directories so later layers do not overwrite earlier evidence.
+These outputs are ignored by Git. CI runs the
 three contract layers independently, all three browser engines with Fetch,
 Chromium with Axios, and Chromium SSR. It uploads browser failure artifacts and
 does not turn known failures into passing jobs.
@@ -89,11 +91,13 @@ identify contracts the Solid adapter does not expose:
 | Vue plugin globals, Options API, `v-model` | Framework-specific; Vue plugin spec excluded |
 | Svelte compiler/top-level-await options | Framework-specific; Svelte spec excluded |
 | React StrictMode and `React.memo` render counts | Framework-specific; skipped |
+| `withApp` receives the page object | Solid receives `{ ssr }` instead; separate context/CSR/SSR/hydration tests cover that contract |
 | Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
 | App-level default layout | Not implemented in `createInertiaApp`; page component layouts remain tested |
 | Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
 | Deferred rescue/reloading slots | No public Solid API; skipped; readiness and nested deferred data stay enabled |
 | WhenVisible fetching slot | No public Solid API; skipped; visibility/reload behavior stays enabled |
+| Form progress reset value | Solid declares `Progress \| undefined`; start/progress/reset assertions require its exact empty value rather than upstream's `null` |
 
 LayoutProps and nested rescued-deferred fixture sources are retained as upstream
 reference material but excluded from client glob resolution and fixture
@@ -135,5 +139,44 @@ the new revision and results here; do not mark supported failures as skips.
 
 The adapter source and manual playground remain unchanged. Supported-contract
 failures are deliberately red, not `fixme`, expected failures, or weakened
-assertions. The initial combined run and its limitations are recorded here after
-integration verification.
+assertions. All five layers were executed together with `pnpm test`, followed by
+final reruns after fixture review. The final results on **2026-10-12** are:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,108 cases in 56 spec files | 927 | 114 | 67 |
+| Chromium / Axios, 63 HTTP-focused cases | 62 | 1 | 0 |
+| Manual and automatic SSR / Chromium hydration, all 32 cases | 19 | 2 | 11 |
+| Public browser and server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 3 diagnostics | — |
+
+The Axios selection covers `http-client`, `http-handlers`, `http-cancellation`,
+`network-error`, `xsrf`, and `use-http`. It is a subset of the shared browser
+suite, not 63 additional unique contracts. The final bootstrap/context recheck
+also passed all four supported cases in `configure-inertia-app.spec.ts`, with
+three framework/callback-contract exclusions.
+
+Observed failures cluster around InfiniteScroll (77 browser cases and both SSR
+failures), persistent layouts, flash reactivity, Link event forwarding, deferred
+and nested loading, polling timing, uppercase Form methods, Precognition, and
+the exposed `useHttp` response. The runtime failure occurs when constructing a
+factory-default form. Declaration diagnostics concern shared-page augmentation
+and the InfiniteScroll JSX return type. These are observations from this
+baseline, **not a completed diagnosis**: timing, environment, and fixture causes
+must still be ruled out before treating every red case as an adapter bug.
+
+Verification used Linux, Node **26.5.1**, pnpm **11.20.0**, and an existing
+Chrome-for-Testing **151.0.7922.34** binary through
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. The pinned Playwright browser download
+stalled, so its Chromium revision, Firefox, WebKit, and the complete Axios suite
+were **not executed locally**. CI configures those runs with Node 22, but the
+workflow has not been pushed or executed; its matrix is not a compatibility
+claim. WebKit-only exclusions such as the history quota case still need that
+browser's run.
+
+Frozen-lockfile installation, package/client/SSR builds, backend/runner syntax
+checks, and `git diff --check` passed. `pnpm test` and the corresponding CI jobs
+remain nonzero on the supported failures above. Fixing those contracts is a
+separate task; do not replace this baseline with expected failures to make CI
+green.

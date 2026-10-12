@@ -13,11 +13,13 @@ test('it preserves equal props from the previous page', async ({ page }) => {
   await expect(page.locator('#count-a')).toHaveText('Count A: 1')
   await expect(page.locator('#effect-a')).toHaveText('Effect A Count: 1')
   await expect(page.locator('#effect-b')).toHaveText('Effect B Count: 1')
+  if (process.env.PACKAGE === 'solid') await expect(page.getByTestId('equal-a-reference')).toHaveText('true')
 
   await page.getByRole('button', { name: 'Submit and redirect back' }).click()
 
   await expect(page.locator('#effect-b')).toHaveText('Effect B Count: 2') // updated
   await expect(page.locator('#effect-a')).toHaveText('Effect A Count: 1') // preserved
+  if (process.env.PACKAGE === 'solid') await expect(page.getByTestId('equal-a-reference')).toHaveText('true')
 })
 
 test.describe('persistent layouts', () => {

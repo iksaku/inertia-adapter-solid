@@ -1,10 +1,11 @@
-import { createSignal, onMount } from 'solid-js'
+import { createSignal, onMount, onCleanup } from 'solid-js'
 import { Link } from 'inertia-adapter-solid'
 export default () => {
   const [documentScrollTop, setDocumentScrollTop] = createSignal(0)
   const [documentScrollLeft, setDocumentScrollLeft] = createSignal(0)
   onMount(() => {
     document.addEventListener('scroll', handleScrollEvent)
+    onCleanup(() => document.removeEventListener('scroll', handleScrollEvent))
   })
   const handleScrollEvent = () => {
     setDocumentScrollTop(document.documentElement.scrollTop)

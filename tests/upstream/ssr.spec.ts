@@ -189,7 +189,10 @@ test.describe('Head title escaping', () => {
   })
 
   test('it runs the titleCallback with the page during SSR', async ({ page }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp types title as never; metadata uses @solidjs/meta')
+    test.skip(
+      process.env.PACKAGE === 'solid',
+      'Solid createInertiaApp types title as never; metadata uses @solidjs/meta',
+    )
     const response = await page.request.get('/ssr/head-title?withTitleCallback')
     const html = await response.text()
 
@@ -211,7 +214,8 @@ test.describe('server head', () => {
 })
 
 test.describe('layout props', () => {
-  test('it isolates component layouts between SSR requests', async ({ page, browserName }) => {
+  test('it does not leak layout props between SSR requests', async ({ page, browserName }) => {
+    test.skip(process.env.PACKAGE === 'solid', 'Solid has no mutable layout-props API to isolate')
     const responseA = await page.request.get('/ssr/layout-props-a')
     const htmlA = await responseA.text()
 
@@ -225,10 +229,11 @@ test.describe('layout props', () => {
     expect(htmlB).not.toContain('Page A Title')
   })
 
-  test('it hydrates without errors after a different component layout was used in a previous SSR request', async ({
+  test('it hydrates without errors after setLayoutProps was used in a previous SSR request', async ({
     page,
     browserName,
   }) => {
+    test.skip(process.env.PACKAGE === 'solid', 'Solid has no setLayoutProps API')
     consoleMessages.listen(page)
 
     await page.request.get('/ssr/layout-props-a')
@@ -265,7 +270,10 @@ test.describe('layout props', () => {
   })
 
   test('it supports a layout callback that receives page props during SSR', async ({ page, browserName }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid layout functions are components, not tuple-returning layout callbacks')
+    test.skip(
+      process.env.PACKAGE === 'solid',
+      'Solid layout functions are components, not tuple-returning layout callbacks',
+    )
     const response = await page.request.get('/ssr/layout-props-callback')
     const html = await response.text()
 
@@ -274,7 +282,10 @@ test.describe('layout props', () => {
   })
 
   test('it hydrates a layout callback page without errors', async ({ page, browserName }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid layout functions are components, not tuple-returning layout callbacks')
+    test.skip(
+      process.env.PACKAGE === 'solid',
+      'Solid layout functions are components, not tuple-returning layout callbacks',
+    )
     consoleMessages.listen(page)
 
     await page.goto('/ssr/layout-props-callback')
@@ -364,13 +375,24 @@ test.describe('SSR Auto Transform', () => {
       expect(html).toMatch(/Value:.*injected-via-withApp/)
     })
 
-    test('it exposes page metadata inside the withApp wrapper during SSR rendering', async ({ page }) => {
+    test('it passes the page object to the withApp callback during SSR rendering', async ({ page }) => {
+      test.skip(process.env.PACKAGE === 'solid', 'Solid withApp receives { ssr }, not the page object')
       const response = await page.request.get('/ssr-auto/with-app')
       const html = await response.text()
 
       expect(html).toMatch(/Locale:.*en-CA/)
       expect(html).toMatch(/Component:.*SSR\/WithApp/)
-      if (process.env.PACKAGE === 'solid') expect(html).toMatch(/SSR:.*true/)
+    })
+
+    test('Solid withApp receives SSR true and hydrates with CSR false', async ({ page }) => {
+      test.skip(process.env.PACKAGE !== 'solid', 'Solid wrapper contract')
+      const response = await page.request.get('/ssr-auto/with-app')
+      expect(await response.text()).toMatch(/SSR:.*true/)
+      consoleMessages.listen(page)
+      await page.goto('/ssr-auto/with-app')
+      await expect(page.getByTestId('with-app-value')).toHaveText('Value: injected-via-withApp')
+      await expect(page.getByTestId('with-app-csr')).toHaveText('CSR option: false')
+      expect(consoleMessages.errors).toHaveLength(0)
     })
 
     test('it renders components with top-level await during SSR', async ({ page }) => {
@@ -398,3 +420,62 @@ test.describe('SSR Auto Transform', () => {
     })
   })
 })
+
+test('Solid renders and hydrates a component layout', async ({ page }) => {
+  test.skip(process.env.PACKAGE !== 'solid', 'Solid component-layout contract, not mutable layout props')
+  const response = await page.request.get('/ssr/layout-props-a')
+  const html = await response.text()
+  expect(html).toContain('Page A Title')
+  expect(html).toContain('Page A Content')
+  consoleMessages.listen(page)
+  await page.goto('/ssr/layout-props-a')
+  await expect(page.getByTestId('layout-title')).toHaveText('Page A Title')
+  await expect(page.getByTestId('page-content')).toHaveText('Page A Content')
+  expect(consoleMessages.errors).toHaveLength(0)
+})
+
+for (const [name, port] of [
+  ['manual', SSR_SERVER_PORT],
+  ['automatic', SSR_AUTO_SERVER_PORT],
+] as const) {
+  test(`Solid isolates page props and usePage context across concurrent ${name} SSR requests`, async ({
+    page,
+    request,
+  }) => {
+    test.skip(process.env.PACKAGE !== 'solid', 'Solid request-local page context')
+    const pages = [
+      {
+        url: '/request-a',
+        user: { name: 'Ada & <alpha>', email: 'a@example.com' },
+        items: ['First', 'Second'],
+        count: 12,
+      },
+      { url: '/request-b', user: { name: 'Grace', email: 'b@example.com' }, items: [], count: 37 },
+    ]
+    const responses = await Promise.all(
+      pages.map(({ url, ...props }) =>
+        request.post(`http://localhost:${port}/render`, {
+          data: {
+            component: 'SSR/Page1',
+            url,
+            props: { errors: {}, ...props },
+            version: null,
+            clearHistory: false,
+            encryptHistory: false,
+          },
+        }),
+      ),
+    )
+    for (const [index, response] of responses.entries()) {
+      expect(response.ok()).toBe(true)
+      const rendered = await response.json()
+      // Inspect rendered DOM, not the embedded JSON which always echoes input.
+      await page.setContent(rendered.body)
+      await expect(page.getByTestId('user-name')).toHaveText(`Name: ${pages[index].user.name}`)
+      await expect(page.getByTestId('user-email')).toHaveText(`Email: ${pages[index].user.email}`)
+      await expect(page.getByTestId('page-url')).toHaveText(`URL: ${pages[index].url}`)
+      await expect(page.getByTestId('count')).toHaveText(`Count: ${pages[index].count}`)
+      await expect(page.getByTestId('item')).toHaveText(pages[index].items)
+    }
+  })
+}

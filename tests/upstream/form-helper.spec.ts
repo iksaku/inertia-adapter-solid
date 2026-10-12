@@ -975,7 +975,7 @@ test.describe('Form Helper', () => {
         await expect(notProcessing).toBe(false)
       })
 
-      test('resets the progress property back to null', async ({ page }) => {
+      test('resets the progress property to its empty value', async ({ page }) => {
         await clickAndWaitForResponse(page, 'onSuccess progress property', 'sleep', 'button')
 
         const messages = await waitForEventMessages(page, 5)
@@ -990,7 +990,7 @@ test.describe('Form Helper', () => {
         await expect(event.percentage).toBeLessThanOrEqual(100)
 
         await expect(messages[4]).toBe('onFinish')
-        await expect(endEvent).toBeNull()
+        await expect(endEvent).toBe(process.env.PACKAGE === 'solid' ? undefined : null)
       })
 
       test('marks the form as no longer processing after error', async ({ page }) => {
@@ -1005,7 +1005,7 @@ test.describe('Form Helper', () => {
         await expect(notProcessing).toBe(false)
       })
 
-      test('resets the progress property back to null after error', async ({ page }) => {
+      test('resets the progress property to its empty value after error', async ({ page }) => {
         await clickAndWaitForResponse(page, 'onError progress property', 'form-helper/events/errors', 'button')
 
         const data = await waitForDataMessages(page, 5)
@@ -1018,7 +1018,7 @@ test.describe('Form Helper', () => {
         await expect(event.percentage).toBeGreaterThanOrEqual(0)
         await expect(event.percentage).toBeLessThanOrEqual(100)
 
-        await expect(endEvent).toBeNull()
+        await expect(endEvent).toBe(process.env.PACKAGE === 'solid' ? undefined : null)
       })
 
       test('marks the form as no longer processing after cancel', async ({ page }) => {
@@ -1035,7 +1035,7 @@ test.describe('Form Helper', () => {
         await expect(notProcessing).toBe(false)
       })
 
-      test('resets the progress property back to null after cancel', async ({ page }) => {
+      test('resets the progress property to its empty value after cancel', async ({ page }) => {
         await page.getByRole('button', { exact: true, name: 'onCancel progress property' }).click()
 
         await page.waitForFunction(() => (window as any).events.includes('onFinish'))
@@ -1044,8 +1044,9 @@ test.describe('Form Helper', () => {
         const progressEntries = data.filter((d: any) => d.type === 'progress')
         const lastProgressEntry = progressEntries[progressEntries.length - 1]
 
-        // After cancel, progress should be null (either reset or never set)
-        await expect(lastProgressEntry?.data).toBeNull()
+        // Solid's public FormStateProps declares Progress | undefined, not null.
+        await expect(progressEntries.length).toBeGreaterThan(0)
+        await expect(lastProgressEntry.data).toBe(process.env.PACKAGE === 'solid' ? undefined : null)
       })
     })
   })

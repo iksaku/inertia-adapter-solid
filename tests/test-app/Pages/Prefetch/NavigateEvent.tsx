@@ -4,7 +4,8 @@ import { onMount, onCleanup } from 'solid-js'
 export default function NavigateEvent() {
   onMount(() => {
     const cleanup = router.on('navigate', (event) => console.log(String(event.detail.cached)))
-    onCleanup(cleanup)
+    // The outgoing page is disposed before its navigation event is dispatched.
+    onCleanup(() => setTimeout(cleanup, 0))
   })
   return (
     <>

@@ -1,4 +1,5 @@
 import { config, useForm } from 'inertia-adapter-solid'
+import { For } from 'solid-js'
 export default () => {
   // Set global config for withAllErrors (no .withAllErrors() call on the form)
   config.set('form.withAllErrors', true)
@@ -21,7 +22,7 @@ export default () => {
         {form.invalid('name') && (
           <div>
             {Array.isArray(form.errors.name) ? (
-              form.errors.name.map((error, index) => <p id={`name-error-${index}`}>{error}</p>)
+              <For each={form.errors.name}>{(error, index) => <p id={`name-error-${index()}`}>{error}</p>}</For>
             ) : (
               <p id="name-error-0">{form.errors.name}</p>
             )}
@@ -41,7 +42,7 @@ export default () => {
         {form.invalid('email') && (
           <div>
             {Array.isArray(form.errors.email) ? (
-              form.errors.email.map((error, index) => <p id={`email-error-${index}`}>{error}</p>)
+              <For each={form.errors.email}>{(error, index) => <p id={`email-error-${index()}`}>{error}</p>}</For>
             ) : (
               <p id="email-error-0">{form.errors.email}</p>
             )}

@@ -1,4 +1,5 @@
-import { Link, router, usePage } from 'inertia-adapter-solid'
+import { Link, router as inertiaRouter, usePage } from 'inertia-adapter-solid'
+import { onCleanup } from 'solid-js'
 
 declare global {
   interface Window {
@@ -9,6 +10,37 @@ declare global {
 window.messages = []
 
 export default () => {
+  const subscriptions: (() => void)[] = []
+  // Only subscription ownership changes; requests and events use the real router.
+  const router: Pick<typeof inertiaRouter, 'get' | 'post' | 'on' | 'once'> = {
+    get: inertiaRouter.get.bind(inertiaRouter),
+    post: inertiaRouter.post.bind(inertiaRouter),
+    on: (name, callback) => {
+      const unsubscribe = inertiaRouter.on(name, callback)
+      subscriptions.push(unsubscribe)
+      return unsubscribe
+    },
+    once: (name, callback) => {
+      const unsubscribe = inertiaRouter.once(name, callback)
+      subscriptions.push(unsubscribe)
+      return unsubscribe
+    },
+  }
+  const document: Pick<Document, 'addEventListener'> = {
+    addEventListener: (
+      name: string,
+      callback: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) => {
+      window.document.addEventListener(name, callback, options)
+      subscriptions.push(() => window.document.removeEventListener(name, callback, options))
+    },
+  }
+  onCleanup(() => {
+    // Page disposal precedes the navigation's terminal events. Observe that final
+    // navigate/finish dispatch, then remove every listener before another visit.
+    setTimeout(() => subscriptions.splice(0).forEach((unsubscribe) => unsubscribe()), 0)
+  })
   const payloadWithFile = {
     file: new File(['foobar'], 'example.bin'),
   }
@@ -686,12 +718,7 @@ export default () => {
       <a href="#" onClick={startVisit} class="start">
         Start Event
       </a>
-      <Link
-        href={page.url}
-        method="post"
-        onStart={(event) => internalAlert('linkOnStart', event)}
-        class="link-start"
-      >
+      <Link href={page.url} method="post" onStart={(event) => internalAlert('linkOnStart', event)} class="link-start">
         Start Event Link
       </Link>
 
@@ -795,11 +822,7 @@ export default () => {
       <a href="#" onClick={httpExceptionInertiaResponseVisit} class="http-exception-inertia-response">
         HTTP Exception Event (Inertia Response)
       </a>
-      <a
-        href="#"
-        onClick={httpExceptionInertiaResponsePreventVisit}
-        class="http-exception-inertia-response-prevent"
-      >
+      <a href="#" onClick={httpExceptionInertiaResponsePreventVisit} class="http-exception-inertia-response-prevent">
         HTTP Exception Event (Inertia Response Prevent)
       </a>
 

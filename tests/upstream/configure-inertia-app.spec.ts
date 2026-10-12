@@ -72,12 +72,21 @@ test.describe('createInertiaApp', () => {
     expect(await hasStrictMode(page)).toBe(false)
   })
 
-  test('it exposes page metadata inside the withApp wrapper', async ({ page }) => {
+  test('it passes the page object to the withApp callback', async ({ page }) => {
+    test.skip(process.env.PACKAGE === 'solid', 'Solid withApp receives { ssr }, not the page object')
     await page.goto('/unified/with-app')
 
     await expect(page.getByTestId('with-app-value')).toHaveText('Value: injected-via-withApp')
     await expect(page.getByTestId('with-app-locale')).toHaveText('Locale: en-CA')
     await expect(page.getByTestId('with-app-component')).toHaveText('Component: SSR/WithApp')
-    if (process.env.PACKAGE === 'solid') await expect(page.getByTestId('with-app-ssr')).toHaveText('SSR: false')
+  })
+
+  test('Solid withApp provides context and receives the CSR option', async ({ page }) => {
+    test.skip(process.env.PACKAGE !== 'solid', 'Solid wrapper contract')
+    await page.goto('/unified/with-app')
+    await expect(page.getByTestId('with-app-value')).toHaveText('Value: injected-via-withApp')
+    await expect(page.getByTestId('with-app-ssr')).toHaveText('SSR: false')
+    await expect(page.getByTestId('with-app-locale')).toHaveText('Locale: en-CA')
+    await expect(page.getByTestId('with-app-component')).toHaveText('Component: SSR/WithApp')
   })
 })
