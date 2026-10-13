@@ -1,5 +1,18 @@
-import test, { expect } from '@playwright/test'
+import test, { expect, type Page } from '@playwright/test'
 import { pageLoads } from './support'
+
+async function holdResponse(page: Page, url: string) {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(url, async (route) => {
+    const response = await route.fetch()
+    await gate
+    await route.fulfill({ response })
+  })
+  return release
+}
 
 test.describe('Optimistic', () => {
   test.describe.configure({ mode: 'serial' })
@@ -127,18 +140,29 @@ test.describe('Optimistic', () => {
     await page.locator('#reset-likes-btn').click()
     await expect(page.locator('#likes-count')).toContainText('Likes: 0')
 
-    // Server responds with likes=3 (fast) and likes=5 (slow)
-    await page.locator('#like-controlled-fast-btn').click()
-    await page.locator('#like-controlled-slow-btn').click()
+    // Keep both updates pending even if the second click takes longer than 100ms.
+    const releaseFast = await holdResponse(page, '**/optimistic/like-controlled?delay=100&likes=3')
+    const releaseSlow = await holdResponse(page, '**/optimistic/like-controlled?delay=800&likes=5')
+    const fastResponse = page.waitForResponse('**/optimistic/like-controlled?delay=100&likes=3')
 
-    await expect(page.locator('#likes-count')).toContainText('Likes: 2')
+    try {
+      await page.locator('#like-controlled-fast-btn').click()
+      await page.locator('#like-controlled-slow-btn').click()
 
-    await page.waitForTimeout(300)
-    await expect(page.locator('#likes-count')).toContainText('Likes: 2')
+      await expect(page.locator('#likes-count')).toContainText('Likes: 2')
 
-    // Last server response wins
-    await page.waitForTimeout(800)
-    await expect(page.locator('#likes-count')).toContainText('Likes: 5')
+      releaseFast()
+      await (await fastResponse).finished()
+      await page.waitForTimeout(300)
+      await expect(page.locator('#likes-count')).toContainText('Likes: 2')
+
+      // Last server response wins.
+      releaseSlow()
+      await expect(page.locator('#likes-count')).toContainText('Likes: 5')
+    } finally {
+      releaseFast()
+      releaseSlow()
+    }
   })
 
   test('it keeps the optimistic value when an older optimistic response lands last', async ({ page }) => {
@@ -168,18 +192,27 @@ test.describe('Optimistic', () => {
     await page.locator('#reset-likes-btn').click()
     await expect(page.locator('#likes-count')).toContainText('Likes: 0')
 
-    await page.locator('#like-error-btn').click()
-    await page.locator('#like-controlled-slow-btn').click()
+    // Fetch the real fixture responses, but hold both until their optimistic states
+    // have been asserted. The 100ms error must not win the race with the second click.
+    const releaseError = await holdResponse(page, '**/optimistic/like-error?delay=100')
+    const releaseSlow = await holdResponse(page, '**/optimistic/like-controlled?delay=800&likes=5')
 
-    await expect(page.locator('#likes-count')).toContainText('Likes: 2')
+    try {
+      await page.locator('#like-error-btn').click()
+      await page.locator('#like-controlled-slow-btn').click()
 
-    // After the fast error resolves, the failed +1 is removed and the remaining
-    // pending +1 is replayed on the baseline (0), giving 1
-    await page.waitForTimeout(300)
-    await expect(page.locator('#likes-count')).toContainText('Likes: 1')
+      await expect(page.locator('#likes-count')).toContainText('Likes: 2')
 
-    await page.waitForTimeout(800)
-    await expect(page.locator('#likes-count')).toContainText('Likes: 5')
+      // Remove the failed +1 and replay the remaining pending +1 on baseline 0.
+      releaseError()
+      await expect(page.locator('#likes-count')).toContainText('Likes: 1')
+
+      releaseSlow()
+      await expect(page.locator('#likes-count')).toContainText('Likes: 5')
+    } finally {
+      releaseError()
+      releaseSlow()
+    }
   })
 
   test('it applies the last server response when a newer optimistic request errored first', async ({ page }) => {

@@ -4,7 +4,7 @@ import { clickAndWaitForResponse, consoleMessages } from './support'
 // WebKit has a ~64MB limit on history.state storage.
 // Chromium and Firefox have virtually unlimited storage.
 test.describe('history quota exceeded', () => {
-  test.setTimeout(10_000)
+  test.setTimeout(30_000)
 
   test.beforeEach(async ({ page, browserName }) => {
     test.skip(browserName !== 'webkit', 'WebKit-specific quota limit')

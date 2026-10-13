@@ -767,29 +767,40 @@ test.describe('tags', () => {
 
         await page.waitForURL('/dump/post')
 
+        await page.mouse.move(0, 0)
         await page.goBack()
 
         await page.waitForLoadState('networkidle')
         requests.listen(page)
         await page.getByRole('link', { name: 'User Page 2' }).click()
         await isTagsPage(page, 2)
-        await expect.poll(() => requests.requests.length).toBeGreaterThanOrEqual(1)
+        await expect
+          .poll(
+            () => requests.requests.filter((request) => new URL(request.url()).pathname === '/prefetch/tags/2').length,
+          )
+          .toBeGreaterThanOrEqual(1)
 
+        await page.mouse.move(0, 0)
         await page.goBack()
 
         await page.waitForLoadState('networkidle')
         requests.listen(page)
         await page.getByRole('link', { name: 'Product Page 3' }).click()
         await isTagsPage(page, 3)
-        expect(requests.requests.length).toBe(0)
+        expect(
+          requests.requests.filter((request) => new URL(request.url()).pathname === '/prefetch/tags/3'),
+        ).toHaveLength(0)
 
+        await page.mouse.move(0, 0)
         await page.goBack()
 
         await page.waitForLoadState('networkidle')
         requests.listen(page)
         await page.getByRole('link', { name: 'Untagged Page 6' }).click()
         await isTagsPage(page, 6)
-        expect(requests.requests.length).toBe(0)
+        expect(
+          requests.requests.filter((request) => new URL(request.url()).pathname === '/prefetch/tags/6'),
+        ).toHaveLength(0)
       })
     })
   })

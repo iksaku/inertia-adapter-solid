@@ -163,7 +163,6 @@ Object.entries({
     await expect(pollRequests().length).toBeGreaterThanOrEqual(4)
   })
 })
-
 ;['overlap', 'cancel', 'rest'].forEach((mode) => {
   test(`it pauses polling in the background and polls immediately when visible again (${mode})`, async ({ page }) => {
     test.setTimeout(10_000)
@@ -414,10 +413,17 @@ test('it waits for the interval between requests with mode: rest', async ({ page
   requests.listenForFinished(page)
   requests.listenForFailed(page)
 
-  await page.waitForTimeout(2000)
+  await expect.poll(() => pollFinished().length).toBeGreaterThanOrEqual(3)
+  await page.getByRole('button', { name: 'Stop', exact: true }).click()
 
-  await expect(pollRequests().length).toBeGreaterThanOrEqual(2)
-  await expect(pollFinished().length).toBe(pollRequests().length)
+  const completed = pollRequests()
+  await expect.poll(() => pollFinished().length).toBe(completed.length)
+  for (let index = 1; index < completed.length; index++) {
+    const previous = completed[index - 1].timing()
+    const next = completed[index].timing()
+    const gap = next.startTime - previous.startTime - previous.responseEnd
+    await expect(gap).toBeGreaterThanOrEqual(200)
+  }
   await expect(pollFailed().length).toBe(0)
 })
 

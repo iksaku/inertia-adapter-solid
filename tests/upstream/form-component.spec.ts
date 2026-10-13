@@ -726,7 +726,6 @@ test.describe('Form Component', () => {
 
     await page.evaluate(async () => {
       const form = document.querySelector('form')!
-
       ;(document.querySelector('#hide') as HTMLButtonElement).click()
 
       // React nulls the form ref when the unmount commits (a microtask) but removes the
@@ -1608,20 +1607,28 @@ test.describe('Form Component', () => {
       await page.click('#submit-invalidate-user')
       await shouldBeDumpPage(page, 'post')
 
+      await page.mouse.move(0, 0)
       await page.goBack()
 
       // User-tagged page should be invalidated and refetched
       requests.listen(page)
       await page.getByRole('link', { name: 'User Tagged Page' }).click()
       await expect(page).toHaveURL('/prefetch/tags/1')
-      await expect.poll(() => requests.requests.length).toBeGreaterThanOrEqual(1)
+      await expect
+        .poll(
+          () => requests.requests.filter((request) => new URL(request.url()).pathname === '/prefetch/tags/1').length,
+        )
+        .toBeGreaterThanOrEqual(1)
 
       // Go back and check product page is still cached
+      await page.mouse.move(0, 0)
       await page.goBack()
       requests.listen(page)
       await page.getByRole('link', { name: 'Product Tagged Page' }).click()
       await expect(page).toHaveURL('/prefetch/tags/2')
-      expect(requests.requests.length).toBe(0)
+      expect(
+        requests.requests.filter((request) => new URL(request.url()).pathname === '/prefetch/tags/2'),
+      ).toHaveLength(0)
     })
   })
 

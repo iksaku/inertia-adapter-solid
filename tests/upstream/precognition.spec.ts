@@ -1,8 +1,11 @@
 import test, { expect, type Page } from '@playwright/test'
 import { requests, shouldBeDumpPage } from './support'
 
-async function waitForValidation(page: Page, trigger: () => Promise<unknown>) {
-  const request = page.waitForRequest((request) => !!request.headers()['precognition'])
+async function waitForValidation(page: Page, trigger: () => Promise<unknown>, only?: string) {
+  const request = page.waitForRequest(
+    (request) =>
+      !!request.headers()['precognition'] && (!only || request.headers()['precognition-validate-only'] === only),
+  )
 
   await trigger()
   await (await request).response()
@@ -405,7 +408,7 @@ integrations.forEach((integration) => {
         buffer: Buffer.from('fake image data'),
       })
 
-      await waitForValidation(page, () => page.getByRole('button', { name: 'Validate Both' }).click())
+      await waitForValidation(page, () => page.getByRole('button', { name: 'Validate Both' }).click(), 'name,avatar')
 
       await expect(page.getByText('Validating...')).not.toBeVisible()
 
@@ -419,18 +422,21 @@ integrations.forEach((integration) => {
       await expect(page.getByText('Toggle Validate Files (enabled)')).toBeVisible()
 
       await page.fill('input[name="name"]', 'ab')
+      await waitForValidation(page, () => page.locator('input[name="name"]').blur(), 'name')
+      await expect(page.getByText('The name must be at least 3 characters.')).toBeVisible()
       await page.setInputFiles('#avatar', {
         name: 'avatar.jpg',
         mimeType: 'image/jpeg',
         buffer: Buffer.from('fake image data'),
       })
 
-      await waitForValidation(page, () => page.getByRole('button', { name: 'Validate Both' }).click())
+      await waitForValidation(page, () => page.getByRole('button', { name: 'Validate Both' }).click(), 'name,avatar')
 
       await expect(page.getByText('Validating...')).not.toBeVisible()
 
       await expect(page.getByText('The name must be at least 3 characters.')).toBeVisible()
       await expect(page.getByText('The avatar field is required.')).not.toBeVisible()
+      await expect(page.getByText('Avatar is valid!')).toBeVisible()
     })
 
     test(prefix + 'transforms data for validation requests', async ({ page }) => {
@@ -524,34 +530,34 @@ integrations.forEach((integration) => {
       await expect(page.getByText('Custom header received: custom-value')).toBeVisible()
     })
 
-    test(
-      prefix + 'automatically cancels previous validation when new validation starts',
-      async ({ page, browserName }) => {
-        await page.goto('/' + integration + '/precognition/cancel')
+    test(prefix + 'automatically cancels previous validation when new validation starts', async ({
+      page,
+      browserName,
+    }) => {
+      await page.goto('/' + integration + '/precognition/cancel')
 
-        requests.listenForFailed(page)
-        requests.listenForResponses(page)
+      requests.listenForFailed(page)
+      requests.listenForResponses(page)
 
-        await page.fill('#auto-cancel-name-input', 'ab')
-        await page.locator('#auto-cancel-name-input').blur()
-        await expect(page.getByText('Validating...')).toBeVisible()
+      await page.fill('#auto-cancel-name-input', 'ab')
+      await page.locator('#auto-cancel-name-input').blur()
+      await expect(page.getByText('Validating...')).toBeVisible()
 
-        // Immediately change value and trigger new validation - should cancel the first one
-        await page.fill('#auto-cancel-name-input', 'xy')
-        await waitForValidation(page, () => page.locator('#auto-cancel-name-input').blur())
-        await expect(page.getByText('Validating...')).not.toBeVisible()
-        await expect(page.getByText('The name must be at least 3 characters.')).toBeVisible()
+      // Immediately change value and trigger new validation - should cancel the first one
+      await page.fill('#auto-cancel-name-input', 'xy')
+      await waitForValidation(page, () => page.locator('#auto-cancel-name-input').blur())
+      await expect(page.getByText('Validating...')).not.toBeVisible()
+      await expect(page.getByText('The name must be at least 3 characters.')).toBeVisible()
 
-        // One cancelled, one 422 response
-        await expect.poll(() => requests.failed.length).toBe(1)
-        await expect.poll(() => requests.responses.length).toBe(1)
+      // One cancelled, one 422 response
+      await expect.poll(() => requests.failed.length).toBe(1)
+      await expect.poll(() => requests.responses.length).toBe(1)
 
-        const cancelledRequestError = await requests.failed[0].failure()?.errorText
-        const expectedError =
-          browserName === 'webkit' ? 'cancelled' : browserName === 'firefox' ? 'NS_BINDING_ABORTED' : 'net::ERR_ABORTED'
-        expect(cancelledRequestError).toBe(expectedError)
-      },
-    )
+      const cancelledRequestError = await requests.failed[0].failure()?.errorText
+      const expectedError =
+        browserName === 'webkit' ? 'cancelled' : browserName === 'firefox' ? 'NS_BINDING_ABORTED' : 'net::ERR_ABORTED'
+      expect(cancelledRequestError).toBe(expectedError)
+    })
 
     test(prefix + 'validates dynamic array inputs after first validation', async ({ page }) => {
       await page.goto('/' + integration + '/precognition/dynamic-array-inputs')

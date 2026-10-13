@@ -873,7 +873,7 @@ app.post('/precognition/files', upload.any(), (req, res) => {
   setTimeout(() => {
     const only = req.headers['precognition-validate-only'] ? req.headers['precognition-validate-only'].split(',') : []
     const name = req.body['name']
-    const hasAvatar = req.files && req.files.avatar
+    const hasAvatar = req.files?.some((file) => file.fieldname === 'avatar')
     const errors = {}
 
     if (!name) {

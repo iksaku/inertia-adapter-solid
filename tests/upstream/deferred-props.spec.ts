@@ -132,7 +132,10 @@ const shouldShowReloading = ['only', 'except-other']
 
 shouldShowReloading.forEach((type) => {
   test(`it shows reloading indicator when deferred prop is being reloaded (${type})`, async ({ page }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid Deferred accepts JSX children but does not expose a reloading slot')
+    test.skip(
+      process.env.PACKAGE === 'solid',
+      'Solid Deferred accepts JSX children but does not expose a reloading slot',
+    )
     await gotoPageAndWaitForContent(page, `/deferred-props/with-partial-reload/${type}`)
 
     await expect(page.getByText('Loading...')).toBeVisible()
@@ -453,14 +456,29 @@ test('deferred props do not clear validation errors', async ({ page }) => {
 })
 
 test('it refetches pending deferred props after navigating back', async ({ page }) => {
-  await gotoPageAndWaitForContent(page, '/deferred-props/back-button/a')
+  let holdInitial = true
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/deferred-props/back-button/a', async (route) => {
+    if (holdInitial && route.request().headers()['x-inertia-partial-data']) await pending
+    await route.continue()
+  })
 
-  await expect(page.getByText('Loading fast prop...')).toBeVisible()
-  await expect(page.getByText('Loading slow prop...')).toBeVisible()
+  try {
+    await gotoPageAndWaitForContent(page, '/deferred-props/back-button/a')
 
-  // Navigate away before deferred props load
-  await page.getByRole('link', { name: 'Go to Page B' }).click()
-  await page.waitForURL('/deferred-props/back-button/b')
+    await expect(page.getByText('Loading fast prop...')).toBeVisible()
+    await expect(page.getByText('Loading slow prop...')).toBeVisible()
+
+    // Hold initial requests so both props are genuinely pending when leaving.
+    await page.getByRole('link', { name: 'Go to Page B' }).click()
+    await page.waitForURL('/deferred-props/back-button/b')
+  } finally {
+    holdInitial = false
+    release()
+  }
 
   await page.goBack()
   await page.waitForURL('/deferred-props/back-button/a')

@@ -1,4 +1,4 @@
-import { createEffect, type JSX } from 'solid-js'
+import { createEffect } from 'solid-js'
 import { Link, usePage } from 'inertia-adapter-solid'
 import NestedLayout from '@/Layouts/NestedLayout'
 import SiteLayout from '@/Layouts/SiteLayout'
@@ -11,11 +11,5 @@ const PageB = () => {
     </div>
   )
 }
-PageB.layout = (props: { children: JSX.Element }) => {
-  return (
-    <SiteLayout>
-      <NestedLayout children={props.children} />
-    </SiteLayout>
-  )
-}
+PageB.layout = [SiteLayout, NestedLayout]
 export default PageB

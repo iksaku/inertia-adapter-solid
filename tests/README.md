@@ -75,6 +75,9 @@ does not turn known failures into passing jobs.
 5. **Integration:** reproducible commands, capability audit, CI matrix, upstream
    provenance, and a documented baseline. This is coverage infrastructure,
    not an adapter bug-fix pass.
+6. **Baseline validation:** pinned browsers and Node 22, full client/engine/SSR
+   runs, repeated timing cases, official React controls, and correction of
+   proven fixture/backend/assertion errors without changing adapter behavior.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -119,7 +122,8 @@ the runtime and Vite versions used for this port.
 - `tests/upstream/*.spec.ts` and `support.ts`: official shared browser suite,
   with capability gates and native metadata assertions documented above.
 - `tests/app/*.js`: official backend, adapted only for Solid, local paths/ports,
-  CommonJS exports, and the matching automatic-SSR client template.
+  CommonJS exports, the matching automatic-SSR client template, and the Multer
+  avatar lookup correction documented in Phase 6 below.
 - `tests/test-app/`: React fixture catalogue translated to Solid; `UsePage` uses
   the Vue reactive-page fixtures, and metadata uses native Solid equivalents.
 - `tests/unit/` and `tests/types/`: additional public Solid runtime/type consumers.
@@ -135,7 +139,7 @@ fixtures alongside Solid API declarations. Preserve capability notes, selectors,
 and assertions. Run type/unit checks, all browser engines/clients, and SSR. Record
 the new revision and results here; do not mark supported failures as skips.
 
-## Initial baseline
+## Historical initial baseline (2026-10-12)
 
 The adapter source and manual playground remain unchanged. Supported-contract
 failures are deliberately red, not `fixme`, expected failures, or weakened
@@ -180,3 +184,142 @@ checks, and `git diff --check` passed. `pnpm test` and the corresponding CI jobs
 remain nonzero on the supported failures above. Fixing those contracts is a
 separate task; do not replace this baseline with expected failures to make CI
 green.
+
+## Phase 6: validated baseline (2026-10-13)
+
+This supersedes the initial baseline's unverified-browser limitations, not its
+historical results. Validation uses Linux/Debian 13, Node **22.23.3**, pnpm
+**11.20.0**, four workers, no retries, and Playwright **1.58.2** with its pinned
+browsers: Chromium **145.0.7632.6** (revision 1208), Firefox **146.0.1** (1509),
+and WebKit **26.0** (2248). No Chromium executable-path override is used. The
+Node 26 installation remains the host default; Node 22 is selected for these
+commands only. Browser, Axios, and SSR commands run sequentially.
+
+On this runner, the downloaded browsers are in the ignored
+`.amp/in/browsers-phase6/` cache. To reuse that cache and the installed Node 22
+without changing the default Node version:
+
+```sh
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.amp/in/browsers-phase6"
+fnm exec --using=22.23.3 pnpm test:browser:all
+fnm exec --using=22.23.3 pnpm test:browser:axios
+fnm exec --using=22.23.3 pnpm test:ssr
+```
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,108 cases | 933 | 108 | 67 |
+| Firefox / Fetch, all 1,108 cases | 918 | 107 | 83 |
+| WebKit / Fetch, all 1,108 cases | 933 | 111 | 64 |
+| Chromium / Axios, all 1,108 cases | 933 | 108 | 67 |
+| Manual/automatic SSR and Chromium hydration, all 32 cases | 19 | 2 | 11 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 3 diagnostics | — |
+
+The final Fetch matrix is one complete run: **2,784 passed, 326 failed, 214
+skipped, zero blocked serial followers** out of 3,324 engine/case combinations.
+Before harness corrections, the same pinned environment produced 2,771 passed,
+334 failed, 214 ordinary skips, and five blocked optimistic serial followers.
+Nine original failures are corrected; one additional intermittent WebKit scroll
+failure remains in the final count. Passing focused reruns do not replace that
+result. All optimistic cases executed in the final matrix, and all four WebKit
+quota cases passed. Axios ran the complete shared suite, not the historical
+63-case selection, with the same failed contracts as Chromium/Fetch.
+
+Package, client, and both SSR builds passed. Backend syntax, changed-spec
+formatting, and `git diff --check` passed. Browser/runtime/type checks still
+return nonzero because the supported failures below remain observable.
+
+### Harness corrections keep the intended contract
+
+- **Shorthand layouts:** pages now share `SiteLayout` or
+  `[SiteLayout, NestedLayout]`, matching upstream component shorthand. Separate
+  per-page wrapper functions have different identities in Solid and are not
+  shorthand. Both shorthand scenarios pass on all engines. The separate
+  render-function scenarios remain enabled and red.
+- **Precognition uploads:** Multer's `upload.any()` supplies an array, not
+  `req.files.avatar`. The backend now checks the `avatar` field name. A raw
+  uploaded avatar returns 204; a missing file or a file named `portrait` returns
+  422. Browser assertions await the exact `name,avatar` validation request and
+  require the positive `Avatar is valid!` state. Previously, name-only blur
+  validation could make the upload tests falsely pass. Strengthened official
+  React cases failed before the backend correction and passed after it; their
+  missing-file controls remain green.
+- **Polling rest mode:** stop after three completed requests, drain in-flight
+  work, then check a minimum 200ms gap from completion to the next start. Live
+  started/finished counts are not equal while a correct poll is in flight.
+  Negative controls reject overlap mode on every engine.
+- **Pending deferred history:** hold initial deferred requests until navigating
+  away, then release them and assert actual refetches after going back. This
+  guarantees the pending state rather than racing a fast response.
+- **Tag invalidation:** count requests for the intended user/product/untagged
+  URL, retaining positive user-refetch and zero cached-target assertions. Move
+  the pointer away before going back; incidental hover prefetches for unrelated
+  links are not product-cache misses.
+- **Optimistic overlap:** hold real backend responses until both optimistic
+  updates are visible, then release them in the tested order. A 100ms response
+  could previously complete before the second browser click. Both hardened
+  scenarios passed 10 repeats per engine (60/60); the original intermediate
+  and final values remain asserted.
+- **WebKit quota:** allow 30s for the payload-heavy history suite instead of
+  its explicit 10s budget. Reload, subsequent navigation, back/forward, and
+  deferred-payload assertions remain unchanged.
+
+The hardened polling, pending-history, and upload scenarios also passed 90/90
+repeated cases across the three engines. These repetitions are stability checks,
+not additional unique API coverage.
+
+### Failure classification, not production fixes
+
+The same InfiniteScroll initialization exception occurs on every engine:
+`setRequestCount` is accessed before initialization. It prevents the fixture
+from mounting, so 77 Chromium/WebKit cases, 76 Firefox cases, a flash case, and
+two SSR cases cannot exercise their later assertions. Those are blocked contract
+checks, not that many independently diagnosed defects, and remain failures.
+
+Other source-backed failures concern Link forwarding of `onHttpException`,
+`onNetworkError`, and `onFlash`; `dataloading` instead of `data-loading`;
+the missing reactive bridge for `router.flash`; getters copied by
+`Object.assign` freezing `validating` and `useHttp.response`; Form reset not
+clearing validator touched fields; the all-errors override shadowing global
+configuration; legacy Precognition constructors not initializing a validator;
+uppercase Form methods; and dotted nested Deferred keys being treated as
+literal top-level keys. Successful deferred HTTP responses do not make their
+gated nested content render.
+
+The mount-time partial-reload case never requests `bar`: Solid failed 10/10
+repeats while the official React control passed 10/10. This is a lifecycle or
+initial-dispatch discrepancy, not merely a missed loading indicator; its deeper
+cause is not settled here. The factory-default runtime test fails during form
+construction with `dataOption(...) is not a function`. Declaration diagnostics
+concern shared-page augmentation and InfiniteScroll's JSX return type.
+
+Two render-function layout cases need a Solid API/identity decision: upstream
+React retains the inner layout across distinct per-page render functions, while
+Solid treats these functions as different layout components. Do not silently
+replace them with shorthand, weaken the identity assertion, or skip them.
+
+Two WebKit scroll cases reproduce with the same values in the pinned official
+React fixture: Link's preserve-scroll callback changes document X from 5 to 0,
+and manual visit's untracked slot changes from 10/15 to 76/0. Solid also failed
+each case in three focused repeats. These remain enabled; the controls establish
+that the failures are not uniquely Solid, not whether browser behavior, upstream
+core, or the test interaction is responsible.
+
+The final matrix also failed WebKit's encrypted-history document-scroll
+restoration check at its explicit 1,000ms wait. It passed in the earlier matrix
+and all 10 focused Solid repeats; official React passed 9/10 and failed at the
+same assertion once. This is an intermittent upstream-reproducing failure of
+unsettled cause, not a confirmed Solid defect or a removed failure. Its assertion
+and timeout remain unchanged.
+
+Official controls use a separate checkout pinned to the provenance commit above,
+the same Node/browser versions, and port 13716. Express's `sendFile` required
+`dotfiles: 'allow'` solely because that scratch checkout is under hidden `.amp/`.
+The upload controls also use the documented Multer/assertion corrections. No
+upstream runtime patches are used to obtain the control results.
+
+Adapter source and the manual playground remain unchanged. Supported failures
+are not skips, `fixme`, or expected failures. CI is configured but has not been
+pushed or run remotely; local validation is not evidence of a green CI job.

@@ -1,4 +1,4 @@
-import { createEffect, type JSX } from 'solid-js'
+import { createEffect } from 'solid-js'
 import { Link, usePage } from 'inertia-adapter-solid'
 import SiteLayout from '@/Layouts/SiteLayout'
 const PageB = () => {
@@ -10,5 +10,5 @@ const PageB = () => {
     </div>
   )
 }
-PageB.layout = (props: { children: JSX.Element }) => <SiteLayout children={props.children} />
+PageB.layout = SiteLayout
 export default PageB
