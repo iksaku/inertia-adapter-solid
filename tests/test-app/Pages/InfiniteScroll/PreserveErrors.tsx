@@ -15,7 +15,6 @@ export default function PreserveErrors(props: { users: { data: User[] } }) {
       <button type="button" onClick={() => form.post('/infinite-scroll/preserve-errors')}>
         Submit
       </button>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         style={{ display: 'grid', gap: '20px' }}

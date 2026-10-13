@@ -21,7 +21,6 @@ export default function CustomTriggersRef(props: { users: { data: User[] }; head
   return (
     <div style={{ padding: '20px' }}>
       <h1>{props.heading || 'Custom Triggers with Refs Test'}</h1>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         startElement={() => tableHeader}

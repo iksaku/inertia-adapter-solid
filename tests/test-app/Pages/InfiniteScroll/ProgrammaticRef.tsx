@@ -21,7 +21,6 @@ export default function ProgrammaticRef(props: { users: { data: User[] } }) {
           <button onClick={() => infRef?.fetchNext({ onFinish: updateStates })}>Load Next (Ref)</button>
         </div>
       </div>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         ref={(value) => {
           infRef = value

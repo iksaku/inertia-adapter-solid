@@ -10,7 +10,6 @@ export default function Reload(props: { users: { data: User[] }; time: number })
         </button>
         <span id="time-display"> Current time: {props.time}</span>
       </div>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll data="users">
         <For each={props.users.data}>{(user) => <UserCard user={user} />}</For>
       </InfiniteScroll>

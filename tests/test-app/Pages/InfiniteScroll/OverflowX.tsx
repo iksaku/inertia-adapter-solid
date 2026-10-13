@@ -4,7 +4,6 @@ import type { User } from './UserCard'
 export default function OverflowX(props: { users: { data: User[] } }) {
   return (
     <div style={{ 'overflow-x': 'hidden' }}>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll data="users">
         <For each={props.users.data}>
           {(user) => (

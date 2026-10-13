@@ -3,7 +3,6 @@ import { For } from 'solid-js'
 import UserCard, { type User } from './UserCard'
 export default function Manual(props: { users: { data: User[] } }) {
   return (
-    // @ts-expect-error The adapter returns a valid reactive child accessor, not a JSX-typed element.
     <InfiniteScroll
       data="users"
       style={{ display: 'grid', gap: '20px' }}

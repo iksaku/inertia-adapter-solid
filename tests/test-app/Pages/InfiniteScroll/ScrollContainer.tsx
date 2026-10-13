@@ -17,7 +17,6 @@ export default function ScrollContainer(props: { users: { data: User[] } }) {
           padding: '10px',
         }}
       >
-        {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
         <InfiniteScroll
           data="users"
           style={{ display: 'grid', gap: '10px' }}

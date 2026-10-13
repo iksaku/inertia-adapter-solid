@@ -78,6 +78,9 @@ does not turn known failures into passing jobs.
 6. **Baseline validation:** pinned browsers and Node 22, full client/engine/SSR
    runs, repeated timing cases, official React controls, and correction of
    proven fixture/backend/assertion errors without changing adapter behavior.
+7. **InfiniteScroll startup and JSX:** remove the initialization blocker,
+   preserve Solid's reactive memo return while exposing a JSX-compatible type,
+   and rerun the complete matrix to expose later assertions.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -323,3 +326,67 @@ upstream runtime patches are used to obtain the control results.
 Adapter source and the manual playground remain unchanged. Supported failures
 are not skips, `fixme`, or expected failures. CI is configured but has not been
 pushed or run remotely; local validation is not evidence of a green CI job.
+
+## Phase 7: InfiniteScroll startup and JSX (2026-10-13)
+
+This is the first adapter fix, limited to the InfiniteScroll startup exception
+and public JSX return type. Its signals already initialize from the data
+manager; an earlier synchronization call accessed their setters before they
+existed. Removing that redundant call retains synchronization after requests
+and resets. The returned memo stays an accessor, typed as `JSX.Element`, using
+Solid's control-flow component pattern. It is not evaluated once or placed in
+a new wrapper. All 31 obsolete return-type suppressions in the InfiniteScroll
+fixtures are removed; browser assertions, skips, and timeouts are unchanged.
+
+Validation uses the same pinned Node, pnpm, browsers, worker count, and no-retry
+settings as Phase 6. Complete browser/SSR runs execute sequentially:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,108 cases | 985 | 56 | 67 |
+| Firefox / Fetch, all 1,108 cases | 970 | 55 | 83 |
+| WebKit / Fetch, all 1,108 cases | 986 | 58 | 64 |
+| Chromium / Axios, all 1,108 cases | 985 | 56 | 67 |
+| Manual/automatic SSR and Chromium hydration, all 32 cases | 19 | 2 | 11 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+The complete Fetch matrix is **2,941 passed, 169 failed, 214 skipped**, with no
+blocked serial followers or runner errors. Compared case by case with Phase 6,
+**156 previously blocked engine/case combinations now pass**: 51 InfiniteScroll
+cases per engine and the flash-with-InfiniteScroll case on each engine. The
+known intermittent WebKit encrypted-history scroll case also passes this time;
+that extra passing case is not attributed to the adapter fix. No previously
+passing case fails in either the Fetch matrix or the complete Axios run.
+
+The remaining InfiniteScroll results are **51 passed / 26 failed** in Chromium
+and WebKit, and **51 passed / 25 failed / 1 skipped** in Firefox. Newly reachable
+assertions show missing previous/next slot content, pagination attributes being
+reassigned to earlier rows, additional previous-page requests, URL tracking,
+and scroll-preservation discrepancies. These are observations, not a diagnosis
+of 77 independent defects. Both SSR cases still fail because expected slot
+labels are absent, rather than at the initialization exception. No assertions
+are weakened and none of these failures is converted to a skip.
+
+One remaining browser failure is a confirmed harness selector mismatch:
+`div[style*="overflow-x: scroll"]` does not match Solid's static serialized
+`overflow-x:scroll`. A DOM probe finds one genuinely scrollable container but
+zero selector matches. That selector correction is left for the next patch;
+the current count must not be described entirely as adapter defects.
+
+The unchanged runtime failure is factory-default form construction. The
+remaining consumer and fixture diagnostics concern shared-page augmentation;
+both InfiniteScroll JSX diagnostics are gone, with no unused suppressions.
+Package, client, and both SSR builds, changed-file formatting, and
+`git diff --check` pass. The browser, runtime, and type layers still exit nonzero.
+
+Chromium rendering probes exercise initial content, hold a real next-page
+request while loading content is visible, and release it to observe 15 → 30
+rows. Default loading appears below the cards; reverse loading appears above
+them. Captured default/loading/reverse states are visually inspected, and these
+probes report no JavaScript page errors. This verifies those rendering and
+loading transitions, not the still-failing pagination and scroll contracts.
+
+The historical Phase 6 results remain above. The manual playground is unchanged.
+Validation is local; nothing has been pushed and CI has not run remotely.

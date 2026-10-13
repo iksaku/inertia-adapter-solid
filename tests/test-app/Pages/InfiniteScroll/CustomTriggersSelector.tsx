@@ -18,7 +18,6 @@ export default function CustomTriggersSelector(props: { users: { data: User[] } 
   return (
     <div style={{ padding: '20px' }}>
       <h1>Custom Triggers with Selectors Test</h1>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll data="users" itemsElement="#table-body" startElement="#table-header" endElement="#table-footer">
         {(slot) => (
           <>

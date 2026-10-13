@@ -64,7 +64,7 @@ function resolveHTMLElement(value: InfiniteScrollRefProp, fallback: HTMLElement 
   return fallback
 }
 
-export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props: InfiniteScrollProps<T>) {
+export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props: InfiniteScrollProps<T>): JSX.Element {
   const [props, attributes] = splitProps(
     mergeProps(
       {
@@ -158,8 +158,6 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     },
     onDataReset: syncStateFromDataManager,
   })
-
-  syncStateFromDataManager()
 
   const [loadingPrevious, setLoadingPrevious] = createSignal(false)
   const [loadingNext, setLoadingNext] = createSignal(false)
@@ -343,7 +341,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
 
       return renderedChildren()
     })
-  })
+  }) as unknown as JSX.Element
 }
 
 function createBoundaryElement(

@@ -9,7 +9,6 @@ export default function DualSibling(props: { users1: { data: User[] }; users2: {
       <div style={{ display: 'grid', 'grid-template-columns': '1fr 1fr', gap: '40px' }}>
         <div>
           <h2>Users 1</h2>
-          {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
           <InfiniteScroll
             data="users1"
             style={{ display: 'grid', gap: '20px' }}
@@ -27,7 +26,6 @@ export default function DualSibling(props: { users1: { data: User[] }; users2: {
         </div>
         <div>
           <h2>Users 2</h2>
-          {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
           <InfiniteScroll
             data="users2"
             style={{ display: 'grid', gap: '20px' }}

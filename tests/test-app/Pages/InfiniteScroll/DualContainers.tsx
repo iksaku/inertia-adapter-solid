@@ -18,7 +18,6 @@ export default function DualContainers(props: { users1: { data: User[] }; users2
               padding: '10px',
             }}
           >
-            {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
             <InfiniteScroll
               data="users1"
               style={{ display: 'grid', gap: '10px' }}
@@ -43,7 +42,6 @@ export default function DualContainers(props: { users1: { data: User[] }; users2
               padding: '10px',
             }}
           >
-            {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
             <InfiniteScroll
               data="users2"
               style={{ display: 'grid', gap: '10px' }}

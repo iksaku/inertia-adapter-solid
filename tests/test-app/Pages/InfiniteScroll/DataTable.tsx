@@ -4,7 +4,6 @@ import type { User } from './UserCard'
 export default function DataTable(props: { users: { data: User[] } }) {
   let tableBody: HTMLTableSectionElement | undefined
   return (
-    // @ts-expect-error The adapter's reactive accessor return type is not JSX-typed.
     <InfiniteScroll data="users" itemsElement={() => tableBody}>
       {(slot) => (
         <table style={{ width: '100%', 'border-collapse': 'collapse' }}>

@@ -37,7 +37,6 @@ export default function Filtering(props: {
           placeholder="Search..."
         />
       </div>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         style={{ display: 'grid', gap: '20px' }}

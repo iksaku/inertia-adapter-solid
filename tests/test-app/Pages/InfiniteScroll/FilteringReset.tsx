@@ -22,7 +22,6 @@ export default function FilteringReset(props: { users: { data: User[] }; search?
           placeholder="Search..."
         />
       </div>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         buffer={2000}

@@ -5,7 +5,6 @@ export default function Empty(props: { users: { data: User[] } }) {
   return (
     <div>
       <h1>Empty Dataset Test</h1>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         style={{ display: 'grid', gap: '20px' }}

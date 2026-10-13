@@ -25,7 +25,6 @@ export default function UnmountAfterMutation(props: { users: { data: User[] } })
       </button>
       <p id="status">Mounted: {String(show())}</p>
       <Show when={show()}>
-        {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
         <InfiniteScroll data="users" style={{ display: 'grid', gap: '20px' }}>
           <For each={items()}>{(user) => <UserCard user={user} />}</For>
         </InfiniteScroll>

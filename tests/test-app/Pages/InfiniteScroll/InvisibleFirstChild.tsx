@@ -5,7 +5,6 @@ export default function Invisible(props: { users: { data: User[] } }) {
   return (
     <div>
       <h1>Infinite Scroll with Invisible First Child</h1>
-      {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
       <InfiniteScroll
         data="users"
         style={{ display: 'grid', gap: '20px' }}

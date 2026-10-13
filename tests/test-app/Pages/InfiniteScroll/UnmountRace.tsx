@@ -20,7 +20,6 @@ export default function UnmountRace(props: { users: { data: User[] } }) {
       <p id="cycle-count">Cycles: {cycleCount()}</p>
       <Show when={show()}>
         <LifecycleMarker />
-        {/* @ts-expect-error The adapter's reactive accessor return type is not JSX-typed. */}
         <InfiniteScroll data="users" style={{ display: 'grid', gap: '20px' }}>
           <For each={props.users.data}>{(user) => <UserCard user={user} />}</For>
         </InfiniteScroll>
