@@ -117,7 +117,7 @@ export default function useFormState<TForm extends object>(
   let { precognitionEndpoint } = options
 
   const isDataFunction = typeof dataOption === 'function'
-  const resolveData = () => (isDataFunction ? (dataOption() as () => TForm)() : dataOption)
+  const resolveData = () => (isDataFunction ? (dataOption as () => TForm)() : dataOption)
 
   const restored = isServer
     ? null
@@ -302,6 +302,10 @@ export default function useFormState<TForm extends object>(
     },
 
     defaults(fieldOrFields?: FormDataKeys<TForm> | Partial<TForm>, maybeValue?: unknown) {
+      if (isDataFunction) {
+        throw new Error('You cannot call `defaults()` when using a function to define your form data.')
+      }
+
       defaultsCalledInOnSuccess = true
 
       if (typeof fieldOrFields === 'undefined') {

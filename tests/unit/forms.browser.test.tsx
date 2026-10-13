@@ -1,7 +1,7 @@
 import { cleanup, render } from '@solidjs/testing-library'
-import { createRoot, createSignal } from 'solid-js'
+import { createRoot } from 'solid-js'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, router, useForm, useFormContext, usePage, usePoll, WhenMounted } from 'inertia-adapter-solid'
+import { Form, router, useForm, useFormContext, useHttp, usePage, usePoll, WhenMounted } from 'inertia-adapter-solid'
 
 afterEach(cleanup)
 
@@ -72,28 +72,44 @@ describe('public form consumers', () => {
     expect(form.isDirty).toBe(false)
   })
 
-  it('reevaluates factory defaults on reset and keeps unrelated errors and data', () => {
-    createRoot((dispose) => {
-      try {
-        const [seed, setSeed] = createSignal('first')
-        const form = useForm(() => ({ nested: { name: seed(), count: 7 }, active: false }))
-        form.setData('nested', 'count', 99)
-        form.setError({ 'nested.name': 'name error', 'nested.count': 'count error' })
-        expect(form.hasErrors).toBe(true)
-        setSeed('second')
-        form.resetAndClearErrors('nested.name')
-        expect(form.data.nested).toEqual({ name: 'second', count: 99 })
-        expect(form.errors).toEqual({ 'nested.count': 'count error' })
-        expect(form.hasErrors).toBe(true)
-        form.clearErrors()
-        expect(form.hasErrors).toBe(false)
-        form.reset()
-        expect(form.data.nested.count).toBe(7)
-        expect(form.isDirty).toBe(false)
-      } finally {
-        dispose()
-      }
+  it.each(['useForm', 'useHttp'] as const)('%s refreshes only selected factory defaults on reset', (hook) => {
+    let seed = { nested: { name: 'first', count: 7 }, active: false }
+    let form!: ReturnType<typeof useForm<typeof seed>> | ReturnType<typeof useHttp<typeof seed>>
+    const view = render(() => {
+      const factory = () => seed
+      form = hook === 'useForm' ? useForm(factory) : useHttp(factory)
+      return (
+        <output>
+          {form.data.nested.name}|{form.data.nested.count}|{String(form.data.active)}|{String(form.isDirty)}|
+          {String(form.hasErrors)}
+        </output>
+      )
     })
+    expect(view.container.textContent).toBe('first|7|false|false|false')
+    form.setData('nested', 'count', 99)
+    form.setData('active', true)
+    form.setError({ 'nested.name': 'name error', 'nested.count': 'count error' })
+    expect(seed).toEqual({ nested: { name: 'first', count: 7 }, active: false })
+    seed = { nested: { name: 'second', count: 17 }, active: true }
+    expect(view.container.textContent).toBe('first|99|true|true|true')
+    form.resetAndClearErrors('nested.name')
+    expect(form.data.nested).toEqual({ name: 'second', count: 99 })
+    expect(form.errors).toEqual({ 'nested.count': 'count error' })
+    expect(view.container.textContent).toBe('second|99|true|true|true')
+    form.setData('nested', 'count', 7)
+    form.setData('active', false)
+    expect(view.container.textContent).toBe('second|7|false|false|true')
+    const defaultsError = 'You cannot call `defaults()` when using a function to define your form data.'
+    expect(() => form.defaults()).toThrow(defaultsError)
+    expect(() => form.defaults('nested.count', 51)).toThrow(defaultsError)
+    expect(() => form.defaults({ active: true })).toThrow(defaultsError)
+    expect(view.container.textContent).toBe('second|7|false|false|true')
+    seed = { nested: { name: '', count: 0 }, active: false }
+    expect(view.container.textContent).toBe('second|7|false|false|true')
+    form.reset()
+    expect(view.container.textContent).toBe('|0|false|false|true')
+    form.resetAndClearErrors()
+    expect(view.container.textContent).toBe('|0|false|false|false')
   })
 
   it('provides form context only to owned descendants', () => {

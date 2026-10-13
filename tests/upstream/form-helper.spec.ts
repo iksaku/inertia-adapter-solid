@@ -1,5 +1,5 @@
 import test, { expect, Page } from '@playwright/test'
-import { clickAndWaitForResponse, consoleMessages, pageLoads, shouldBeDumpPage } from './support'
+import { clickAndWaitForResponse, consoleMessages, pageLoads, requests, shouldBeDumpPage } from './support'
 
 test.describe('Form Helper', () => {
   test.describe('Methods', () => {
@@ -620,6 +620,66 @@ test.describe('Form Helper', () => {
         await expect(page.locator('#remember')).not.toBeChecked()
       })
     })
+  })
+
+  test.describe('Factory data', () => {
+    for (const hook of ['useForm', 'useHttp'] as const) {
+      test(`${hook} refreshes factory defaults without overwriting unrelated edits`, async ({ page }) => {
+        await page.goto(`/form-helper/factory-data?hook=${hook}`)
+        requests.listen(page)
+        const name = page.getByLabel('Name', { exact: true })
+        const count = page.getByLabel('Count', { exact: true })
+        const active = page.getByLabel('Active', { exact: true })
+        const dirty = page.locator('#factory-dirty')
+        const errors = page.locator('#factory-errors')
+
+        await expect(name).toHaveValue('first')
+        await expect(count).toHaveValue('7')
+        await expect(active).not.toBeChecked()
+        await expect(dirty).toHaveText('false')
+
+        await name.fill('edited')
+        await count.fill('99')
+        await active.check()
+        await page.getByRole('button', { name: 'Seed errors', exact: true }).click()
+        await page.getByRole('button', { name: 'Change factory defaults', exact: true }).click()
+        await expect(name).toHaveValue('edited')
+        await expect(count).toHaveValue('99')
+        await expect(active).toBeChecked()
+        await expect(dirty).toHaveText('true')
+
+        await page.getByRole('button', { name: 'Reset name and clear its error', exact: true }).click()
+        await expect(name).toHaveValue('second')
+        await expect(count).toHaveValue('99')
+        await expect(active).toBeChecked()
+        await expect(errors).toHaveText('{"profile.count":"Count error"}')
+        await expect(dirty).toHaveText('true')
+
+        await count.fill('7')
+        await active.uncheck()
+        await expect(dirty).toHaveText('false')
+        await page.getByRole('button', { name: 'Override defaults', exact: true }).click()
+        await expect(page.getByRole('alert')).toHaveText(
+          'You cannot call `defaults()` when using a function to define your form data.',
+        )
+        await expect(dirty).toHaveText('false')
+
+        await page.getByRole('button', { name: 'Use falsy defaults', exact: true }).click()
+        await expect(name).toHaveValue('second')
+        await expect(count).toHaveValue('7')
+        await page.getByRole('button', { name: 'Reset all data', exact: true }).click()
+        await expect(name).toHaveValue('')
+        await expect(count).toHaveValue('0')
+        await expect(active).not.toBeChecked()
+        await expect(dirty).toHaveText('false')
+        await expect(errors).toHaveText('{"profile.count":"Count error"}')
+
+        await page.getByRole('button', { name: 'Reset all data and errors', exact: true }).click()
+        await expect(errors).toHaveText('{}')
+        await expect(dirty).toHaveText('false')
+        expect(requests.requests.length).toBe(0)
+      })
+    }
   })
 
   test.describe('Remember', () => {

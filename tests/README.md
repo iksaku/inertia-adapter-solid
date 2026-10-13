@@ -93,6 +93,10 @@ does not turn known failures into passing jobs.
 11. **Programmatic flash reactivity:** synchronize `router.flash()` through core's
     initialization callback, preserving merge, replacement, and clearing behavior
     in Solid's reactive page store.
+12. **Factory-default forms:** cover `useForm` and `useHttp` construction, fresh
+    full/selected resets, untouched defaults and errors, falsy data, rejection of
+    manual defaults, and real server rendering without making factories live
+    bindings to form edits.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -720,3 +724,92 @@ zero requests or console/page errors, an unchanged URL/history length, and the
 same rendered flash node. Both clearing calls update the DOM without another
 global flash event. The preview uses Fetch assets; the manual playground remains
 unchanged. Validation is local; nothing is pushed and CI has not run remotely.
+
+## Phase 12: Factory-default forms (2026-10-13)
+
+Core's argument parser passes a data factory through unchanged. The pinned
+[React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/useFormState.ts),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/useFormState.ts),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/useFormState.svelte.ts)
+form-state implementations call that factory directly and reject every manual
+defaults overload for function data. Solid previously called the factory's
+returned object as another function, producing `dataOption(...) is not a
+function`. The shared form-state constructor now invokes the supplied function
+directly, fixing both `useForm` and `useHttp`. Public `defaults()` gains the same
+upstream guard and error message; internal automatic default setters remain
+separate and allowed. Object-data behavior and the reset implementation are
+unchanged. No memoization, core patch, helper layer, or dependency is added.
+
+The existing factory unit case is extended to both public hooks, using an owned
+render root and post-render interactions. Its mutable ordinary-variable source
+deliberately has no signal dependencies: resetting must reread any factory input,
+not just inputs tracked by a memo. A native browser fixture complements it with
+signal-provided defaults. Both require source changes to leave current edits
+alone, selected nested resets to preserve sibling data/errors and their default
+baseline, all-field resets to restore fresh empty-string/zero/false values and
+mark clean, and errors to persist until explicitly cleared. The unit cases also
+reject all three manual defaults overloads without changing rendered state.
+The existing real-server App case keeps its object-data control and adds a
+factory variant. These are public consumers, not router or store mocks.
+
+Before the fix, the original factory unit case fails during construction.
+After correcting construction alone, both extended unit cases still fail
+because manual defaults do not throw. With the guard, all **14 runtime cases
+pass**. Restoring the original constructor as a negative control makes all
+**six native browser combinations fail**, plus both public-hook unit cases and
+the new server case. A memoized-resolver mutant makes both nonreactive-source
+unit cases fail, while all six signal-source browser combinations still pass;
+this demonstrates the complementary coverage rather than claiming the browser
+cases detect caching. Updating every default during a selected reset makes both
+unit cases and **all six browser combinations fail** at the clean-state check.
+All mutants are restored before final builds. The six native browser cases pass
+five repetitions per engine/hook, **30/30**, without retries; these are repeated
+executions of two unique contracts, not 30 additional contracts.
+
+The complete matrix uses the same pinned Node, pnpm, browsers, four workers, and
+no-retry settings as Phase 11. Package/client builds and browser/client/SSR runs
+are sequential, rebuilding assets before changing clients:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,113 cases | 1,027 | 19 | 67 |
+| Firefox / Fetch, all 1,113 cases | 1,010 | 20 | 83 |
+| WebKit / Fetch, all 1,113 cases | 1,028 | 21 | 64 |
+| Chromium / Axios, all 1,113 cases | 1,027 | 19 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 14 | 0 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+Fetch totals are **3,065 passed / 60 failed / 214 skipped**. Comparison uses file,
+nested suite titles, test title, and project, not shifted line numbers. All six
+new factory combinations pass with Fetch, and both pass with Chromium Axios.
+No existing red browser case becomes green; the two extra passes per engine are
+the added contracts, not evidence that other form failures were resolved.
+InfiniteScroll remains 233/0/1 with Fetch and 78/0/0 with Axios; SSR stays 75/0/33.
+No case disappears, and there are no blocked serial followers or runner errors.
+
+The only previously passing Fetch case to become red is Firefox's quick-hover
+prefetch assertion at `prefetch.spec.ts:97`, expecting zero requests and receiving
+one. Phase 9's unchanged-code controls reproduced it in 6/10 runs before that
+patch. This is a previously observed intermittent failure, not a newly diagnosed
+factory regression; its cause and failure rate remain unsettled. No previously
+passing Axios or SSR case becomes red. Original assertions, timeouts, capability
+exclusions, and skips are unchanged.
+
+The consumer diagnostic still concerns missing shared `account`; the fixture
+diagnostic still concerns unknown `auth`. An additional strict compile of the
+two edited unit files reports one existing synthetic SSR `Page` fixture missing
+`rescuedProps`, `flash`, and `rememberedState`. The same compiler against the
+unchanged HEAD server test reports the identical diagnostic; the new unit code
+adds none. This additional probe is not a new maintained test command. Package,
+client, manual/automatic SSR builds, changed-file formatting, and
+`git diff --check` pass. Browser and maintained type layers remain nonzero on
+their recorded failures; runtime, focused factory, and SSR runs exit zero.
+
+Inspected native Chromium captures cover initial data, edited data after changing
+the factory source, selected reset, and full reset/error clearing with the manual
+defaults rejection visible, for both public hooks. Executed DOM checks require
+exact data, dirty flags, and errors at every step, with zero requests or
+console/page errors. The preview is left running with Fetch assets. The manual
+playground remains unchanged; validation is local and CI has not run remotely.

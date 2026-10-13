@@ -31,23 +31,26 @@ it('uses actual server conditions and renders only the mounting fallback', () =>
   expect(body).not.toContain('browser only')
 })
 
-it('renders a server App with falsy deferred data and isolated primitive state', () => {
-  const Consumer = () => {
-    const form = useForm({ name: 'server' })
-    const [remembered] = useRemember(false, 'server-flag')
-    form.post('/must-not-request')
-    return (
-      <Deferred data="value" fallback={<span>missing</span>}>
-        <span>
-          {form.data.name}:{String(remembered())}:{String(form.processing)}
-        </span>
-      </Deferred>
-    )
-  }
-  const body = renderToString(() => <App initialPage={page} initialComponent={Consumer} />)
-  expect(body.replace(/<!--.*?-->/g, '')).toContain('server:false:false')
-  expect(body).not.toContain('missing')
-})
+it.each(['object', 'factory'] as const)(
+  'renders a server App with isolated %s form data and falsy deferred props',
+  (kind) => {
+    const Consumer = () => {
+      const form = useForm(kind === 'factory' ? () => ({ name: 'server' }) : { name: 'server' })
+      const [remembered] = useRemember(false, 'server-flag')
+      form.post('/must-not-request')
+      return (
+        <Deferred data="value" fallback={<span>missing</span>}>
+          <span>
+            {form.data.name}:{String(remembered())}:{String(form.processing)}
+          </span>
+        </Deferred>
+      )
+    }
+    const body = renderToString(() => <App initialPage={page} initialComponent={Consumer} />)
+    expect(body.replace(/<!--.*?-->/g, '')).toContain('server:false:false')
+    expect(body).not.toContain('missing')
+  },
+)
 
 it.each([renderToString, renderToStringAsync])(
   'creates the public SSR response with a supported renderer',
