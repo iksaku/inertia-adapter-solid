@@ -1229,6 +1229,43 @@ test.describe('data-loading attribute', () => {
     await page.waitForResponse('sleep')
     await expect(link2).not.toHaveAttribute('data-loading')
   })
+
+  test('keeps data-loading while another async visit remains after cancellation', async ({ page }) => {
+    await page.goto('/links/data-loading')
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let heldResponses = 0
+    await page.route('**/links/data-loading', async (route) => {
+      const response = await route.fetch()
+      heldResponses++
+      await gate
+      await route.fulfill({ response })
+    })
+
+    const link = page.getByRole('link', { name: 'Concurrent', exact: true })
+    try {
+      await expect(link).not.toHaveAttribute('data-loading')
+      await link.click()
+      await expect.poll(() => heldResponses).toBe(1)
+      await expect(link).toHaveAttribute('data-loading', '')
+      await link.click()
+      await expect.poll(() => heldResponses).toBe(2)
+      await expect(page.getByText('Finished requests: 0', { exact: true })).toBeVisible()
+
+      await page.getByRole('button', { name: 'Cancel first request' }).click()
+      await expect(page.getByText('Finished requests: 1', { exact: true })).toBeVisible()
+      await expect(link).toHaveAttribute('data-loading', '')
+
+      release()
+      await expect(page.getByText('Finished requests: 2', { exact: true })).toBeVisible()
+      await expect(link).not.toHaveAttribute('data-loading')
+    } finally {
+      release()
+      await page.unrouteAll({ behavior: 'wait' })
+    }
+  })
 })
 
 test('cancels pending request when navigating back', async ({ page }) => {

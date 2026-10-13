@@ -87,6 +87,9 @@ does not turn known failures into passing jobs.
 9. **InfiniteScroll pagination and scroll:** preserve existing row elements
    during data updates without freezing reactive JSX children; exercise page
    tags, visible-page URLs, remembered lists, prepend anchors, and containers.
+10. **Link callbacks and loading:** forward exception/flash callbacks as visit
+    options, preserve exception suppression, and expose the native loading
+    attribute through completion, cancellation, and overlapping async visits.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -568,3 +571,77 @@ Executed probes restore 15 rows without fetching, preserve every original row
 during real 15 → 30 → 40 pagination, require page-tag counts of 15/15/10, and
 report zero page errors. The preview is restored to Fetch assets. The manual
 playground remains unchanged; validation is local and CI has not run remotely.
+
+## Phase 10: Link callbacks and loading (2026-10-13)
+
+Link already declares `onHttpException`, `onNetworkError`, and `onFlash` through
+core's public types, but omitted them from prop splitting and visit options.
+They now stay out of DOM attributes, receive the existing no-op default pattern,
+and flow directly through the reactive visit-parameter memo. Direct forwarding
+preserves a synchronous `false` return that suppresses exception handling;
+flash remains a notification. This follows the pinned React/Vue callback contract,
+not Svelte's adapter-specific cancelable DOM-event bridge.
+
+The loading getter now uses the literal `data-loading` key rather than
+`dataLoading`, which Solid serialized as `dataloading`. Its existing signal-based
+request count, start/finish wrappers, and separate prefetch parameters are
+unchanged. Loading remains an empty attribute while requests are in flight and
+is removed afterward; this is not a new boolean loading implementation.
+
+All seven original callback/loading cases fail on all three engines before the
+fix, **21/21 red**. Callback forwarding alone makes its five cases per engine
+pass, including both exception-suppression cases. One additional public browser
+regression starts two async visits from the same Link, holds real backend
+responses, cancels the first through its public cancel token, and requires
+loading to remain until the other visit finishes. The fixture uses a Solid signal
+to observe finish callbacks and explicitly preserves page state. No backend
+substitute or router mock is introduced.
+
+The new regression fails with the old attribute spelling. It also fails at the
+post-cancellation assertion when a deliberate mutant resets the count to zero
+on every finish. That mutant is restored before final builds. The eight cases
+pass **24/24** across the three engines and five repeats each, **120/120**, with
+no retries. Repetitions are stability checks, not additional unique contracts.
+
+The complete matrix uses the same pinned Node, pnpm, browsers, four workers, and
+no-retry settings as Phase 9. Browser/client/SSR builds and runs are sequential:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,110 cases | 1,020 | 23 | 67 |
+| Firefox / Fetch, all 1,110 cases | 1,003 | 24 | 83 |
+| WebKit / Fetch, all 1,110 cases | 1,020 | 26 | 64 |
+| Chromium / Axios, all 1,110 cases | 1,020 | 23 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+Fetch totals are **3,043 passed / 73 failed / 214 skipped**, with no blocked serial
+followers or runner errors. Case-by-case comparison identifies all **21 original
+Link callback/loading combinations now passing**, plus the new regression on each
+engine. Axios gains the same seven original contracts and the new regression.
+InfiniteScroll stays at 233/0/1 with Fetch and 78/0/0 with Axios; SSR stays 75/0/33.
+Original assertions, timeouts, and skips are unchanged.
+
+WebKit's post-render scroll timeout from Phase 9 passes this time, as does the
+Chromium/Axios version; these extra passes are not attributed to the fix. Firefox's
+quick-hover prefetch assertion remains red, and WebKit now fails that same
+assertion at `prefetch.spec.ts:97`. The Phase 9 focused controls already reproduced
+it on WebKit in 4/10 runs, before this patch. This establishes a pre-existing
+failure, not a settled cause or unchanged failure rate. No previously passing
+Fetch case becomes red outside that known prefetch scenario; no previously
+passing Axios or SSR case becomes red.
+
+The factory-default form runtime failure and shared-page type diagnostics remain.
+Programmatic `router.flash()` reactivity, other scroll failures, forms,
+Precognition, layouts, deferred props, and `useHttp.response` are outside this fix.
+Package, client, both SSR builds, formatting, and `git diff --check` pass;
+browser/runtime/type layers remain nonzero on their recorded failures.
+
+Inspected native captures show idle, one-canceled/one-pending, and fully finished
+states. Executed DOM checks require the correct loading attribute, absence of
+the misspelled attribute, finish counts 0 → 1 → 2, and zero page errors. A final
+spacing-only adjustment to the new controls is rebuilt, visually reinspected,
+and rechecked with all nine loading combinations. The preview uses Fetch assets.
+The manual playground is unchanged; nothing is pushed and CI has not run remotely.
