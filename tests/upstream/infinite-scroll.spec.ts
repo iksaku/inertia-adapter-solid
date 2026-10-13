@@ -951,6 +951,28 @@ test.describe('Remember state', () => {
 })
 
 test.describe('Toggle configuration', () => {
+  test('it reacts to Solid JSX child expressions without fetching', async ({ page }) => {
+    requests.listen(page)
+    await page.goto('/infinite-scroll/toggles')
+    await page.getByLabel('Manual mode: false').check()
+
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await expect(page.locator('[data-user-id]')).toHaveCount(15)
+      await page.getByLabel('Show items').uncheck()
+      await expect(page.getByText('Items hidden', { exact: true })).toBeVisible()
+      await expect(page.locator('[data-user-id]')).toHaveCount(0)
+
+      await page.getByLabel('Show items').check()
+      await expect(page.getByText('Items hidden', { exact: true })).toBeHidden()
+      await expect(page.locator('[data-user-id]')).toHaveCount(15)
+      await expect(page.getByText('User 1', { exact: true })).toBeVisible()
+      await expect(page.getByText('User 15', { exact: true })).toBeVisible()
+    }
+
+    expect(infiniteScrollRequests()).toHaveLength(0)
+    await expect(page.getByText('Total items on page: 15', { exact: true })).toBeVisible()
+  })
+
   test('it toggles between automatic and manual loading when manual prop changes', async ({ page }) => {
     requests.listen(page)
     await page.goto('/infinite-scroll/toggles')

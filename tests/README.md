@@ -84,6 +84,9 @@ does not turn known failures into passing jobs.
 8. **InfiniteScroll slots and SSR:** directional slots take priority over the
    loading fallback; server pagination flags initialize from page metadata;
    exercise held requests, reactive flags, and first/middle/last SSR boundaries.
+9. **InfiniteScroll pagination and scroll:** preserve existing row elements
+   during data updates without freezing reactive JSX children; exercise page
+   tags, visible-page URLs, remembered lists, prepend anchors, and containers.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -480,3 +483,88 @@ full-page content. Executed probes verify 15 → 30 → 40 rows and zero page er
 First/middle/last hydrated SSR captures show the correct flags and 15/15/10 rows,
 with zero console/page errors. The manual playground remains unchanged.
 Validation is local; nothing has been pushed and CI has not run remotely.
+
+## Phase 9: InfiniteScroll pagination and scroll (2026-10-13)
+
+Core tags untagged direct children with the newly loaded page and retains an
+existing element as the prepend scroll anchor. Repeatedly evaluating the JSX
+children getter recreated Solid's `For` instance, disconnecting every earlier
+row. The replacement rows then received the newest page's tag, and the old
+anchor no longer measured the visible content. A minimal public `router.replace`
+append reproduces the identity loss without any network request: the original
+row disconnects in 3/3 baseline probes and survives in 3/3 corrected probes.
+
+The children getter now uses the existing lazy memo primitive. This preserves
+the constructed list while its reconciled data updates, but still reevaluates
+genuinely changing JSX expressions. Slot callbacks retain their reactive loading
+getters. No core patch, additional waits, or upstream assertion changes are
+needed. Three original Chromium pagination/scroll cases fail before the change
+and pass afterward.
+
+One Solid-specific regression toggles the JSX child expression twice in manual
+mode, checks 15 → 0 → 15 rows and the first/last names, and requires zero fetches
+and unchanged underlying data. A deliberate one-time children snapshot still
+passes the page-tag case but fails this new reactive-expression case. The mutant
+is restored before final builds and validation.
+
+The complete matrix uses the same pinned environment, four workers, and no
+retries as Phase 8. Package/client builds and each browser/SSR profile execute
+sequentially, rebuilding assets before switching clients:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,109 cases | 1,012 | 30 | 67 |
+| Firefox / Fetch, all 1,109 cases | 995 | 31 | 83 |
+| WebKit / Fetch, all 1,109 cases | 1,012 | 33 | 64 |
+| Chromium / Axios, all 1,109 cases | 1,011 | 31 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+Fetch totals are **3,019 passed / 94 failed / 214 skipped**, with no blocked
+serial followers or runner errors. Case-by-case comparison identifies **all 47
+previously failing InfiniteScroll engine/case combinations now passing**, plus
+the new regression on each engine. InfiniteScroll itself is **233 passed / 0
+failed / 1 existing Firefox skip**: 78 Chromium, 77 Firefox, and 78 WebKit passes.
+All 78 Chromium InfiniteScroll cases also pass with Axios. Page tags, visible-page
+URLs, remembered lists, prepend preservation, horizontal scrolling, and container
+scrolling are now exercised without failures. Four focused tag/URL/prepend/JSX
+cases pass five repetitions per engine, **60/60**, without retries. SSR remains
+75/0/33, including all 18 InfiniteScroll boundary/hydration combinations.
+
+The three previously intermittent history failures from Phase 8 pass in this
+Fetch run; those extra passes are not attributed to this fix. Two previously
+passing Fetch cases fail: Firefox's link-prefetch quick-hover assertion and
+WebKit's post-render scroll test timeout. Axios also times out in Chromium's
+post-render scroll case. Focused comparisons use the archived, unchanged Phase 8
+adapter and assertions, with ten repetitions and the same browsers/dependencies:
+
+| Case / profile | Phase 8 failures / 10 | Phase 9 failures / 10 |
+| --- | ---: | ---: |
+| Post-render scroll / Firefox Fetch | 0 | 0 |
+| Post-render scroll / WebKit Fetch | 5 | 2 |
+| Link-prop prefetch / Firefox Fetch | 6 | 8 |
+| Link-prop prefetch / WebKit Fetch | 6 | 4 |
+| Post-render scroll / Chromium Axios | 0 | 0 |
+| Link-prop prefetch / Chromium Axios | 0 | 0 |
+
+The two Fetch failures reproduce before this patch. The WebKit trace times out
+before completing ten navigations; Firefox fails the assertion that a quick hover
+makes no request. Their causes and differing failure rates remain unsettled.
+The Chromium/Axios timeout does not reproduce in either version's ten focused
+repetitions; it remains an observed full-suite failure, not a confirmed regression
+or a passing result. Controls use port 13723, direct build commands, and
+`sendFile`'s `dotfiles: 'allow'` solely for their hidden scratch path. No timeouts,
+assertions, or skips are changed, and unrelated adapter behavior is left alone.
+
+The runtime failure remains factory-default form construction; consumer and
+fixture diagnostics remain shared-page augmentation. Package, client, both SSR
+builds, changed-file formatting, and `git diff --check` pass. Browser/runtime/type
+layers still exit nonzero; SSR and the focused InfiniteScroll runs exit zero.
+
+Inspected native captures show the default cards and reactive hidden state.
+Executed probes restore 15 rows without fetching, preserve every original row
+during real 15 → 30 → 40 pagination, require page-tag counts of 15/15/10, and
+report zero page errors. The preview is restored to Fetch assets. The manual
+playground remains unchanged; validation is local and CI has not run remotely.

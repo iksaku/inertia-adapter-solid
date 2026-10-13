@@ -5,6 +5,7 @@ export default function Toggles(props: { users: { data: User[] } }) {
   const [manual, setManual] = createSignal(false)
   const [preserveUrl, setPreserveUrl] = createSignal(false)
   const [triggerMode, setTriggerMode] = createSignal<'onlyPrevious' | 'onlyNext' | 'both'>('onlyNext')
+  const [showItems, setShowItems] = createSignal(true)
   return (
     <div>
       <div style={{ display: 'flex', gap: '10px' }}>
@@ -33,6 +34,12 @@ export default function Toggles(props: { users: { data: User[] } }) {
             </select>
           </label>
         </p>
+        <p>
+          <label>
+            <input type="checkbox" checked={showItems()} onChange={(e) => setShowItems(e.currentTarget.checked)} />
+            Show items
+          </label>
+        </p>
       </div>
       <InfiniteScroll
         data="users"
@@ -43,7 +50,7 @@ export default function Toggles(props: { users: { data: User[] } }) {
         onlyPrevious={triggerMode() === 'onlyPrevious'}
         loading={() => <div style={{ 'text-align': 'center', padding: '20px' }}>Loading...</div>}
       >
-        <For each={props.users.data}>{(user) => <UserCard user={user} />}</For>
+        {showItems() ? <For each={props.users.data}>{(user) => <UserCard user={user} />}</For> : <p>Items hidden</p>}
       </InfiniteScroll>
       <p>Total items on page: {props.users.data.length}</p>
     </div>

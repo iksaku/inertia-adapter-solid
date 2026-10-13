@@ -245,6 +245,8 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     },
   }
 
+  const content = createLazyMemo(() => props.children)
+
   const renderedChildren = children(() => [
     // Start Element
     createBoundaryElement(
@@ -283,11 +285,13 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
             itemsElementRef = el
           },
           get children() {
-            if (typeof props.children !== 'function') {
-              return props.children
+            const child = content()
+
+            if (typeof child !== 'function') {
+              return child
             }
 
-            return props.children({
+            return child({
               get loading() {
                 return loadingPrevious() || loadingNext()
               },
