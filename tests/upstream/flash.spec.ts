@@ -258,6 +258,39 @@ test.describe('Flash Data', () => {
       expect(requests.requests.length).toBe(0)
     })
 
+    test('replaces flash data without retaining omitted keys', async ({ page }) => {
+      requests.listen(page)
+      const flash = page.locator('#flash')
+
+      await page.evaluate(() =>
+        window.testing.Inertia.flash({ obsolete: 'remove', profile: { enabled: true, obsolete: 'remove' } }),
+      )
+      await expect
+        .poll(async () => JSON.parse((await flash.textContent())!))
+        .toEqual({
+          obsolete: 'remove',
+          profile: { enabled: true, obsolete: 'remove' },
+        })
+
+      await page.evaluate(() =>
+        window.testing.Inertia.flash(() => ({ profile: { enabled: false }, message: 'replacement' })),
+      )
+      await expect
+        .poll(async () => JSON.parse((await flash.textContent())!))
+        .toEqual({
+          profile: { enabled: false },
+          message: 'replacement',
+        })
+
+      await page.evaluate(() => window.testing.Inertia.flash({ count: 3 }))
+      const merged = { profile: { enabled: false }, message: 'replacement', count: 3 }
+      await expect.poll(async () => JSON.parse((await flash.textContent())!)).toEqual(merged)
+
+      await page.evaluate(() => window.testing.Inertia.flash({}))
+      await expect.poll(async () => JSON.parse((await flash.textContent())!)).toEqual(merged)
+      expect(requests.requests.length).toBe(0)
+    })
+
     test('clears flash data using function', async ({ page }) => {
       requests.listen(page)
 

@@ -42,6 +42,9 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     router.init({
       initialPage: props.initialPage,
       resolveComponent: props.resolveComponent!,
+      onFlash(flash) {
+        setCurrent('page', 'flash', reconcile(flash))
+      },
       async swapComponent({ component, page, preserveState }) {
         setCurrent(
           reconcile({

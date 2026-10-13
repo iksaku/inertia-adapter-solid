@@ -90,6 +90,9 @@ does not turn known failures into passing jobs.
 10. **Link callbacks and loading:** forward exception/flash callbacks as visit
     options, preserve exception suppression, and expose the native loading
     attribute through completion, cancellation, and overlapping async visits.
+11. **Programmatic flash reactivity:** synchronize `router.flash()` through core's
+    initialization callback, preserving merge, replacement, and clearing behavior
+    in Solid's reactive page store.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -645,3 +648,75 @@ the misspelled attribute, finish counts 0 → 1 → 2, and zero page errors. A f
 spacing-only adjustment to the new controls is rebuilt, visually reinspected,
 and rechecked with all nine loading combinations. The preview uses Fetch assets.
 The manual playground is unchanged; nothing is pushed and CI has not run remotely.
+
+## Phase 11: Programmatic flash reactivity (2026-10-13)
+
+The pinned React, Vue, and Svelte adapters synchronize imperative flash through
+`router.init({ onFlash })`. Core replaces its flash data before calling this
+initialization callback, then emits the global flash event only for nonempty
+data. A global-event subscription would therefore miss clearing flash. Solid
+now reconciles only the existing page store's `flash` field; component, props,
+layout, and page-key handling are unchanged. No additional store, event listener,
+initial-page normalization, or core patch is introduced.
+
+Object and key-value updates still merge in core, while a function's returned
+object replaces flash completely. `router.flash({})` remains a no-op;
+`router.flash(() => ({}))` clears it. Reconciliation removes omitted keys instead
+of retaining them through Solid's default object-merge setter behavior.
+
+The four original programmatic flash cases fail before the bridge on all three
+engines, **12/12 red**. One additional public browser regression requires exact
+rendered data after removing root and nested keys, changing a nested boolean to
+false, merging an object update, and submitting an empty-object no-op, with zero
+requests. It also fails before the bridge, **3/3 red**. Existing tests retain
+coverage of function-form clearing. No fixture or existing upstream assertion is
+changed.
+
+A deliberate plain-store-merge mutant retains the obsolete root key and cannot
+clear flash. Both the replacement regression and original clearing case reject
+it on every engine, **6/6 red**. The mutant is restored before final builds.
+All 20 flash cases then pass on all three engines, **60/60**, and with Chromium
+Axios, **20/20**. The five programmatic cases pass five repetitions per engine,
+**75/75**, without retries. Repetitions are not additional unique contracts.
+
+The complete matrix uses the same pinned environment, four workers, and no
+retries as Phase 10. Package/client builds and browser/client/SSR runs execute
+sequentially, rebuilding assets before switching clients:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,111 cases | 1,025 | 19 | 67 |
+| Firefox / Fetch, all 1,111 cases | 1,009 | 19 | 83 |
+| WebKit / Fetch, all 1,111 cases | 1,026 | 21 | 64 |
+| Chromium / Axios, all 1,111 cases | 1,025 | 19 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+Fetch totals are **3,060 passed / 59 failed / 214 skipped**. Comparison keys use
+file, nested suite titles, test title, and project, not shifted line numbers.
+All **12 original flash engine/case failures now pass**, plus the new regression
+on each engine. Axios gains the same four original contracts and new regression.
+No previously passing Fetch, Axios, or SSR case becomes red, no case disappears,
+and there are no blocked serial followers or runner errors. InfiniteScroll stays
+233/0/1 with Fetch and 78/0/0 with Axios; SSR stays 75/0/33.
+
+Firefox and WebKit's previously intermittent quick-hover prefetch cases both
+pass in this Fetch run. Those two additional passes are not attributed to the
+flash fix; prior unchanged-code controls established their timing sensitivity.
+Original assertions, timeouts, capability exclusions, and skips are unchanged.
+
+The factory-default form construction failure remains, along with the consumer
+type diagnostic for missing shared `account` and fixture diagnostic for unknown
+`auth`. Package, client, manual/automatic SSR builds, changed-file formatting,
+and `git diff --check` pass. Browser, runtime, and type layers remain nonzero on
+their recorded failures; focused flash and SSR runs exit zero.
+
+Inspected native Chromium captures show the initial empty state and function
+replacement with only `profile.enabled: false` and `message: 'replacement'`.
+An executed public-API probe verifies merging, no-op, and both clearing paths,
+zero requests or console/page errors, an unchanged URL/history length, and the
+same rendered flash node. Both clearing calls update the DOM without another
+global flash event. The preview uses Fetch assets; the manual playground remains
+unchanged. Validation is local; nothing is pushed and CI has not run remotely.
