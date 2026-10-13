@@ -7,6 +7,7 @@ export default function Manual(props: { users: { data: User[] } }) {
       data="users"
       style={{ display: 'grid', gap: '20px' }}
       manual
+      loading={() => <p data-testid="generic-loading">Generic loading fallback</p>}
       previous={(slot) => (
         <>
           <p>Has more previous items: {slot.hasMore.toString()}</p>

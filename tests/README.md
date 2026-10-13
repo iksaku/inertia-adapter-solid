@@ -81,6 +81,9 @@ does not turn known failures into passing jobs.
 7. **InfiniteScroll startup and JSX:** remove the initialization blocker,
    preserve Solid's reactive memo return while exposing a JSX-compatible type,
    and rerun the complete matrix to expose later assertions.
+8. **InfiniteScroll slots and SSR:** directional slots take priority over the
+   loading fallback; server pagination flags initialize from page metadata;
+   exercise held requests, reactive flags, and first/middle/last SSR boundaries.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -389,4 +392,91 @@ probes report no JavaScript page errors. This verifies those rendering and
 loading transitions, not the still-failing pagination and scroll contracts.
 
 The historical Phase 6 results remain above. The manual playground is unchanged.
+Validation is local; nothing has been pushed and CI has not run remotely.
+
+## Phase 8: InfiniteScroll slots and SSR (2026-10-13)
+
+Directional slots now remain selected during loading, ahead of the generic
+loading fallback. The previous expressions grouped the conditional after the
+directional slot, selecting the fallback even when a directional slot existed.
+Slot objects keep their reactive getters and the component keeps its memo
+accessor return; neither becomes a one-time snapshot.
+
+Core initializes pagination state only in the browser. Server flags now seed
+from `usePage().scrollProps[data]`, following the pinned Vue adapter's server
+contract. Browser initialization still uses the data manager, including restored
+pagination state and request counts. No core runtime patch is needed.
+
+The existing manual-loading test holds real previous and next requests, verifies
+directional loading labels while a generic fallback is also supplied, then
+checks data and flags after each response. A deliberately loading-first selector
+fails this regression. It passes five repeats per engine, **15/15** in total.
+The horizontal fixture/spec uses a stable test ID rather than CSS serialization
+whitespace; its original loading and pagination assertions remain enabled.
+
+SSR tests now cover first, middle, and last pages, both as raw server HTML and
+after hydration. Raw HTML assertions parse inert documents and compare each
+label's text independently: an intentionally wrong previous flag on page 2
+passes the old greedy regex by matching the later next flag, but fails the new
+assertion. Both public server renderers also check distinct prop names, opposite
+pagination boundaries, numeric/cursor identifiers, and absent metadata. These
+runtime assertions failed before server initialization was corrected.
+
+The complete local matrix uses the same pinned environment, four workers, and
+no retries as Phase 7. Builds and browser/SSR runs execute sequentially:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / Fetch, all 1,108 cases | 995 | 46 | 67 |
+| Firefox / Fetch, all 1,108 cases | 979 | 46 | 83 |
+| WebKit / Fetch, all 1,108 cases | 994 | 50 | 64 |
+| Chromium / Axios, all 1,108 cases | 995 | 46 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 11 | 1 | 0 |
+| Public TypeScript consumers | — | 1 diagnostic | — |
+| Strict fixture TypeScript compilation | — | 1 diagnostic | — |
+
+Fetch totals are **2,968 passed / 142 failed / 214 skipped**, with no blocked
+serial followers or runner errors. Case-by-case comparison identifies **30
+previously failing InfiniteScroll engine/case combinations now passing**:
+manual loading, `manualAfter`, direct navigation, filtering, validation errors,
+deferred data, and optional visible data. Axios gains the same ten cases with
+no previously passing case failing. Each engine's InfiniteScroll result is now
+61 passing; Chromium/WebKit retain 16 failures and Firefox 15 failures/1 skip.
+The 18 InfiniteScroll SSR/boundary/hydration combinations all pass. SSR's 33
+skips are the same eleven capability exclusions per engine, not hidden failures.
+
+Three previously passing Fetch combinations fail in this run: back navigation
+while a page chunk is loading in Firefox/WebKit, and encrypted document-scroll
+restoration in WebKit. Ten focused repeats per engine compare this patch with
+an archived, unchanged Phase 7 adapter and fixtures:
+
+| Case | Phase 7 failures / 10, Chromium / Firefox / WebKit | Phase 8 failures / 10, Chromium / Firefox / WebKit |
+| --- | --- | --- |
+| Back while the next page chunk loads | 1 / 0 / 3 | 3 / 2 / 3 |
+| Encrypted document-scroll restoration | 0 / 0 / 1 | 0 / 1 / 0 |
+
+Both cases show pre-existing timing sensitivity, not identical failure rates or
+a settled cause. The Phase 7 control uses the same dependencies and browsers,
+port 13723, direct build commands to bypass pnpm's copied-workspace installation
+check, and `sendFile`'s `dotfiles: 'allow'` for its hidden scratch path. Its adapter
+and assertions are unchanged. No timeouts are increased or assertions weakened.
+
+Remaining InfiniteScroll failures concern row pagination tags, URL tracking,
+extra previous-page requests, and scroll preservation. The horizontal test now
+loads all three pages before failing at a row's incorrect pagination tag. These
+are left for the next phase, not diagnosed or fixed by this patch. Remember-state
+cases were executed but still include these failures; this is not a claim that
+all remembered InfiniteScroll behavior works.
+
+The runtime failure remains factory-default form construction; the two type
+diagnostics remain shared-page augmentation. Package, client, both SSR builds,
+changed-file formatting, backend syntax, and `git diff --check` pass. Browser,
+runtime, and type layers still exit nonzero; SSR exits zero.
+
+Inspected Chromium captures show default controls and held previous/next loading
+states. These are native boundary crops with a gray separator, not adjacent
+full-page content. Executed probes verify 15 → 30 → 40 rows and zero page errors.
+First/middle/last hydrated SSR captures show the correct flags and 15/15/10 rows,
+with zero console/page errors. The manual playground remains unchanged.
 Validation is local; nothing has been pushed and CI has not run remotely.

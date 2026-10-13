@@ -440,11 +440,17 @@ test.describe('Manual page loading', () => {
     await expect(page.getByText('User 31')).toBeHidden()
     await expect(page.getByText('Has more previous items: true')).toBeVisible()
     await expect(page.getByText('Has more next items: true')).toBeVisible()
+    await expect(page.getByTestId('generic-loading')).toBeHidden()
 
     requests.listen(page)
+    const releasePrevious = await holdInfiniteScrollRequests(page)
     await page.getByRole('button', { name: 'Load previous items' }).click()
     await expect.poll(() => infiniteScrollRequests().length).toBe(1)
+    await expect(page.getByRole('button', { name: 'Loading previous items...' })).toBeVisible()
     await expect(page.getByText('Loading next items...')).toBeHidden()
+    await expect(page.getByTestId('generic-loading')).toBeHidden()
+    releasePrevious()
+    await page.unrouteAll({ behavior: 'wait' })
 
     await expect(page.getByText('User 15')).toBeVisible()
     await expect(page.getByText('User 1', { exact: true })).toBeVisible()
@@ -452,9 +458,14 @@ test.describe('Manual page loading', () => {
     await expect(page.getByText('Has more previous items: false')).toBeVisible()
     await expect(page.getByText('Has more next items: true')).toBeVisible()
 
+    const releaseNext = await holdInfiniteScrollRequests(page)
     await page.getByRole('button', { name: 'Load next items' }).click()
     await expect.poll(() => infiniteScrollRequests().length).toBe(2)
+    await expect(page.getByRole('button', { name: 'Loading next items...' })).toBeVisible()
     await expect(page.getByText('Loading previous items...')).toBeHidden()
+    await expect(page.getByTestId('generic-loading')).toBeHidden()
+    releaseNext()
+    await page.unrouteAll({ behavior: 'wait' })
 
     await expect(page.getByText('User 31')).toBeVisible()
     await expect(page.getByText('User 40')).toBeVisible()
@@ -1834,7 +1845,7 @@ test.describe('Horizontal scrolling support', () => {
     await expect(page.getByText('User 15')).toBeVisible()
     await expect(page.getByText('User 16')).toBeHidden()
 
-    const scrollContainer = await page.locator('div[style*="overflow-x: scroll"]')
+    const scrollContainer = page.getByTestId('horizontal-scroll-container')
 
     await expect(infiniteScrollRequests().length).toBe(0)
 

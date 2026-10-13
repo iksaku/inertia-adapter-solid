@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest'
 import { isServer, renderToString, renderToStringAsync } from 'solid-js/web'
-import { App, createInertiaApp, Deferred, useForm, useRemember, WhenMounted } from 'inertia-adapter-solid'
+import {
+  App,
+  createInertiaApp,
+  Deferred,
+  InfiniteScroll,
+  useForm,
+  useRemember,
+  WhenMounted,
+} from 'inertia-adapter-solid'
 import type { Page } from '@inertiajs/core'
 
 const page: Page = {
@@ -45,12 +53,62 @@ it.each([renderToString, renderToStringAsync])(
   'creates the public SSR response with a supported renderer',
   async (render) => {
     const response = await createInertiaApp({
-      page,
-      resolve: () => () => <main>SSR content</main>,
+      page: {
+        ...page,
+        scrollProps: {
+          accounts: { pageName: 'accounts', previousPage: 41, currentPage: 42, nextPage: null, reset: false },
+          messages: {
+            pageName: 'messages',
+            previousPage: null,
+            currentPage: 'cursor-A',
+            nextPage: 'cursor-B',
+            reset: false,
+          },
+        },
+      },
+      resolve: () => () => (
+        <main>
+          SSR content
+          <InfiniteScroll
+            data="accounts"
+            previous={(slot) => (
+              <b>
+                accounts:{String(slot.hasMore)}:{String(slot.hasNext)}
+              </b>
+            )}
+          >
+            Accounts
+          </InfiniteScroll>
+          <InfiniteScroll
+            data="messages"
+            next={(slot) => (
+              <b>
+                messages:{String(slot.hasPrevious)}:{String(slot.hasMore)}
+              </b>
+            )}
+          >
+            Messages
+          </InfiniteScroll>
+          <InfiniteScroll
+            data="optional"
+            next={(slot) => (
+              <b>
+                optional:{String(slot.hasPrevious)}:{String(slot.hasMore)}
+              </b>
+            )}
+          >
+            Optional
+          </InfiniteScroll>
+        </main>
+      ),
       render,
       setup: ({ App, props }) => <App {...props} />,
     })
-    expect(response.body).toContain('SSR content')
+    const body = response.body.replace(/<!--.*?-->/g, '')
+    expect(body).toContain('SSR content')
+    expect(body).toContain('accounts:true:false')
+    expect(body).toContain('messages:false:true')
+    expect(body).toContain('optional:false:false')
     expect(response.body).toContain('data-page=')
     expect(Array.isArray(response.head)).toBe(true)
   },

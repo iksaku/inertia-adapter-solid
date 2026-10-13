@@ -300,24 +300,37 @@ test.describe('layout props', () => {
 })
 
 test.describe('SSR InfiniteScroll', () => {
-  test('it renders correct slot props during SSR', async ({ page }) => {
-    const response = await page.request.get('/ssr/infinite-scroll')
-    const html = await response.text()
+  for (const [pageNumber, hasPrevious, hasNext] of [
+    [1, false, true],
+    [2, true, true],
+    [3, true, false],
+  ] as const) {
+    test(`it renders correct slot props during SSR on page ${pageNumber}`, async ({ page }) => {
+      const response = await page.request.get(`/ssr/infinite-scroll?page=${pageNumber}`)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      const slots = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return {
+          previous: document.querySelector('[data-testid="has-previous"]')?.textContent,
+          next: document.querySelector('[data-testid="has-next"]')?.textContent,
+        }
+      }, html)
 
-    expect(html).toMatch(/Has previous:.*false/)
-    expect(html).toMatch(/Has next:.*true/)
-  })
+      expect(slots).toEqual({ previous: `Has previous: ${hasPrevious}`, next: `Has next: ${hasNext}` })
+    })
 
-  test('it hydrates without mismatch', async ({ page }) => {
-    consoleMessages.listen(page)
+    test(`it hydrates without mismatch on page ${pageNumber}`, async ({ page }) => {
+      consoleMessages.listen(page)
 
-    await page.goto('/ssr/infinite-scroll')
+      await page.goto(`/ssr/infinite-scroll?page=${pageNumber}`)
 
-    await expect(page.getByTestId('has-previous')).toHaveText('Has previous: false')
-    await expect(page.getByTestId('has-next')).toHaveText('Has next: true')
+      await expect(page.getByTestId('has-previous')).toHaveText(`Has previous: ${hasPrevious}`)
+      await expect(page.getByTestId('has-next')).toHaveText(`Has next: ${hasNext}`)
 
-    expect(consoleMessages.errors).toHaveLength(0)
-  })
+      expect(consoleMessages.errors).toHaveLength(0)
+    })
+  }
 })
 
 test.describe('SSR Auto Transform', () => {

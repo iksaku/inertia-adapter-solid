@@ -3,7 +3,10 @@ import { For } from 'solid-js'
 import type { User } from './UserCard'
 export default function Horizontal(props: { users: { data: User[] } }) {
   return (
-    <div style={{ height: '120px', 'overflow-x': 'scroll', display: 'flex', width: '100vw' }}>
+    <div
+      data-testid="horizontal-scroll-container"
+      style={{ height: '120px', 'overflow-x': 'scroll', display: 'flex', width: '100vw' }}
+    >
       <InfiniteScroll
         data="users"
         style={{ display: 'flex', gap: '20px', height: '120px' }}
