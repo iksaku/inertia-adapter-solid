@@ -230,6 +230,7 @@ export default function Form(_props: FormProps) {
 
   function reset(...fields: string[]) {
     resetFormFields(formElement, defaultData(), fields)
+    form.reset(...fields)
   }
 
   function clearErrors(...fields: string[]) {

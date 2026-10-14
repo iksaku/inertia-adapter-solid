@@ -112,6 +112,9 @@ does not turn known failures into passing jobs.
 15. **Reactive form methods:** normalize uppercase method props inside the
     existing memo, preserve Wayfinder precedence and default GET, and verify all
     five verbs, reactive updates, and stable form elements.
+16. **Precognition resets:** synchronize native resets with form-state resets,
+    forget only selected touched names, preserve errors, and cover pristine
+    controls, dotted-name siblings, and reactive slot consumers.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -1050,3 +1053,73 @@ The preview is restored to built-in-client assets on port 13721 of
 `homelab-sandbox`; the manual playground is unchanged. Phase 14 is committed
 locally. Phase 15 remains uncommitted for review; nothing is pushed and remote
 CI has not run.
+
+## Phase 16: Precognition resets (2026-10-14)
+
+The three existing component reset/touched-field cases fail twice each on
+unchanged source: native values restore, but subsequent validation still includes
+forgotten fields or the touched indicators remain true. A smaller browser probe
+keeps one pristine empty input, touches its name, and resets it without changing
+any value. The input stays empty and no request or page error occurs, but the
+touched flag remains true. This removes validation timing and changed native
+values from the failure.
+
+The pinned [React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/Form.ts#L203-L214),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/form.ts#L339-L352),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/components/Form.svelte#L237-L250)
+components restore native values, then call their internal `form.reset(...fields)`.
+Solid omitted that second call. It now makes the same delegation, reusing the
+existing state reset and validator's `touchedChanged` listener to update its
+Solid signal. No signal mirror, validator wrapper, direct validator call, or
+new abstraction is added. The fields are forwarded unchanged.
+
+This delegation is unconditional: core's reset event only fires for a changed
+whole-form reset, not pristine or selective resets. Precognition 2.1.0's
+[public reset](https://github.com/laravel/precognition/blob/v2.1.0/packages/core/src/validator.ts#L456-L474)
+forgets all or exact selected touched names without clearing errors or initiating
+validation. Normal component reset retains errors; the existing
+`resetAndClearErrors` remains the explicit error-clearing operation.
+
+One new public owned-root consumer uses the component ref and reactive slot.
+With pristine nonempty defaults, it checks single and multiple dotted-name
+resets, retaining a sibling under the same prefix and an unrelated field,
+retouching after reset, all-field reset, original values, error retention, and
+selective explicit error clearing. It is red before the fix. A drop-the-fields
+mutant clears unrelated touched flags and fails; a reset-and-clear-errors mutant
+removes an error and fails. Both are restored before final builds. Source/unit
+lint and strict unit compilation pass after the ref callback style correction.
+
+The original three cases pass their two repetitions after the fix. All six
+reset cases across both component and helper then pass five repetitions in
+each engine: **90/90 without retries**. The minimized browser probe now displays
+the untouched flag with the same pristine value, zero requests, and zero page
+errors. These are executed DOM/state checks; no appearance or fixture UI changes
+are made.
+
+Full profiles use the same pinned environment, four workers, explicit sequential
+client rebuilds, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,116 cases | 1,037 | 12 | 67 |
+| Firefox / native XHR, all 1,116 cases | 1,021 | 12 | 83 |
+| WebKit / native XHR, all 1,116 cases | 1,038 | 14 | 64 |
+| Chromium / Axios, all 1,116 cases | 1,037 | 12 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 16 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,096 passed / 38 failed / 214 skipped**. Case-by-case
+comparison against Phase 15 finds only the three reset cases becoming green
+in every browser/client profile, plus Firefox's previously intermittent
+quick-hover prefetch case passing this time. That prefetch result is not credited
+to this fix. No previously passing case becomes red; no browser or SSR case is
+added or removed; no serial follower becomes blocked; and no runner error occurs.
+SSR outcomes remain unchanged. Original assertions, timeouts, exclusions, and
+skips are unchanged. The complete browser profiles still exit 1 on the remaining
+supported failures; type/unit, focused reset, and SSR runs exit 0.
+
+Temporary probes are removed. Source/unit lint and `git diff --check` pass.
+The preview remains on port 13721 of `homelab-sandbox` with built-in-client assets;
+the manual playground is untouched. Phase 15 is committed locally. Phase 16
+remains uncommitted for review; nothing is pushed and remote CI has not run.

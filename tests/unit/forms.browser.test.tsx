@@ -1,4 +1,4 @@
-import type { Method, UrlMethodPair } from '@inertiajs/core'
+import type { FormComponentRef, Method, UrlMethodPair } from '@inertiajs/core'
 import { cleanup, render } from '@solidjs/testing-library'
 import { Form, WhenMounted, router, useForm, useFormContext, useHttp, usePage, usePoll } from 'inertia-adapter-solid'
 import { type Setter, createRoot, createSignal } from 'solid-js'
@@ -144,6 +144,56 @@ describe('public form consumers', () => {
     expect(element.getAttribute('method')).toBe('get')
     expect(element.getAttribute('action')).toBe('/fallback')
     expect(view.container.querySelector('form')).toBe(element)
+  })
+
+  it('forgets only reset fields even when values are pristine, without clearing errors', () => {
+    let form!: FormComponentRef
+    const view = render(() => (
+      <Form
+        action="/profile"
+        method="post"
+        ref={(value) => {
+          form = value
+        }}
+      >
+        {(slot) => (
+          <>
+            <input name="profile.name" value="Ada" />
+            <input name="profile.nickname" value="ace" />
+            <input name="email" value="ada@example.test" />
+            <output>
+              {String(slot.touched('profile.name'))}|{String(slot.touched('profile.nickname'))}|
+              {String(slot.touched('email'))}|{String(slot.touched())}
+            </output>
+          </>
+        )}
+      </Form>
+    ))
+    const errors = { 'profile.name': 'Name error', 'profile.nickname': 'Nickname error', email: 'Email error' }
+    expect(view.container.textContent).toBe('false|false|false|false')
+    form.setError({ ...errors })
+    form.touch('profile.name', 'profile.nickname', 'email')
+    expect(view.container.textContent).toBe('true|true|true|true')
+    form.reset('profile.name')
+    expect(view.container.textContent).toBe('false|true|true|true')
+    expect(form.errors).toEqual(errors)
+    form.touch('profile.name')
+    expect(view.container.textContent).toBe('true|true|true|true')
+    form.reset('profile.name', 'email')
+    expect(view.container.textContent).toBe('false|true|false|true')
+    expect(form.errors).toEqual(errors)
+    form.reset()
+    expect(view.container.textContent).toBe('false|false|false|false')
+    expect(form.errors).toEqual(errors)
+    expect([...view.container.querySelectorAll('input')].map((input) => input.value)).toEqual([
+      'Ada',
+      'ace',
+      'ada@example.test',
+    ])
+    form.touch('profile.nickname')
+    form.resetAndClearErrors('profile.nickname')
+    expect(view.container.textContent).toBe('false|false|false|false')
+    expect(form.errors).toEqual({ 'profile.name': 'Name error', email: 'Email error' })
   })
 
   it('provides form context only to owned descendants', () => {
