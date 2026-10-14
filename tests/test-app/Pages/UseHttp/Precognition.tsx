@@ -1,8 +1,25 @@
 import { useHttp } from 'inertia-adapter-solid'
 import { createSignal } from 'solid-js'
+import { isServer } from 'solid-js/web'
 
 export default () => {
-  const form = useHttp({ name: '' }).withPrecognition('post', '/precognition/default').setValidationTimeout(50)
+  const endpoint = { method: 'post' as const, url: '/precognition/default' }
+  const data = { name: '' }
+  const forms = {
+    default: useHttp(data).withPrecognition(endpoint.method, endpoint.url),
+    strings: useHttp(endpoint.method, endpoint.url, data),
+    callbacks: useHttp(
+      () => endpoint.method,
+      () => endpoint.url,
+      data,
+    ),
+    wayfinder: useHttp(endpoint, data),
+    wayfinderCallback: useHttp(() => endpoint, data),
+  }
+  const constructorKind = new URLSearchParams(isServer ? '' : window.location.search).get('constructor') as
+    | keyof typeof forms
+    | null
+  const form = forms[constructorKind ?? 'default'].setValidationTimeout(50)
   const [configuration, setConfiguration] = createSignal('initial')
 
   return (

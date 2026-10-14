@@ -1,15 +1,16 @@
-import { expect, it } from 'vitest'
-import { isServer, renderToString, renderToStringAsync } from 'solid-js/web'
+import type { Method, Page, UrlMethodPair } from '@inertiajs/core'
 import {
   App,
-  createInertiaApp,
   Deferred,
   InfiniteScroll,
-  useForm,
-  useRemember,
   WhenMounted,
+  createInertiaApp,
+  useForm,
+  useHttp,
+  useRemember,
 } from 'inertia-adapter-solid'
-import type { Page } from '@inertiajs/core'
+import { isServer, renderToString, renderToStringAsync } from 'solid-js/web'
+import { expect, it } from 'vitest'
 
 const page: Page = {
   component: 'SSR',
@@ -33,6 +34,41 @@ it('uses actual server conditions and renders only the mounting fallback', () =>
   expect(body).toContain('server waiting')
   expect(body).not.toContain('browser only')
 })
+
+it.each(['useForm', 'useHttp'] as const)(
+  'initializes %s legacy validation during SSR without resolving endpoints',
+  (hook) => {
+    const lazyMethod = (): Method => {
+      throw new Error('The method must not be resolved during initialization.')
+    }
+    const lazyUrl = (): string => {
+      throw new Error('The URL must not be resolved during initialization.')
+    }
+    const lazyWayfinder = (): UrlMethodPair => {
+      throw new Error('Wayfinder must not be resolved during initialization.')
+    }
+    const body = renderToString(() => {
+      const data = { name: 'server' }
+      const use = hook === 'useForm' ? useForm<typeof data> : useHttp<typeof data>
+      const forms = [
+        use('post', '/must-not-request', data),
+        use(lazyMethod, lazyUrl, data),
+        use({ method: 'post', url: '/must-not-request' }, data),
+        use(lazyWayfinder, data),
+      ]
+      return (
+        <output>
+          {forms
+            .map((form) => `${form.data.name}:${form.validating}:${form.touched('name')}:${form.invalid('name')}`)
+            .join('|')}
+        </output>
+      )
+    })
+    expect(body.replace(/<!--.*?-->/g, '')).toContain(
+      'server:false:false:false|server:false:false:false|server:false:false:false|server:false:false:false',
+    )
+  },
+)
 
 it.each(['object', 'factory'] as const)(
   'renders a server App with isolated %s form data and falsy deferred props',

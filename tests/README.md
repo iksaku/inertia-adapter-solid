@@ -121,6 +121,9 @@ does not turn known failures into passing jobs.
 18. **Global validation errors:** inherit the current global error mode until
     explicit opt-in, preserve default first-error behavior and existing errors,
     and cover configuration changes on an already-created HTTP form.
+19. **Legacy Precognition constructors:** initialize validation for all four
+    endpoint overloads through shared form state, preserve reactive validation
+    and fluent identity, and verify lazy endpoint callbacks during actual SSR.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -1311,3 +1314,94 @@ remains on port 13721 of `homelab-sandbox` with native-client assets; the manual
 playground is unchanged. Phase 18 remains uncommitted for review; nothing is
 pushed and remote CI has not run. The next phase is legacy Precognition helper
 initialization and its four existing validation cases.
+
+## Phase 19: legacy Precognition initialization (2026-10-14)
+
+Phase 18 is committed locally. Two repetitions of the eight original modern
+and legacy helper validation cases give **8 passed / 8 failed** in Chromium.
+The four legacy variants fail both times. A browser probe selecting each legacy
+variant throws `forms[formName].touch is not a function` before any POST,
+ruling out request timing or a missing backend validation response.
+
+The parser already retains the endpoint, but shared form initialization never
+decorates the form with its validation methods. The final hook wrappers only
+cast the return value. The pinned
+[React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/useFormState.ts#L452-L456),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/useFormState.ts#L391-L393),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/useFormState.svelte.ts#L401-L403)
+adapters invoke their ordinary `withPrecognition` during shared initialization.
+Solid now does the same after constructing the form. This reuses the existing
+validator guard and descriptor-preserving decorator; no wrapper, public type,
+additional signal, endpoint parser, or second validator path changes.
+
+Parameterize the existing public HTTP held-response contract across modern,
+method/URL strings, method/URL callbacks, Wayfinder object, and Wayfinder callback
+construction. Preserve the original modern test title and all assertions.
+Before the runtime fix, the modern case passes and all four legacy cases fail.
+Each case checks idle state, a held real response, reactive loading, 422 errors,
+reconfiguration retaining form identity and data, then a second held request
+and 204 success. Headers, valid/invalid flags, error clearing, and absence of
+page errors remain asserted. Fixture selection is initialization configuration,
+not a reactive page binding, and server rendering does not read `window`.
+
+Two new actual-server consumers exercise every legacy overload for `useForm`
+and `useHttp`. Endpoint callbacks throw if initialization resolves them. Each
+consumer renders unchanged form data and initially false validating, touched,
+and invalid flags. Both fail before the fix because `touched` is missing, then
+pass with the shared initialization change. Validator construction does not
+resolve the callbacks or issue a validation request during SSR.
+
+Three repetitions of the eight original helper cases and five HTTP constructor
+cases give **117/117 across all three browsers**, without retries. All **18**
+runtime consumers pass; all three strict TypeScript programs have zero
+diagnostics. Source and touched-fixture/server-consumer lint, browser-spec
+formatting, and `git diff --check` pass. Legacy helper idle, pending, and invalid
+states and the legacy HTTP error state are rendered and inspected. A separate
+executed DOM/network probe observes real Precognition requests and zero page
+errors; screenshots illustrate those rendered states, not transport behavior.
+
+Full profiles use the same pinned environment, four workers, explicit sequential
+client rebuilds, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,122 cases | 1,050 | 5 | 67 |
+| Firefox / native XHR, all 1,122 cases | 1,032 | 7 | 83 |
+| WebKit / native XHR, all 1,122 cases | 1,049 | 9 | 64 |
+| Chromium / Axios, all 1,122 cases | 1,050 | 5 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 18 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,131 passed / 21 failed / 214 skipped**. Title/project-based
+comparison against Phase 18 identifies all four original legacy validation
+cases becoming green in every browser/client profile and all four added HTTP
+constructor cases passing in every profile. No case disappears, no serial
+follower becomes blocked, no skip changes, and no runner error occurs. SSR
+results remain unchanged. Complete browser profiles still exit 1; focused,
+unit, type, and SSR checks exit 0.
+
+Two other native results change. Firefox's quick-hover prefetch assertion at
+`prefetch.spec.ts:97` becomes red again, expecting zero requests and receiving
+one. This same failure already reproduces in the archived pre-change adapter
+controls from Phase 9 and in the Phase 15 full and repeated runs. The page and
+its persistent layout do not instantiate forms. This phase does not change the
+prefetch fixture, assertion, timeout, or implementation, and retains the full
+red result. WebKit's intermittent encrypted-history document-scroll restoration
+passes this time; that pass is not credited to the constructor fix. Firefox's
+previously intermittent history wait remains red. No new failure mode is
+observed, but the existing timing failures remain unresolved.
+
+Local review checks the shared initialization against the pinned adapters,
+Solid's reactive getter contract, and the public tests' scope. No additional
+runtime change is needed. A final executed HTTP probe selects the legacy
+Wayfinder callback, observes a real POST/422 response, retains the input and
+error through reconfiguration, reports same-form identity and zero page errors,
+and supplies the inspected HTTP error capture.
+
+No temporary source instrumentation or scratch scripts remain. Native-client
+assets are restored and the preview remains on port 13721 of `homelab-sandbox`;
+the manual playground is untouched. Phase 19 remains uncommitted for review;
+nothing is pushed and remote CI has not run. The next proposed phase is the two
+remaining persistent render-function layout cases and their Solid ownership
+and reactivity contracts.

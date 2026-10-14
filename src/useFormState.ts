@@ -426,6 +426,10 @@ export default function useFormState<TForm extends object>(
     withPrecognition,
   }
 
+  if (precognitionEndpoint) {
+    form.withPrecognition(precognitionEndpoint)
+  }
+
   return {
     form,
     setDefaults: (newDefaults: TForm) => {

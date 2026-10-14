@@ -2,63 +2,66 @@ import { expect, test } from '@playwright/test'
 import { consoleMessages, requests } from './support'
 
 test.describe('useHttp', () => {
-  test('it reactively tracks Precognition validation through errors, reconfiguration, and success', async ({
-    page,
-  }) => {
-    consoleMessages.listen(page)
-    await page.goto('/use-http/precognition')
-    const validating = page.locator('#precognition-validating')
-    const invalid = page.locator('#precognition-invalid')
-    const valid = page.locator('#precognition-valid')
-    const error = page.locator('#precognition-error')
+  for (const constructorKind of ['default', 'strings', 'callbacks', 'wayfinder', 'wayfinderCallback']) {
+    const suffix = constructorKind === 'default' ? '' : ` (${constructorKind} constructor)`
+    test(`it reactively tracks Precognition validation through errors, reconfiguration, and success${suffix}`, async ({
+      page,
+    }) => {
+      consoleMessages.listen(page)
+      await page.goto(`/use-http/precognition?constructor=${constructorKind}`)
+      const validating = page.locator('#precognition-validating')
+      const invalid = page.locator('#precognition-invalid')
+      const valid = page.locator('#precognition-valid')
+      const error = page.locator('#precognition-error')
 
-    await expect(validating).toHaveText('false')
-    await expect(invalid).toHaveText('false')
-    await expect(valid).toHaveText('false')
-    await expect(error).toHaveText('')
-
-    for (const result of [
-      { name: 'ab', status: 422, invalid: 'true', valid: 'false', error: 'The name must be at least 3 characters.' },
-      { name: 'Ada', status: 204, invalid: 'false', valid: 'true', error: '' },
-    ]) {
-      let release!: () => void
-      const held = new Promise<void>((resolve) => {
-        release = resolve
-      })
-      await page.route('**/precognition/default', async (route) => {
-        const response = await route.fetch()
-        await held
-        await route.fulfill({ response })
-      })
-
-      await page.fill('#precognition-name', result.name)
-      const started = page.waitForRequest('**/precognition/default')
-      const completed = page.waitForResponse('**/precognition/default')
-      try {
-        await page.getByRole('button', { name: 'Validate name', exact: true }).click()
-        const request = await started
-        expect(request.method()).toBe('POST')
-        expect(request.headers()['precognition']).toBe('true')
-        expect(request.headers()['precognition-validate-only']).toBe('name')
-        await expect(validating).toHaveText('true')
-        await page.getByRole('button', { name: 'Reconfigure Precognition', exact: true }).click()
-        await expect(page.locator('#precognition-configuration')).toHaveText('same form')
-        await expect(validating).toHaveText('true')
-        await expect(page.locator('#precognition-name')).toHaveValue(result.name)
-      } finally {
-        release()
-        await completed
-        await page.unroute('**/precognition/default')
-      }
-
-      expect((await completed).status()).toBe(result.status)
       await expect(validating).toHaveText('false')
-      await expect(invalid).toHaveText(result.invalid)
-      await expect(valid).toHaveText(result.valid)
-      await expect(error).toHaveText(result.error)
-    }
-    expect(consoleMessages.errors).toEqual([])
-  })
+      await expect(invalid).toHaveText('false')
+      await expect(valid).toHaveText('false')
+      await expect(error).toHaveText('')
+
+      for (const result of [
+        { name: 'ab', status: 422, invalid: 'true', valid: 'false', error: 'The name must be at least 3 characters.' },
+        { name: 'Ada', status: 204, invalid: 'false', valid: 'true', error: '' },
+      ]) {
+        let release!: () => void
+        const held = new Promise<void>((resolve) => {
+          release = resolve
+        })
+        await page.route('**/precognition/default', async (route) => {
+          const response = await route.fetch()
+          await held
+          await route.fulfill({ response })
+        })
+
+        await page.fill('#precognition-name', result.name)
+        const started = page.waitForRequest('**/precognition/default')
+        const completed = page.waitForResponse('**/precognition/default')
+        try {
+          await page.getByRole('button', { name: 'Validate name', exact: true }).click()
+          const request = await started
+          expect(request.method()).toBe('POST')
+          expect(request.headers()['precognition']).toBe('true')
+          expect(request.headers()['precognition-validate-only']).toBe('name')
+          await expect(validating).toHaveText('true')
+          await page.getByRole('button', { name: 'Reconfigure Precognition', exact: true }).click()
+          await expect(page.locator('#precognition-configuration')).toHaveText('same form')
+          await expect(validating).toHaveText('true')
+          await expect(page.locator('#precognition-name')).toHaveValue(result.name)
+        } finally {
+          release()
+          await completed
+          await page.unroute('**/precognition/default')
+        }
+
+        expect((await completed).status()).toBe(result.status)
+        await expect(validating).toHaveText('false')
+        await expect(invalid).toHaveText(result.invalid)
+        await expect(valid).toHaveText(result.valid)
+        await expect(error).toHaveText(result.error)
+      }
+      expect(consoleMessages.errors).toEqual([])
+    })
+  }
 
   test('it makes GET requests and returns JSON response', async ({ page }) => {
     await page.goto('/use-http')
