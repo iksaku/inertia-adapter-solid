@@ -552,11 +552,17 @@ integrations.forEach((integration) => {
       // One cancelled, one 422 response
       await expect.poll(() => requests.failed.length).toBe(1)
       await expect.poll(() => requests.responses.length).toBe(1)
+      expect(requests.failed[0].postDataJSON().name).toBe('ab')
+      expect(requests.responses[0].request().postDataJSON().name).toBe('xy')
+      expect(requests.responses[0].status()).toBe(422)
 
       const cancelledRequestError = await requests.failed[0].failure()?.errorText
-      const expectedError =
-        browserName === 'webkit' ? 'cancelled' : browserName === 'firefox' ? 'NS_BINDING_ABORTED' : 'net::ERR_ABORTED'
-      expect(cancelledRequestError).toBe(expectedError)
+      // Accept only the known WebKit abort diagnostics, not arbitrary network failures.
+      const expectedErrors =
+        browserName === 'webkit'
+          ? ['cancelled', 'Load request cancelled']
+          : [browserName === 'firefox' ? 'NS_BINDING_ABORTED' : 'net::ERR_ABORTED']
+      expect(expectedErrors).toContain(cancelledRequestError)
     })
 
     test(prefix + 'validates dynamic array inputs after first validation', async ({ page }) => {

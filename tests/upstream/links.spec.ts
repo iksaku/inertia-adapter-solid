@@ -631,7 +631,8 @@ test.describe('enabled', () => {
     test.skip(browserName === 'firefox', 'Firefox on Linux auto-adjusts scroll on content change')
 
     consoleMessages.listen(page)
-    await page.getByTestId('preserve-callback').click()
+    // Activate without Playwright scrolling a wrapped link into view before the visit.
+    await page.getByTestId('preserve-callback').evaluate((link) => (link as HTMLElement).click())
 
     await expect(page).toHaveURL('/links/preserve-scroll-page-two?foo=baz')
     await expect(page.getByText('Foo is now baz')).toBeVisible()

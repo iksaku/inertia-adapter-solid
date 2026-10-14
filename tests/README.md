@@ -130,6 +130,9 @@ does not turn known failures into passing jobs.
 21. **Deferred props:** resolve nested paths reactively and own the mutable page
     tree so reconciliation cannot erase core's pending deferred metadata or
     mutate initial/newly received props.
+22. **Browser-safe test interactions:** preserve prepared scroll coordinates
+    during activation, distinguish native abort diagnostics from cancellation
+    behavior, and control the hover deadline without changing adapter runtime.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -1518,3 +1521,101 @@ are recorded together in one local commit, including both regression tests;
 nothing is pushed and remote CI has not run.
 The next phase is the remaining browser-consistency and timing cases, not a
 persistent-layout API redesign.
+
+## Phase 22: browser-safe interactions and cancellation assertions (2026-10-14)
+
+Phase 21's two deferred fixes, regression tests, and layout-test deferrals are
+consolidated into one local commit. This phase changes browser checks only;
+adapter source, fixtures, the manual playground, layout behavior, supported
+contracts, exclusions, retries, and test timeouts remain unchanged.
+
+Three unchanged WebKit repetitions of the five remaining cases produce
+**3 passed / 12 failed**. Both scroll assertions and both Precognition
+cancellation-text assertions fail every repetition. The quick-hover case passes
+these repetitions; that does not resolve its archived intermittent failures.
+
+Executed scroll probes distinguish prepared coordinates from visit-time
+coordinates. WebKit's wrapped callback link already changes document scroll
+from `(5, 7)` to `(0, 7)` before `pointerdown`; the manual visit's wrapped link
+changes the untracked slot from `(10, 15)` to `(76, 0)` before `pointerdown`.
+Both changed values are present at `inertia:before`. Chromium retains the
+prepared values. Activating the native anchor with `HTMLElement.click()` keeps
+the exact prepared coordinates and exercises the same click handler and real
+HTTP navigation without Playwright's scroll-into-view preparation. The original
+document/slot assertions and callback-page assertions remain intact. These two
+checks isolate navigation scroll preservation, not pointer actionability; other
+pointer-click checks stay active. No fixture geometry or layout API is changed.
+
+Precognition still requires one failed request and one completed response, the
+final validation error, and a finished loading state. Additional assertions
+identify the failed first payload (`ab`), the completed second payload (`xy`),
+and its exact **422** status. WebKit accepts only `cancelled` and the observed
+`Load request cancelled`; Chromium and Firefox retain their exact original
+abort diagnostics. This is not an arbitrary-network-error exemption. Phase 17's
+pinned official React controls already reproduce the original text mismatch.
+
+The short-hover interaction previously assumed two awaited automation actions
+would complete within the default **75ms** hover delay. Twelve serial WebKit /
+Firefox probes happen to leave in 41–51ms and make no request; they do not
+establish the cause of every archived failure. The revised case instead
+[installs Playwright's clock before application timers](https://playwright.dev/docs/clock),
+allows the original mount/click/cache sequence to settle, then pauses time for
+real mouse interactions. It asserts no request at **74ms**, leaves and advances
+past the deadline to verify cancellation, then asserts no request at **74ms**
+on a second dwell, advances to **75ms**, and awaits the real HTTP response. The
+clock resumes before the original navigation/cache-expiry checks. No server
+response is fabricated and no production hover delay is changed.
+
+The initial focused run is **39 passed / 0 failed / 6 existing Firefox skips**
+over three repetitions in all engines. The final 74/75ms boundary check also
+passes once in each engine. Two deliberately incorrect generated-asset controls
+prove the kept hover test rejects plausible mistakes: removing mouse-leave
+cancellation fails its post-deadline zero-request assertion in Chromium and
+WebKit; firing one millisecond early fails its 74ms assertion in both engines.
+All four controls fail at the intended assertion, with no runner errors. The
+generated asset is restored byte-for-byte and adapter source remains unchanged.
+
+Ten repetitions of the final hover case in each engine pass **30/30**, without
+retries. A separate control freshly builds the pinned official core, React
+adapter, and React fixtures, then runs these same five adapted cases twice in
+WebKit: **10/10 pass**. No official runtime source is patched. The control
+checkout's existing backend asset/upload corrections and Precognition waiter
+changes are preserved unchanged; the adapted cases run from this repository.
+
+Complete profiles use Node **22.23.3**, pnpm **11.20.0**, Playwright **1.58.2**,
+the pinned browser installations, four workers, sequential client rebuilds,
+and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,122 cases | 1,047 | 0 | 75 |
+| Firefox / native XHR, all 1,122 cases | 1,031 | 0 | 91 |
+| WebKit / native XHR, all 1,122 cases | 1,049 | 1 | 72 |
+| Chromium / Axios, all 1,122 cases | 1,047 | 0 | 75 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 72 | 0 | 36 |
+| Public browser/server runtime consumers | 20 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,127 passed / 1 failed / 238 skipped**. Title/project-based
+comparison against Phase 21 identifies all five targeted WebKit failures now
+passing. No case is added or removed, no skip changes, no serial follower becomes
+blocked, and no runner error occurs. Axios and SSR outcomes are unchanged.
+
+The one native failure is WebKit's `links.spec.ts:880` post-render scroll check:
+the ten-navigation test exceeds its existing **10,000ms** timeout before its
+final log assertion. It passed in Phase 21 but this same timeout already failed
+5/10 times in Phase 9's unchanged Phase 8 controls. It is not a newly observed
+failure mode or a confirmed regression. Its fixture, ten navigations, assertion,
+and timeout are untouched. The full native command still exits **1**; Axios,
+SSR, units, types, repeated hover checks, and official React controls exit **0**.
+No passing rerun replaces the failed full-profile result.
+
+Local review confirms the retained observable scroll/cancellation contracts,
+clock installation before application timers, unchanged Solid runtime and
+layout API, and exact browser-diagnostic allowlist. Changed-spec formatting and
+`git diff --check` pass. Temporary probes and control configuration are removed;
+no instrumentation remains. Native-client assets are restored and the preview
+remains on port 13721 of `homelab-sandbox`. Phase 22 is committed locally;
+nothing is pushed and remote CI has not run. The remaining post-render
+timing failure needs a separate investigation; persistent-layout work stays
+explicitly deferred.

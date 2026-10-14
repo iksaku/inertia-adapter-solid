@@ -57,6 +57,8 @@ test('removes single-use prefetch from cache when cacheFor is 0', async ({ page 
 })
 
 test('can prefetch using link props', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+
   // These two prefetch requests should be made on mount
   const prefetch2 = page.waitForResponse('prefetch/2')
   const prefetch4 = page.waitForResponse('prefetch/4')
@@ -90,15 +92,25 @@ test('can prefetch using link props', async ({ page }) => {
   // Wait for mount-based prefetches to settle before testing hover behavior
   await page.waitForLoadState('networkidle')
 
+  // Automation overhead must not turn a short hover into a dwell beyond the 75ms delay.
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'))
   requests.listen(page)
   await page.getByRole('link', { name: 'On Hover (Default)' }).hover()
+  await page.clock.runFor(74)
+  expect(requests.requests.length).toBe(0)
   await page.getByRole('link', { name: 'On Click' }).hover()
-  // If they just do a quick hover, it shouldn't make the request
+  await page.clock.runFor(76)
+  await page.waitForLoadState('networkidle')
+  // Leaving before the deadline must cancel the timer, even after that deadline passes.
   await expect(requests.requests.length).toBe(0)
 
   const prefetch1 = page.waitForResponse('prefetch/1')
   await page.getByRole('link', { name: 'On Hover (Default)' }).hover()
+  await page.clock.runFor(74)
+  expect(requests.requests.length).toBe(0)
+  await page.clock.runFor(1)
   await prefetch1
+  await page.clock.resume()
   await expect(page).toHaveURL('prefetch/3')
 
   requests.listen(page)

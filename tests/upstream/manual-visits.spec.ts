@@ -497,7 +497,10 @@ test.describe('Preserve scroll', () => {
     }) => {
       test.skip(browserName === 'firefox', 'Firefox on Linux auto-adjusts scroll on content change')
 
-      await page.getByRole('link', { exact: true, name: 'Reset Scroll' }).click()
+      // Activate without Playwright changing the prepared untracked scroll position.
+      await page
+        .getByRole('link', { exact: true, name: 'Reset Scroll' })
+        .evaluate((link) => (link as HTMLElement).click())
       await expect(page).toHaveURL('/visits/preserve-scroll-false-page-two?foo=bar')
       await expect(page.getByText('Foo is now bar')).toBeVisible()
       await page.getByRole('button', { exact: true, name: 'Update scroll positions' }).click()
