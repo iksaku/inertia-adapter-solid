@@ -115,6 +115,9 @@ does not turn known failures into passing jobs.
 16. **Precognition resets:** synchronize native resets with form-state resets,
     forget only selected touched names, preserve errors, and cover pristine
     controls, dotted-name siblings, and reactive slot consumers.
+17. **Precognition loading:** preserve the shared signal accessor across helper,
+    component, and HTTP consumers; exercise held validation responses, endpoint
+    reconfiguration, errors and success, and original automatic cancellation.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -1123,3 +1126,109 @@ Temporary probes are removed. Source/unit lint and `git diff --check` pass.
 The preview remains on port 13721 of `homelab-sandbox` with built-in-client assets;
 the manual playground is untouched. Phase 15 is committed locally. Phase 16
 remains uncommitted for review; nothing is pushed and remote CI has not run.
+
+## Phase 17: Precognition loading and cancellation (2026-10-14)
+
+The existing helper and component cancellation cases fail twice each before
+the fix at their first pending-state assertion: `Validating...` never appears.
+They do not reach the second validation or cancellation assertions. A new
+public `useHttp` consumer narrows this to one field and one real backend
+response held open by Playwright. Both repetitions fail with `validating`
+remaining false despite the observed POST and Precognition headers, ruling out
+a loading interval that completes too quickly.
+
+A temporary notification probe confirms that the validator and Solid signal
+both change to true, while the form has a plain false-valued property instead
+of an accessor. `Object.assign` evaluates the getter and copies its initial value.
+The existing notification listener already matches the pinned
+[React listener](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/useFormState.ts#L394-L401).
+The initial fix installs that signal accessor directly on the same form object.
+Following review, preserve the original getter syntax with
+`Object.defineProperties(form, Object.getOwnPropertyDescriptors({ ... }))` instead.
+This installs property definitions without evaluating the getter or assigning
+to a getter-only property during repeated configuration.
+No validator, cancellation logic, lifecycle, endpoint parser, or public type changes.
+
+The pinned
+[React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/useFormState.ts#L416-L456),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/useFormState.ts#L184-L237),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/useFormState.svelte.ts#L173-L235)
+adapters also decorate their existing forms with `Object.assign`; none returns a
+framework-merged replacement from `withPrecognition`. React refreshes state values
+on subsequent renders, while Vue and Svelte write to their reactive proxies.
+Solid's `useForm` and `useHttp` wrappers discard the original decoration's return
+and return their existing receiver, so returning a new `mergeProps` view would
+break that contract. Descriptor copying retains the same form, methods, and
+live signal getter without a wrapper, helper, or additional reactive state.
+
+One kept browser contract covers idle, held pending, 422 failure, a second held
+validation and 204 success through controlled Solid data and reactive JSX reads.
+It verifies the error message, invalid/valid flags, error clearing, request
+headers, and fluent identity when reconfiguring Precognition during each pending
+request. Real backend responses are held and released; no fabricated payload or
+timing delay stands in for validation. The new fixture's idle, pending, invalid
+and valid captures are rendered and inspected. The executed DOM/request probe
+also reports zero page errors and no remaining diagnostic output.
+
+Five repetitions of the two original cancellation cases and the new HTTP case
+in every engine produce **35 passed / 10 failed / 0 skipped**, without retries.
+All 15 HTTP executions pass. All 20 Chromium/Firefox cancellation executions
+pass, including one aborted request, one 422 response, and the final error.
+WebKit's ten executions pass those behavioral assertions, then fail only on
+the original exact abort text: `Load request cancelled` instead of `cancelled`.
+The pinned official React cancellation cases reproduce that same mismatch in
+all four control executions with the same Node, Playwright and browser versions.
+Their cancellation assertions and endpoint are unchanged; the scratch checkout
+retains only the documented Phase 6 asset/file-upload harness corrections.
+Keep the original assertion red rather than changing the adapter or suppressing it.
+
+The initial getter-descriptor fix's full profiles use explicit sequential client
+rebuilds, four workers, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,117 cases | 1,040 | 10 | 67 |
+| Firefox / native XHR, all 1,117 cases | 1,024 | 10 | 83 |
+| WebKit / native XHR, all 1,117 cases | 1,038 | 15 | 64 |
+| Chromium / Axios, all 1,117 cases | 1,040 | 10 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 16 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,102 passed / 35 failed / 214 skipped**. Title/project-based
+comparison against Phase 16 identifies four original cancellation cases becoming
+green in Chromium/Firefox, two becoming green in Axios, and the new HTTP case
+passing in every profile. No case disappears, no serial follower becomes blocked,
+and no runner error occurs. SSR outcomes remain unchanged.
+
+One previously passing WebKit case becomes red: encrypted-history document-scroll
+restoration at its original 1,000ms wait. This is the intermittent case already
+reproduced in official React during Phase 6. Twenty repetitions with the runtime
+fix give **18 passed / 2 failed**; restoring the exact pre-phase runtime gives
+**16 passed / 4 failed** at the same assertion. The difference in these small
+samples is not credited to this fix, and the red full-matrix result stands.
+The separate untracked-slot scroll failure was already red in Phase 16;
+restoring the pre-phase runtime reproduces its 76/0 rather than 10/15 position
+in 3/3 runs, and the fixed runtime reproduces it in 10/10. Neither scroll
+assertion, timeout, or implementation is changed.
+
+After the getter-syntax refactor, rerun the complete default runner: all three
+strict type programs and all 16 runtime consumers pass; Chromium's full browser
+profile remains **1,040 passed / 10 failed / 67 skipped**, and its SSR profile
+remains **25 passed / 0 failed / 11 skipped**. Complete Precognition and HTTP
+specs across the three native-client engines give **472 passed / 17 failed**
+over 489 cases; Chromium/Axios gives **158 passed / 5 failed** over 163 cases.
+Every case matches the initial fix's result by title and project. No case is
+added, removed, newly red, or blocked; no runner error occurs. The public held
+request contract still verifies reactive loading and same-form identity during
+both reconfigurations. Existing tests suffice for this behavior-preserving
+refactor; no new test or assertion change is added. Complete Firefox/WebKit and
+Axios profiles are not rerun for this follow-up, only their full affected specs.
+
+The complete browser profiles still exit 1; strict types, runtime consumers,
+the HTTP contract and SSR exit 0. Source/fixture lint, spec formatting and
+`git diff --check` pass. Temporary probes and diagnostic instrumentation are
+removed. The preview is restored to built-in-client assets on port 13721 of
+`homelab-sandbox`; the manual playground is untouched. Phase 16 is committed
+locally. Phase 17 remains uncommitted for review; nothing is pushed and remote
+CI has not run.
