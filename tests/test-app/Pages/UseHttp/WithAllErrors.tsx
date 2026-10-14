@@ -1,8 +1,12 @@
-import { useHttp } from 'inertia-adapter-solid'
+import { config, useHttp } from 'inertia-adapter-solid'
+import { onCleanup } from 'solid-js'
 interface ValidateResponse {
   success: boolean
 }
 export default () => {
+  const initialWithAllErrors = config.get('form.withAllErrors')
+  onCleanup(() => config.set('form.withAllErrors', initialWithAllErrors))
+
   const simpleErrors = useHttp<
     {
       name: string
@@ -40,6 +44,13 @@ export default () => {
   return (
     <div>
       <h1>useHttp withAllErrors Test</h1>
+
+      <button type="button" onClick={() => config.set('form.withAllErrors', true)}>
+        Enable global all errors
+      </button>
+      <button type="button" onClick={() => config.set('form.withAllErrors', false)}>
+        Disable global all errors
+      </button>
 
       <section id="simple-errors">
         <h2>Simple Errors (default)</h2>

@@ -186,7 +186,7 @@ export default function useFormState<TForm extends object>(
 
   // Precognition state
   let validatorRef: Validator | null = null
-  let withAllErrors: boolean | null = false
+  let withAllErrors: boolean | null = null
   const withAllErrorsEnabled = () => withAllErrors ?? config.get('form.withAllErrors')
 
   const [validating, setValidating] = createSignal(false)

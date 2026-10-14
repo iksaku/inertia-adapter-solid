@@ -118,6 +118,9 @@ does not turn known failures into passing jobs.
 17. **Precognition loading:** preserve the shared signal accessor across helper,
     component, and HTTP consumers; exercise held validation responses, endpoint
     reconfiguration, errors and success, and original automatic cancellation.
+18. **Global validation errors:** inherit the current global error mode until
+    explicit opt-in, preserve default first-error behavior and existing errors,
+    and cover configuration changes on an already-created HTTP form.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -1232,3 +1235,79 @@ removed. The preview is restored to built-in-client assets on port 13721 of
 `homelab-sandbox`; the manual playground is untouched. Phase 16 is committed
 locally. Phase 17 remains uncommitted for review; nothing is pushed and remote
 CI has not run.
+
+## Phase 18: global validation error defaults (2026-10-14)
+
+Phase 17 is committed locally. Two repetitions of the unchanged global-config
+Precognition cases produce **2 passed / 2 failed** in Chromium: the component
+passes, but the helper omits the second name error. A one-field browser probe
+confirms that the real 422 response contains both messages, while the helper
+renders only the first, with zero page errors. This rules out the backend and
+missing response data as the cause.
+
+The shared state initializes its nullable local `withAllErrors` override to
+`false`, making its existing nullish global fallback unreachable. The pinned
+[React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/useFormState.ts#L146-L147),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/useFormState.ts#L124-L125),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/useFormState.svelte.ts#L120-L121)
+adapters initialize the override to `null`. Solid now does the same. Explicit
+`.withAllErrors()` still sets the override to `true`; no signal, effect, memo,
+new option, public type, or error-conversion path is added.
+
+One new public HTTP contract fails twice before the runtime change. It creates
+both forms first, enables global all-errors mode, checks two distinct messages
+for each field, disables the global mode, verifies stored errors remain unchanged
+until the next real 422 result, and checks first-only errors on that result.
+The explicitly opted-in form still retains both messages under global `false`.
+The existing fixture adds two configuration controls and restores its original
+global setting on owned cleanup. No response is fabricated or intercepted.
+
+Three repetitions of the helper/component global cases and HTTP default,
+explicit, and inherited-mode cases give **45/45 across all three browsers**,
+without retries. A separate DOM/network probe observes three real HTTP 422
+responses, both helper validation messages, and zero page errors. Default,
+globally enabled, globally disabled/explicitly opted-in, and before/after helper
+captures are rendered and inspected. Existing inline error formatting is retained.
+
+Full profiles use the same pinned environment, four workers, explicit sequential
+client rebuilds, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,118 cases | 1,042 | 9 | 67 |
+| Firefox / native XHR, all 1,118 cases | 1,025 | 10 | 83 |
+| WebKit / native XHR, all 1,118 cases | 1,040 | 14 | 64 |
+| Chromium / Axios, all 1,118 cases | 1,042 | 9 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 16 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,107 passed / 33 failed / 214 skipped**. Title/project-based
+comparison against the Phase 17 full matrix finds the original helper global
+case becoming green in every profile and the new HTTP contract passing in all
+four profiles. No case disappears, no serial follower becomes blocked, no skip
+changes, and no runner error occurs. SSR outcomes remain unchanged.
+
+One previously passing Firefox history case becomes red: restoring the page
+while the next page's chunk is held, at `history.spec.ts:399`, waiting for the
+success event. Its failure snapshot still shows the props page. Twenty
+unchanged-assertion repetitions with the fix give **15 passed / 5 failed**.
+Restoring the exact pre-phase adapter source, confirmed by an empty `git diff`
+for `src/`, gives **11 passed / 9 failed** at the same wait. This demonstrates
+that the failure predates the runtime change; the rate difference in these
+small samples is not credited to this fix. The red full-matrix result stands.
+No history assertion, timeout, or implementation changes.
+
+After restoring the fixed source and native-client assets, all three strict
+type programs, all 16 runtime consumers, and the **45/45** focused browser cases
+pass again. Source lint, fixture/spec formatting, and `git diff --check` pass.
+The modified HTTP fixture retains its two pre-existing implicit Submit-button
+type lint errors; no unrelated fixture cleanup is included. Complete browser
+profiles still exit 1 on remaining supported failures; SSR, types, units, and
+focused checks exit 0.
+
+No temporary source instrumentation or scratch scripts remain. The preview
+remains on port 13721 of `homelab-sandbox` with native-client assets; the manual
+playground is unchanged. Phase 18 remains uncommitted for review; nothing is
+pushed and remote CI has not run. The next phase is legacy Precognition helper
+initialization and its four existing validation cases.

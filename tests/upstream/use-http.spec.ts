@@ -706,6 +706,34 @@ test.describe('useHttp', () => {
       await expect(page.locator('#simple-email-error')).not.toContainText('The email must be a valid email address.')
     })
 
+    test('it inherits current global error settings unless explicitly enabled', async ({ page }) => {
+      await page.goto('/use-http/with-all-errors')
+      const nameError = page.locator('#simple-name-error')
+      const emailError = page.locator('#simple-email-error')
+
+      await page.getByRole('button', { name: 'Enable global all errors', exact: true }).click()
+      await page.click('#simple-submit')
+      await expect(nameError).toContainText('The name field is required.')
+      await expect(nameError).toContainText('The name must be at least 3 characters.')
+      await expect(emailError).toContainText('The email field is required.')
+      await expect(emailError).toContainText('The email must be a valid email address.')
+
+      await page.getByRole('button', { name: 'Disable global all errors', exact: true }).click()
+      await expect(nameError).toContainText('The name must be at least 3 characters.')
+      await expect(emailError).toContainText('The email must be a valid email address.')
+      await page.click('#simple-submit')
+      await expect(nameError).toContainText('The name field is required.')
+      await expect(nameError).not.toContainText('The name must be at least 3 characters.')
+      await expect(emailError).toContainText('The email field is required.')
+      await expect(emailError).not.toContainText('The email must be a valid email address.')
+
+      await page.click('#all-submit')
+      await expect(page.locator('#all-name-error')).toContainText('The name field is required.')
+      await expect(page.locator('#all-name-error')).toContainText('The name must be at least 3 characters.')
+      await expect(page.locator('#all-email-error')).toContainText('The email field is required.')
+      await expect(page.locator('#all-email-error')).toContainText('The email must be a valid email address.')
+    })
+
     test('it keeps all validation errors when withAllErrors is called', async ({ page }) => {
       await page.goto('/use-http/with-all-errors')
 
