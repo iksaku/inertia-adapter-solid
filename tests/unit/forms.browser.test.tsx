@@ -1,7 +1,8 @@
+import type { Method, UrlMethodPair } from '@inertiajs/core'
 import { cleanup, render } from '@solidjs/testing-library'
-import { createRoot } from 'solid-js'
+import { Form, WhenMounted, router, useForm, useFormContext, useHttp, usePage, usePoll } from 'inertia-adapter-solid'
+import { type Setter, createRoot, createSignal } from 'solid-js'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Form, router, useForm, useFormContext, useHttp, usePage, usePoll, WhenMounted } from 'inertia-adapter-solid'
 
 afterEach(cleanup)
 
@@ -110,6 +111,39 @@ describe('public form consumers', () => {
     expect(view.container.textContent).toBe('|0|false|false|true')
     form.resetAndClearErrors()
     expect(view.container.textContent).toBe('|0|false|false|false')
+  })
+
+  it('normalizes reactive methods while preserving action precedence and the form element', () => {
+    let setMethod!: Setter<Method | Uppercase<Method> | undefined>
+    let setAction!: Setter<string | UrlMethodPair>
+    const view = render(() => {
+      const [method, updateMethod] = createSignal<Method | Uppercase<Method> | undefined>('GET')
+      const [action, updateAction] = createSignal<string | UrlMethodPair>('/read')
+      setMethod = updateMethod
+      setAction = updateAction
+      return (
+        <Form action={action()} method={method()}>
+          <button type="submit">Submit</button>
+        </Form>
+      )
+    })
+    const element = view.container.querySelector('form')!
+    expect(element.getAttribute('method')).toBe('get')
+    setMethod('POST')
+    expect(element.getAttribute('method')).toBe('post')
+    setMethod('DELETE')
+    expect(element.getAttribute('method')).toBe('delete')
+    setAction({ url: '/update', method: 'put' })
+    expect(element.getAttribute('method')).toBe('put')
+    setMethod('PATCH')
+    expect(element.getAttribute('method')).toBe('put')
+    expect(element.getAttribute('action')).toBe('/update')
+    setAction('/fallback')
+    expect(element.getAttribute('method')).toBe('patch')
+    setMethod(undefined)
+    expect(element.getAttribute('method')).toBe('get')
+    expect(element.getAttribute('action')).toBe('/fallback')
+    expect(view.container.querySelector('form')).toBe(element)
   })
 
   it('provides form context only to owned descendants', () => {

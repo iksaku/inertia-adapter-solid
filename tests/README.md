@@ -109,6 +109,9 @@ does not turn known failures into passing jobs.
 14. **Stored HTTP responses:** expose the latest successful `useHttp` response
     reactively, replace previous bodies before success callbacks, preserve it
     during pending/failed/cancelled requests, and clear it on an empty success.
+15. **Reactive form methods:** normalize uppercase method props inside the
+    existing memo, preserve Wayfinder precedence and default GET, and verify all
+    five verbs, reactive updates, and stable form elements.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -979,3 +982,71 @@ for upstream's unchanged global `parseInt` call; no new diagnostic remains.
 Temporary probes are removed. The preview stays on port 13721; the manual
 playground is unchanged. This phase is local and uncommitted for review; nothing
 is pushed and remote CI has not run.
+
+## Phase 15: Reactive form methods (2026-10-14)
+
+The three original uppercase POST/GET/PUT cases fail twice each on unchanged
+source. A minimal POST form with no input fields makes no request and raises
+`router[method] is not a function`. The existing memo casts the uppercase string
+to `Method` without converting its runtime value. This is a Phase 14 baseline
+failure, not a new regression. Lowercasing the explicit prop inside that same
+memo fixes dispatch while giving query-string construction, Precognition, and
+the native method attribute the same resolved verb. The router, submit parser,
+HTTP clients, and validation pipeline remain unchanged.
+
+The pinned [React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/Form.ts#L116-L118),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/form.ts#L201-L204),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/components/Form.svelte#L121-L122)
+adapters normalize that explicit branch, with default GET and an action-derived
+Wayfinder method taking precedence. Solid retains the existing reactive memo
+and action branch. It does not capture the initial method, add a helper, or map
+PUT/PATCH/DELETE attributes to POST. Native attribute checks use `getAttribute`,
+not the browser's `.method` property, which supports fewer verbs.
+
+One new owned-root consumer checks uppercase GET/POST/DELETE, changes to and from
+Wayfinder actions, priority over a contradictory uppercase prop, undefined
+returning to default GET, and the same form element throughout. It is red before
+the fix. A normalized-but-frozen method mutant fails after changing GET to POST;
+an explicit-prop-priority mutant fails when a PUT action overrides DELETE. Both
+controls are restored before final builds. The existing fixture/spec gains
+uppercase PATCH and DELETE with distinct payload fields, completing all five
+supported verbs without changing the original assertions or timing.
+
+The original three cases pass their two repetitions after the fix. All five
+uppercase cases then pass five repetitions in each engine: **75/75 without
+retries**. The minimal form now sends one POST with `{}` data and no uncaught page
+errors. Executed DOM checks confirm all five normalized attributes, and an
+inspected targeted capture shows all five matching input/button pairs.
+
+The complete profiles run sequentially with explicit client rebuilds, the same
+pinned environment and four workers, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,116 cases | 1,034 | 15 | 67 |
+| Firefox / native XHR, all 1,116 cases | 1,017 | 16 | 83 |
+| WebKit / native XHR, all 1,116 cases | 1,035 | 17 | 64 |
+| Chromium / Axios, all 1,116 cases | 1,034 | 15 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 15 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,086 passed / 48 failed / 214 skipped**. Case-by-case
+comparison against Phase 14 finds the three original uppercase cases becoming
+green in every browser/client profile, the two added cases passing everywhere,
+and unchanged SSR outcomes. No case disappears, no serial follower becomes
+blocked, and no runner error occurs. The only other changed result is Firefox's
+previously intermittent quick-hover prefetch assertion at `prefetch.spec.ts:97`:
+one request appears where zero are expected. Its exact failure is also recorded
+in Phase 12. A separate unchanged-assertion repetition produces **7 passed / 3
+failed**, all failures at that same line. These runs document the intermittency;
+they do not replace the red full-matrix result or establish a fix for it.
+
+The full native and Axios commands still exit 1 on the remaining supported
+failures; uppercase, type/unit, and SSR checks exit 0. Existing assertions,
+timeouts, exclusions, and skips remain unchanged. Source/unit/fixture lint,
+spec formatting, and `git diff --check` pass. Temporary probes are removed.
+The preview is restored to built-in-client assets on port 13721 of
+`homelab-sandbox`; the manual playground is unchanged. Phase 14 is committed
+locally. Phase 15 remains uncommitted for review; nothing is pushed and remote
+CI has not run.

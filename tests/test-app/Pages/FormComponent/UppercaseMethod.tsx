@@ -27,6 +27,22 @@ export default () => {
         </div>
         <button type="submit">Submit PUT</button>
       </Form>
+
+      {/* Test with uppercase PATCH */}
+      <Form action="/dump/patch" method="PATCH">
+        <div>
+          <input type="text" name="changes" placeholder="Changes" value="Test PATCH" />
+        </div>
+        <button type="submit">Submit PATCH</button>
+      </Form>
+
+      {/* Test with uppercase DELETE */}
+      <Form action="/dump/delete" method="DELETE">
+        <div>
+          <input type="text" name="reason" placeholder="Reason" value="Test DELETE" />
+        </div>
+        <button type="submit">Submit DELETE</button>
+      </Form>
     </div>
   )
 }

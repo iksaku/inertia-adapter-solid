@@ -1144,6 +1144,28 @@ test.describe('Form Component', () => {
         data: 'Test PUT',
       })
     })
+
+    test('accepts uppercase PATCH method', async ({ page }) => {
+      await page.getByRole('button', { name: 'Submit PATCH' }).click()
+
+      const dump = await shouldBeDumpPage(page, 'patch')
+
+      await expect(dump.method).toEqual('patch')
+      await expect(dump.form).toEqual({
+        changes: 'Test PATCH',
+      })
+    })
+
+    test('accepts uppercase DELETE method', async ({ page }) => {
+      await page.getByRole('button', { name: 'Submit DELETE' }).click()
+
+      const dump = await shouldBeDumpPage(page, 'delete')
+
+      await expect(dump.method).toEqual('delete')
+      await expect(dump.form).toEqual({
+        reason: 'Test DELETE',
+      })
+    })
   })
 
   test.describe('Reset', () => {
