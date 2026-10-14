@@ -64,6 +64,7 @@
     "test:unit": "vitest run",
     "test:types": "tsc --noEmit -p tests/types/tsconfig.json",
     "test:fixtures:types": "tsc --noEmit -p tests/test-app/tsconfig.json",
+    "test:unit:types": "tsc --noEmit -p tests/unit/tsconfig.json",
     "test:app:build": "vite build --config tests/test-app/vite.config.ts",
     "test:app:ssr": "vite build --config tests/test-app/vite.config.ts --ssr ssr.tsx --outDir dist",
     "test:app:ssr:auto": "vite build --config tests/test-app/vite.config.ts --ssr ssr-auto.tsx --outDir dist"

@@ -10,6 +10,9 @@ const page = (): Page => ({
   props: { errors: {} },
   url: '/',
   version: null,
+  rescuedProps: [],
+  flash: {},
+  rememberedState: {},
   clearHistory: false,
   encryptHistory: false,
 })

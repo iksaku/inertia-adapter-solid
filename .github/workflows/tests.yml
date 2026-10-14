@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        script: [test:types, test:fixtures:types, test:unit]
+        script: [test:types, test:fixtures:types, test:unit:types, test:unit]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

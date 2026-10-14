@@ -35,11 +35,17 @@ useForm({ method: 'post', url: '/validate' }, { email: '' }).touch('email')
 
 const shared: SharedPageProps = usePage().props
 const accountId: number = shared.account.id
+const defaultAccountId: number = usePage().props.account.id
 const explicitlyShared: number = usePage<SharedPageProps>().props.account.id
 const custom = usePage<{ count: number }>()
 const count: number = custom.props.count
+const customAccountName: string = custom.props.account.name
 // @ts-expect-error custom count is not a string
 const wrongCount: string = custom.props.count
+// @ts-expect-error configured shared id remains numeric without a page generic
+const wrongAccountId: string = usePage().props.account.id
+// @ts-expect-error an explicit page generic preserves known shared nested keys
+const missingAccountEmail = custom.props.account.email
 
 const jsx: JSX.Element = <>
   <Link href="/profile" method="post" data={{ enabled: false }}>Save</Link>
@@ -78,4 +84,4 @@ createInertiaApp({ resolve, setup: () => undefined, withApp: () => <main /> })
 createInertiaApp({ page, resolve, render: () => 42, setup: () => <main /> })
 const server: typeof createServer = createServer
 const frameworkName: string = framework.package
-void [accountId, count, jsx, manual, automatic, server, frameworkName, App]
+void [accountId, defaultAccountId, customAccountName, count, jsx, manual, automatic, server, frameworkName, App]

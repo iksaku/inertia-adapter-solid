@@ -1,14 +1,13 @@
-import type { Page, PageProps } from '@inertiajs/core'
+import type { Page, PageProps, SharedPageProps } from '@inertiajs/core'
 import { useContext } from 'solid-js'
 import PageContext from './PageContext'
 
-export default function usePage<TPageProps extends PageProps = PageProps>(): Page<TPageProps> {
+export default function usePage<TPageProps extends PageProps = PageProps>(): Page<TPageProps & SharedPageProps> {
   const page = useContext(PageContext)
 
   if (!page) {
     throw new Error('usePage must be used within the Inertia component.')
   }
 
-  // @ts-expect-error
-  return page
+  return page as Page<TPageProps & SharedPageProps>
 }

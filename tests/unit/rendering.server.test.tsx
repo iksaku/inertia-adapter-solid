@@ -16,6 +16,9 @@ const page: Page = {
   props: { errors: {}, value: 0 },
   url: '/ssr',
   version: null,
+  rescuedProps: [],
+  flash: {},
+  rememberedState: {},
   clearHistory: false,
   encryptHistory: false,
 }

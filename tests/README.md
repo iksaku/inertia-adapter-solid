@@ -24,6 +24,7 @@ fixture app, start the backend, and stop their servers automatically.
 | --- | --- |
 | `pnpm test:types` | Public TypeScript consumers, positive and negative cases |
 | `pnpm test:fixtures:types` | Strict TSX fixture compilation |
+| `pnpm test:unit:types` | Strict compilation of browser/server runtime consumers |
 | `pnpm test:unit` | Solid browser primitives and real server rendering |
 | `pnpm test:browser` | Shared upstream browser specs, Chromium/Fetch |
 | `pnpm test:browser:axios` | Same browser contracts with the Axios client |
@@ -51,7 +52,7 @@ Failure traces, screenshots, and JSON results are in `test-results/`; HTML repor
 are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
 and `ssr` directories so later layers do not overwrite earlier evidence.
 These outputs are ignored by Git. CI runs the
-three contract layers independently, all three browser engines with Fetch,
+four contract layers independently, all three browser engines with Fetch,
 Chromium with Axios, and Chromium SSR. It uploads browser failure artifacts and
 does not turn known failures into passing jobs.
 
@@ -97,6 +98,9 @@ does not turn known failures into passing jobs.
     full/selected resets, untouched defaults and errors, falsy data, rejection of
     manual defaults, and real server rendering without making factories live
     bindings to form edits.
+13. **Shared-page declarations:** preserve configured shared props alongside
+    explicit page generics, check positive/negative consumers, and keep strict
+    browser/server unit-file compilation in the local runner and CI.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -813,3 +817,77 @@ defaults rejection visible, for both public hooks. Executed DOM checks require
 exact data, dirty flags, and errors at every step, with zero requests or
 console/page errors. The preview is left running with Fetch assets. The manual
 playground remains unchanged; validation is local and CI has not run remotely.
+
+## Phase 13: Shared-page declarations (2026-10-13)
+
+The pinned [React hook](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/usePage.ts)
+and [Vue signature](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/app.ts#L277)
+return `Page<TPageProps & SharedPageProps>`;
+[Svelte's page alias](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/page.svelte.ts#L3-L7)
+also includes that intersection. Solid previously returned `Page<TPageProps>`,
+discarding configured shared props for default and explicitly typed consumers.
+The public return type now includes both. The function still returns the same
+context store and keeps its existing outside-App guard; a type assertion replaces
+the broad `@ts-expect-error`. No wrapper, clone, signal, provider, or runtime
+branch is added.
+
+The existing public declaration consumer now checks direct shared-field inference
+without a generic and configured account fields alongside a custom count generic.
+Negative cases require numeric shared IDs, known nested shared keys, and the
+existing custom-field type. The translated upstream `TypeScriptProps` fixture
+remains unchanged and independently checks shared auth alongside page-specific
+posts, nullable users, unknown keys, and core event/visit callbacks. Consumer and
+fixture checks are red before the signature fix and green afterward.
+
+A deliberate default-generic-only mutant makes the default call pass but leaves
+the custom-account consumer and shared-auth fixture red; it also makes the
+existing usePage fixture's explicit/default page identity comparisons fail to
+compile. A `Page<any>` return mutant makes all three consumer negative directives
+unused and causes fixture type errors. Both controls are restored before final
+builds. These checks verify the public declaration contract, not the spelling
+of the implementation's type expression.
+
+Strict compilation of all three unit files exposes both existing synthetic Page
+fixtures missing required `rescuedProps`, `flash`, and `rememberedState` metadata.
+They now provide those empty fields, without changing any runtime assertions.
+`test:unit:types` makes this a maintained layer in `pnpm test` and an independent
+CI contract job. Its tiny config inherits the strict consumer options but selects
+unit files, keeping consumer `account`, fixture `auth`, and unaugmented unit
+programs separate. A red declaration layer still does not prevent later runtime,
+browser, or SSR layers from executing.
+
+Final validation executes the complete default `pnpm test` entrypoint with the
+same pinned environment and no retries. Client assets are rebuilt explicitly
+before opting into backend reuse. The runner reaches every one of its six layers:
+
+| Layer | Result |
+| --- | --- |
+| Public TypeScript consumers | Pass, zero diagnostics |
+| Strict fixture TypeScript compilation | Pass, zero diagnostics |
+| Strict unit TypeScript compilation | Pass, zero diagnostics |
+| Public browser/server runtime consumers | 14 passed / 0 failed |
+| Chromium / Fetch, all 1,113 cases | 1,027 passed / 19 failed / 67 skipped |
+| Chromium manual/automatic SSR and hydration, all 36 cases | 25 passed / 0 failed / 11 skipped |
+
+Case-by-case comparison against Phase 12's Chromium results finds exactly the
+same browser and SSR outcomes: no added/removed cases, no newly red or newly green
+cases, no blocked serial followers, and no runner errors. The default command
+still exits 1 because of those 19 supported browser failures, not declaration or
+runtime failures; it runs SSR afterward. No assertions, timeouts, or skips change.
+
+SHA-256 checks before and after the final builds confirm all three package
+JavaScript entrypoints (`index.js`, `server.js`, and `vite.js`) are byte-identical
+to Phase 12. This is a declaration correction plus typed test data and harness
+wiring, not a runtime reactivity change. Firefox, WebKit, and Axios matrices are
+not rerun for this phase; their Phase 12 results remain the historical baseline,
+not new executions. No visual UI change or new screenshot is needed.
+
+A temporary subprocess-stub probe separately verifies the CLI summary/exit
+contract: all six green layers exit 0; a failing `test:unit:types` alone exits 1
+and still reports the later runtime/browser/SSR layers. This probe checks only
+orchestration, not real browser compatibility. The real default run above is
+the integration evidence. The CI contract matrix references four existing
+package commands, but remote CI has not run. Formatting of the hook, unit
+fixtures/config, and runner, plus `git diff --check`, pass. The existing compact
+consumer style is preserved. A standalone Fetch preview is left on port 13721;
+the manual playground is unchanged and nothing is pushed.
