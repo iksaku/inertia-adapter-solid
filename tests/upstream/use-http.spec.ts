@@ -15,6 +15,92 @@ test.describe('useHttp', () => {
     await expect(page.locator('#search-response')).toContainText('Response stored: 3 items')
   })
 
+  test('it reactively stores only the latest successful response before onSuccess', async ({ page }) => {
+    await page.goto('/use-http/response')
+    const stored = page.locator('#stored-response')
+    const callback = page.locator('#callback-response')
+    const returned = page.locator('#returned-response')
+    const outcome = page.locator('#response-outcome')
+    const processing = page.locator('#response-processing')
+    const first = JSON.stringify({ items: ['apple', 'banana', 'cherry'], total: 3, query: null })
+    const second = JSON.stringify({ success: true, id: 123, user: { name: 'Ada', email: 'ada@example.test' } })
+
+    await expect(stored).toHaveText('null')
+    await expect(callback).toHaveText('"not called"')
+    await expect(processing).toHaveText('false')
+    await page.getByRole('button', { name: 'Read JSON', exact: true }).click()
+    await expect(outcome).toHaveText('resolved')
+    await expect(stored).toHaveText(first)
+    await expect(callback).toHaveText(first)
+    await expect(returned).toHaveText(first)
+
+    // Hold a real backend response so pending-state assertions do not depend on server timing.
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/api/users', async (route) => {
+      const response = await route.fetch()
+      await held
+      await route.fulfill({ response })
+    })
+    try {
+      await page.getByRole('button', { name: 'Replace JSON', exact: true }).click()
+      await expect(processing).toHaveText('true')
+      await expect(outcome).toHaveText('pending')
+      await expect(stored).toHaveText(first)
+      await expect(callback).toHaveText(first)
+      await expect(returned).toHaveText(first)
+    } finally {
+      release()
+    }
+    await expect(outcome).toHaveText('resolved')
+    await expect(processing).toHaveText('false')
+    await expect(stored).toHaveText(second)
+    await expect(callback).toHaveText(second)
+    await expect(returned).toHaveText(second)
+    await page.unroute('**/api/users')
+
+    await page.getByRole('button', { name: 'Validation failure', exact: true }).click()
+    await expect(outcome).toHaveText('validation')
+    await expect(page.locator('#response-errors')).toHaveText(
+      '{"name":"The name field is required.","email":"The email field is required."}',
+    )
+    await expect(stored).toHaveText(second)
+    await expect(callback).toHaveText(second)
+    await expect(returned).toHaveText('undefined')
+
+    await page.getByRole('button', { name: 'HTTP failure', exact: true }).click()
+    await expect(outcome).toHaveText('HTTP 500')
+    await expect(stored).toHaveText(second)
+    await expect(callback).toHaveText(second)
+
+    await page.route('**/api/error', (route) => route.abort('failed'))
+    await page.getByRole('button', { name: 'HTTP failure', exact: true }).click()
+    await expect(outcome).toHaveText('network error')
+    await expect(stored).toHaveText(second)
+    await expect(callback).toHaveText(second)
+    await page.unroute('**/api/error')
+
+    const started = page.waitForRequest('**/api/slow*')
+    await page.getByRole('button', { name: 'Slow request', exact: true }).click()
+    await started
+    await expect(processing).toHaveText('true')
+    await expect(stored).toHaveText(second)
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(outcome).toHaveText('cancelled')
+    await expect(processing).toHaveText('false')
+    await expect(stored).toHaveText(second)
+    await expect(callback).toHaveText(second)
+
+    await page.getByRole('button', { name: 'Empty response', exact: true }).click()
+    await expect(outcome).toHaveText('resolved')
+    await expect(processing).toHaveText('false')
+    await expect(stored).toHaveText('null')
+    await expect(callback).toHaveText('null')
+    await expect(returned).toHaveText('null')
+  })
+
   test('it makes POST requests and tracks success state', async ({ page }) => {
     await page.goto('/use-http')
 

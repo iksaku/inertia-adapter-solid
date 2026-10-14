@@ -274,10 +274,13 @@ export default function useHttp<TForm extends FormDataType<TForm>, TResponse = u
 
   const originalWithPrecognition = form.withPrecognition
 
+  Object.defineProperty(form, 'response', {
+    get: response,
+    enumerable: true,
+    configurable: true,
+  })
+
   Object.assign(form, {
-    get response() {
-      return response()
-    },
     submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse | undefined> {
       // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
       const parsed = UseFormUtils.parseSubmitArguments(args as any, getPrecognitionEndpoint())

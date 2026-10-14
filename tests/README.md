@@ -17,8 +17,13 @@ pnpm test
 
 `pnpm test` builds the package and runs every layer even when an earlier layer
 fails. It returns a nonzero exit code if any layer fails. The default browser is
-Chromium with the native Fetch client. Browser commands build the package and
+Chromium with the built-in native XHR client. Browser commands build the package and
 fixture app, start the backend, and stop their servers automatically.
+
+Earlier phase notes and the retained `browser-fetch` output directory call the
+default profile "Fetch". Inertia 3.9.1 actually uses `XhrHttpClient`; those results
+cover its built-in client, not the browser Fetch API. Existing output names remain
+unchanged for compatibility.
 
 | Command | Contract |
 | --- | --- |
@@ -26,7 +31,7 @@ fixture app, start the backend, and stop their servers automatically.
 | `pnpm test:fixtures:types` | Strict TSX fixture compilation |
 | `pnpm test:unit:types` | Strict compilation of browser/server runtime consumers |
 | `pnpm test:unit` | Solid browser primitives and real server rendering |
-| `pnpm test:browser` | Shared upstream browser specs, Chromium/Fetch |
+| `pnpm test:browser` | Shared upstream browser specs, Chromium/native XHR |
 | `pnpm test:browser:axios` | Same browser contracts with the Axios client |
 | `pnpm test:browser:all` | Chromium, Firefox, and WebKit |
 | `pnpm test:ssr` | Manual SSR, Vite automatic SSR, and browser hydration |
@@ -52,7 +57,7 @@ Failure traces, screenshots, and JSON results are in `test-results/`; HTML repor
 are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
 and `ssr` directories so later layers do not overwrite earlier evidence.
 These outputs are ignored by Git. CI runs the
-four contract layers independently, all three browser engines with Fetch,
+four contract layers independently, all three browser engines with the built-in client,
 Chromium with Axios, and Chromium SSR. It uploads browser failure artifacts and
 does not turn known failures into passing jobs.
 
@@ -101,6 +106,9 @@ does not turn known failures into passing jobs.
 13. **Shared-page declarations:** preserve configured shared props alongside
     explicit page generics, check positive/negative consumers, and keep strict
     browser/server unit-file compilation in the local runner and CI.
+14. **Stored HTTP responses:** expose the latest successful `useHttp` response
+    reactively, replace previous bodies before success callbacks, preserve it
+    during pending/failed/cancelled requests, and clear it on an empty success.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -891,3 +899,83 @@ package commands, but remote CI has not run. Formatting of the hook, unit
 fixtures/config, and runner, plus `git diff --check`, pass. The existing compact
 consumer style is preserved. A standalone Fetch preview is left on port 13721;
 the manual playground is unchanged and nothing is pushed.
+
+## Phase 14: Stored HTTP responses (2026-10-14)
+
+The existing upstream GET case returned the correct JSON through its Promise but
+never rendered `search.response`. Two unchanged-code repetitions and a smaller
+native-browser probe reproduce this: HTTP 200, the expected three-item body, and
+zero stored-response nodes. Inspection of the public form shows a plain `null`
+value rather than an accessor. `Object.assign` evaluates the source getter during
+construction; the success path already updates its signal correctly. This is an
+existing baseline failure, not a regression introduced by Phase 13.
+
+The response property now installs that existing signal accessor directly with
+`Object.defineProperty`, preserving enumeration/configurability and the original
+form object. Other getters, fluent methods, Precognition, response parsing,
+submission, error/cancellation handling, and the success setter are unchanged.
+No extra memo, cloned form, core patch, or dependency is needed. The pinned
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/useHttp.ts)
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/useHttp.svelte.ts)
+success branches store the full body before calling `onSuccess`, including null
+for an empty success, while their failure branches retain the last success.
+
+One additional browser contract exercises the same owned Solid hook across
+initial null, two disjoint successful JSON bodies, reads inside `onSuccess`,
+Promise results, pending state, 422/500/network failures, cancellation, and 204
+clearing. Its fixture reads `form.response` directly in reactive JSX; independent
+signals record callback-time reads and Promise results. A held real backend
+response removes the pending-state speed race; only the network-failure step
+injects an abort. Existing endpoints and the generic component resolver suffice,
+so the backend is unchanged. Expected bodies come from its literal API data.
+
+The new contract is red before the fix at stored null after successful GET.
+Afterward it passes five repetitions per engine, **15/15 without retries**.
+A setter-after-callback mutant fails the callback-time assertion even though
+the final stored body is correct; an ignore-null-success mutant fails the 204
+clearing assertion. Both are restored before final builds. The original GET case
+also passes in all engines. A final focused rerun after the test's lint-only
+adjustment passes in all three engines.
+
+The full matrix uses the same pinned Node, pnpm, browsers, four workers, and
+no-retry settings as Phase 12. Package/client/SSR builds and browser profiles run
+sequentially, explicitly rebuilding assets when switching HTTP clients:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,114 cases | 1,029 | 18 | 67 |
+| Firefox / native XHR, all 1,114 cases | 1,013 | 18 | 83 |
+| WebKit / native XHR, all 1,114 cases | 1,030 | 20 | 64 |
+| Chromium / Axios, all 1,114 cases | 1,029 | 18 | 67 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 75 | 0 | 33 |
+| Public browser/server runtime consumers | 14 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Built-in-client totals are **3,072 passed / 56 failed / 214 skipped**. All **43
+useHttp cases pass** in each engine and in Chromium Axios. Case-by-case comparison
+against Phase 12 finds only the original GET becoming green in each profile,
+the added response contract, and Firefox's previously intermittent quick-hover
+prefetch case passing this time. That prefetch pass is not attributed to this
+fix. No previously passing case becomes red; no case disappears; no serial
+follower is blocked; and there are no runner errors. Axios otherwise matches its
+baseline, and SSR outcomes are unchanged. Assertions, timeouts, exclusions, and
+skips in existing cases are unchanged. The complete browser profiles still exit
+1 on their remaining supported failures; type/unit, focused, and SSR runs exit 0.
+
+Executed native-browser probes verify the original minimal scenario now has one
+stored-response node, and the lifecycle fixture has the expected JSON/flags at
+every step with no uncaught page errors. Inspected captures cover the original
+GET result, initial null, JSON, pending retention, replacement, each failure,
+cancellation, and empty success. A transport probe also corrects the historical
+"Fetch" label: pinned core's [default HTTP client](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/core/src/http.ts#L5-L35)
+uses [native XHR](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/core/src/xhrHttpClient.ts#L92-L122),
+so an assertion expecting `resourceType: 'fetch'` correctly fails. Both clients
+report `xhr`; that observation cannot distinguish them. Probes instead check the
+actual served entry's default/`axiosAdapter()` branch, its matching hashed build
+asset, and the exact successful JSON/stored-response projection in both profiles.
+The preview is restored to built-in-client assets. Source/new-fixture lint, spec formatting,
+and `git diff --check` pass. Whole-spec lint retains one pre-existing diagnostic
+for upstream's unchanged global `parseInt` call; no new diagnostic remains.
+Temporary probes are removed. The preview stays on port 13721; the manual
+playground is unchanged. This phase is local and uncommitted for review; nothing
+is pushed and remote CI has not run.
