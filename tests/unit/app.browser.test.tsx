@@ -1,7 +1,7 @@
-import { cleanup, render, waitFor } from '@solidjs/testing-library'
 import type { Page } from '@inertiajs/core'
-import { afterEach, expect, it } from 'vitest'
+import { cleanup, render, waitFor } from '@solidjs/testing-library'
 import { App, Deferred, router, usePage, useRemember } from 'inertia-adapter-solid'
+import { afterEach, expect, it } from 'vitest'
 
 afterEach(cleanup)
 
@@ -45,6 +45,68 @@ it('reactively gates every deferred key by presence, not truthiness', async () =
     preserveState: true,
   })
   await waitFor(() => expect(view.container.textContent).toBe('waiting'))
+})
+
+it('reactively gates nested deferred paths through missing parents and falsy values', async () => {
+  const Consumer = () => {
+    const current = usePage<{
+      auth: { count: number; enabled: boolean; label: string; nullable: number | null }
+    }>()
+    return (
+      <Deferred data={['auth.count', 'auth.enabled', 'auth.label', 'auth.nullable']} fallback={<span>waiting</span>}>
+        <output>
+          {JSON.stringify([
+            current.props.auth.count,
+            current.props.auth.enabled,
+            current.props.auth.label,
+            current.props.auth.nullable,
+          ])}
+        </output>
+      </Deferred>
+    )
+  }
+  const view = render(() => <App initialPage={page()} initialComponent={Consumer} resolveComponent={() => Consumer} />)
+  expect(view.container.textContent).toBe('waiting')
+  await new Promise<void>((resolve) =>
+    router.replace({
+      props: { errors: {}, auth: { count: 0, enabled: false, label: '' } },
+      preserveState: true,
+      onSuccess: () => resolve(),
+    }),
+  )
+  expect(view.container.textContent).toBe('waiting')
+  router.replace({
+    props: { errors: {}, auth: { count: 0, enabled: false, label: '', nullable: null } },
+    preserveState: true,
+  })
+  await waitFor(() => expect(view.container.textContent).toBe('[0,false,"",null]'))
+  router.replace({ props: { errors: {} }, preserveState: true })
+  await waitFor(() => expect(view.container.textContent).toBe('waiting'))
+})
+
+it('updates page props without mutating initial or newly received prop objects', async () => {
+  const initial = { ...page(), props: { errors: {}, profile: { name: 'original' } } }
+  const replacement = { errors: {}, profile: { name: 'replacement' }, extra: { count: 7 } }
+  const Consumer = () => {
+    const current = usePage<{ profile: { name: string }; extra?: { count: number } }>()
+    return <output>{`${current.props.profile.name}:${current.props.extra?.count ?? 'missing'}`}</output>
+  }
+  const view = render(() => <App initialPage={initial} initialComponent={Consumer} resolveComponent={() => Consumer} />)
+  expect(view.container.textContent).toBe('original:missing')
+  await new Promise<void>((resolve) =>
+    router.replace({ props: replacement, preserveState: true, onSuccess: () => resolve() }),
+  )
+  expect(view.container.textContent).toBe('replacement:7')
+  expect(initial.props.profile.name).toBe('original')
+  await new Promise<void>((resolve) =>
+    router.replace({
+      props: { errors: {}, profile: { name: 'next' }, extra: { count: 11 } },
+      preserveState: true,
+      onSuccess: () => resolve(),
+    }),
+  )
+  expect(view.container.textContent).toBe('next:11')
+  expect(replacement).toEqual({ errors: {}, profile: { name: 'replacement' }, extra: { count: 7 } })
 })
 
 it('restores remembered falsy state after a genuine client-side page remount', async () => {

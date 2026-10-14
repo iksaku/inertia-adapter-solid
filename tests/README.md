@@ -124,16 +124,22 @@ does not turn known failures into passing jobs.
 19. **Legacy Precognition constructors:** initialize validation for all four
     endpoint overloads through shared form state, preserve reactive validation
     and fluent identity, and verify lazy endpoint callbacks during actual SSR.
+20. **Persistent layouts — explicitly deferred:** retain the tests and fixtures,
+    but skip dedicated browser/SSR layout contracts until a Solid-native layout
+    identity and reactivity API is designed. Other navigation/scroll tests stay active.
+21. **Deferred props:** resolve nested paths reactively and own the mutable page
+    tree so reconciliation cannot erase core's pending deferred metadata or
+    mutate initial/newly received props.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
 re-render counts are not a Solid contract. The unit runner separates browser
 module conditions from actual server conditions; it does not mock the router.
 
-## Capability exclusions, not hidden failures
+## Capability exclusions and explicitly deferred contracts
 
 Shared specs keep their upstream assertions for supported APIs. Explicit skips
-identify contracts the Solid adapter does not expose:
+identify contracts the Solid adapter does not expose or the owner has deferred:
 
 | Upstream contract | Solid disposition |
 | --- | --- |
@@ -142,7 +148,8 @@ identify contracts the Solid adapter does not expose:
 | React StrictMode and `React.memo` render counts | Framework-specific; skipped |
 | `withApp` receives the page object | Solid receives `{ ssr }` instead; separate context/CSR/SSR/hydration tests cover that contract |
 | Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
-| App-level default layout | Not implemented in `createInertiaApp`; page component layouts remain tested |
+| App-level default layout | Not implemented in `createInertiaApp`; page-layout testing is separately deferred below |
+| Persistent page layouts | Explicitly deferred by the owner in Phase 20 pending a Solid-native API redesign; dedicated browser/SSR tests are skipped, with logic and fixtures retained |
 | Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
 | Deferred rescue/reloading slots | No public Solid API; skipped; readiness and nested deferred data stay enabled |
 | WhenVisible fetching slot | No public Solid API; skipped; visibility/reload behavior stays enabled |
@@ -1405,3 +1412,109 @@ the manual playground is untouched. Phase 19 remains uncommitted for review;
 nothing is pushed and remote CI has not run. The next proposed phase is the two
 remaining persistent render-function layout cases and their Solid ownership
 and reactivity contracts.
+
+## Phase 20: persistent layouts explicitly deferred (2026-10-14)
+
+Phase 19 is committed locally. The owner postponed persistent-layout work to
+design a better API for Solid's reactivity and identity model. The entire
+dedicated browser group (eight cases per browser/client profile) and the
+Solid-specific component-layout SSR/hydration case are skipped. Comments name
+the API redesign and Phase 20; every test body, assertion, and fixture remains
+in place. Existing unsupported layout-props cases remain excluded as before.
+
+This is an explicit scope deferral, not a layout fix or evidence of passing
+layout compatibility. General navigation, history, scroll, and SSR request
+isolation tests remain active even when they use layout fixtures. No layout
+type, identity, rendering, or lifecycle implementation changes are made.
+
+## Phase 21: deferred paths and page ownership (2026-10-14)
+
+Two repetitions of the three original mount/nested-deferred cases give
+**0 passed / 6 failed** in Chromium on unchanged adapter source. Network probes
+separate two causes: nested responses contain all expected data but the fallback
+remains visible; the mount reload fetches `foo` but never requests deferred `bar`.
+All probes report zero page errors. Existing test assertions and backend timing
+remain unchanged.
+
+`Deferred` checks literal `page.props[key]` instead of resolving a nested path.
+Use the existing `es-toolkit/compat` `get` API, matching pinned
+[React](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/src/Deferred.ts#L64-L72),
+[Vue](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/vue3/src/deferred.ts#L64-L70),
+and [Svelte](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/svelte/src/components/Deferred.svelte#L15-L18).
+Keep the reactive getter and the `!== undefined` boundary; `0`, `false`, empty
+strings, and `null` remain ready values. One new public browser unit consumer
+fails before the fix, then covers a missing parent, a partially populated group,
+all four falsy values arriving, and the parent disappearing again. The two
+original nested browser cases pass all six focused Chromium repetitions after
+this isolated change.
+
+A temporary swap-boundary probe then observes the original page's deferred
+metadata change from `{ default: ['bar'] }` to `{}` inside `reconcile` when `foo`
+arrives. App's store and core share that mutable tree. Core retains a reference
+to the metadata for deferred bootstrap, so reconciliation empties it before
+core dispatches `bar`. This is not a reason to delay Solid's `onMount` reload;
+the pinned official fixtures call reload immediately in their mount hooks.
+
+App now copies initial and incoming pages before storing/reconciling them.
+Reconciliation still preserves the existing Solid store and equal-value
+references; component identity, page-key logic, and layout rendering are unchanged.
+A second new public consumer fails before the fix because the initial caller's
+props change. Copying only the initial page makes the original mount test pass
+twice, but that consumer still fails: a newly received nested prop changes from
+`7` to `11` on the next update. Copying both entry points passes the consumer
+without mutating either caller-owned snapshot. No router/core runtime patch,
+new reactive state, wrapper, option, or lifecycle delay is introduced.
+
+Three repetitions of all three original cases give **27/27 across Chromium,
+Firefox, and WebKit**, without retries. All **20** unit consumers pass and all
+three strict TypeScript programs report zero diagnostics. Source/unit lint,
+upstream-spec formatting, and `git diff --check` pass. A separate executed
+browser probe holds real deferred responses: pending content is visible until
+release, both `foo` and `bar` are requested, nested notifications/roles render,
+and user/email/token siblings remain intact. All responses are real HTTP 200s
+and all three pages report zero page errors. Pending and loaded captures for
+each page are rendered and inspected; no payload is fabricated.
+
+Full profiles use the same pinned environment, four workers, sequential client
+rebuilds, and no retries:
+
+| Layer | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR, all 1,122 cases | 1,047 | 0 | 75 |
+| Firefox / native XHR, all 1,122 cases | 1,031 | 0 | 91 |
+| WebKit / native XHR, all 1,122 cases | 1,045 | 5 | 72 |
+| Chromium / Axios, all 1,122 cases | 1,047 | 0 | 75 |
+| Manual/automatic SSR and hydration, all 36 cases per engine | 72 | 0 | 36 |
+| Public browser/server runtime consumers | 20 | 0 | 0 |
+| Public, fixture, and unit TypeScript programs | Zero diagnostics | 0 | — |
+
+Native totals are **3,123 passed / 5 failed / 238 skipped**. Title/project-based
+comparison against Phase 19 finds all three original deferred failures green
+in every browser/client profile. The only new skips are exactly the eight
+dedicated layout cases per client profile and the one SSR layout case per
+engine authorized for Phase 20. No case is added or removed, no other skip
+changes, no serial follower becomes blocked, and no runner error occurs. Other
+SSR outcomes remain unchanged. Six previously passing layout cases per browser
+are now skipped, so raw pass-count differences are not a regression count.
+
+Five failures remain, all in WebKit: two original scroll assertions, the two
+previously reproduced browser-specific cancellation-text mismatches, and the
+intermittent quick-hover prefetch assertion at `prefetch.spec.ts:97` (expected
+zero requests, observed one). That prefetch case passed in Phase 19 but its
+same failure already reproduces in WebKit's archived Phase 9 pre-change controls
+at 6/10 repetitions. Firefox's previously intermittent history and quick-hover
+cases pass this time; those passes are not credited to this fix or claimed as
+resolved. No new failure mode is observed. The full native command still exits
+1; Chromium/Firefox native profiles, Chromium/Axios, SSR, types, units, and the
+focused deferred checks pass. No non-layout assertion, timeout, or skip changes.
+
+Local review confirms the ownership boundary, tracked nested lookup, unchanged
+layout implementation, and retained deferred-layout test bodies. Final source
+and unit lint, upstream-spec formatting, and `git diff --check` pass. Temporary
+swap instrumentation is removed; no scratch script remains. Native-client
+assets are restored and the preview remains on port 13721 of `homelab-sandbox`;
+the manual playground is unchanged. These Phase 20 deferrals and Phase 21 fixes
+are recorded together in one local commit, including both regression tests;
+nothing is pushed and remote CI has not run.
+The next phase is the remaining browser-consistency and timing cases, not a
+persistent-layout API redesign.
