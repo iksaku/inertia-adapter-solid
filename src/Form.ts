@@ -158,7 +158,9 @@ export default function Form(_props: FormProps) {
     )
   }
 
-  const method = createMemo(() => (isUrlMethodPair(props.action) ? props.action.method : (props.method as Method)))
+  const method = createMemo(() =>
+    isUrlMethodPair(props.action) ? props.action.method : (props.method!.toLowerCase() as Method),
+  )
 
   const resolvedComponent = createMemo(() => {
     if (props.component) {
@@ -228,6 +230,7 @@ export default function Form(_props: FormProps) {
 
   function reset(...fields: string[]) {
     resetFormFields(formElement, defaultData(), fields)
+    form.reset(...fields)
   }
 
   function clearErrors(...fields: string[]) {

@@ -1,3 +1,4 @@
+import { get } from 'es-toolkit/compat'
 import { type JSX, type ParentProps, Show, createComponent, createMemo } from 'solid-js'
 import { usePage } from './index'
 
@@ -23,7 +24,7 @@ export default function Deferred(props: DeferredProps) {
     // @ts-ignore: This is the intended `keyed` behavior. See: https://docs.solidjs.com/reference/components/show#behavior
     keyed: false,
     get when() {
-      return keys().every((key) => page.props[key] !== undefined)
+      return keys().every((key) => get(page.props, key) !== undefined)
     },
     get children() {
       return props.children

@@ -1,5 +1,6 @@
 import { type Page, type PageProps, type PageResolver, router } from '@inertiajs/core'
 import { MetaProvider } from '@solidjs/meta'
+import { cloneDeep } from 'es-toolkit'
 import {
   type Component,
   type JSX,
@@ -32,9 +33,10 @@ type InertiaAppState = {
 }
 
 export default function App(props: ParentProps<InertiaAppProps>) {
+  // Reconcile our own page tree without mutating core's page or pending deferred metadata.
   const [current, setCurrent] = createStore<InertiaAppState>({
     component: props.initialComponent || null,
-    page: props.initialPage,
+    page: cloneDeep(props.initialPage),
     key: null,
   })
 
@@ -42,11 +44,14 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     router.init({
       initialPage: props.initialPage,
       resolveComponent: props.resolveComponent!,
+      onFlash(flash) {
+        setCurrent('page', 'flash', reconcile(flash))
+      },
       async swapComponent({ component, page, preserveState }) {
         setCurrent(
           reconcile({
             component: component as InertiaComponent,
-            page,
+            page: cloneDeep(page),
             key: preserveState ? current.key : Date.now(),
           }),
         )

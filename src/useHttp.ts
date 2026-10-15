@@ -274,49 +274,52 @@ export default function useHttp<TForm extends FormDataType<TForm>, TResponse = u
 
   const originalWithPrecognition = form.withPrecognition
 
-  Object.assign(form, {
-    get response() {
-      return response()
-    },
-    submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse | undefined> {
-      // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
-      const parsed = UseFormUtils.parseSubmitArguments(args as any, getPrecognitionEndpoint())
+  Object.defineProperties(
+    form,
+    Object.getOwnPropertyDescriptors({
+      get response() {
+        return response()
+      },
+      submit(...args: UseHttpSubmitArguments<TResponse, TForm>): Promise<TResponse | undefined> {
+        // biome-ignore lint/suspicious/noExplicitAny: Matching official adapters
+        const parsed = UseFormUtils.parseSubmitArguments(args as any, getPrecognitionEndpoint())
 
-      return submit(parsed.method, parsed.url, parsed.options as unknown as UseHttpSubmitOptions<TResponse, TForm>)
-    },
+        return submit(parsed.method, parsed.url, parsed.options as unknown as UseHttpSubmitOptions<TResponse, TForm>)
+      },
 
-    get: createSubmitMethod('get'),
-    post: createSubmitMethod('post'),
-    put: createSubmitMethod('put'),
-    patch: createSubmitMethod('patch'),
-    delete: createSubmitMethod('delete'),
+      get: createSubmitMethod('get'),
+      post: createSubmitMethod('post'),
+      put: createSubmitMethod('put'),
+      patch: createSubmitMethod('patch'),
+      delete: createSubmitMethod('delete'),
 
-    cancel: () => {
-      if (abortController) {
-        abortController.abort()
-      }
-    },
+      cancel: () => {
+        if (abortController) {
+          abortController.abort()
+        }
+      },
 
-    dontRemember(...fields: FormDataKeys<TForm>[]) {
-      setRememberExcludeKeys(fields)
-      return this
-    },
+      dontRemember(...fields: FormDataKeys<TForm>[]) {
+        setRememberExcludeKeys(fields)
+        return this
+      },
 
-    optimistic(callback: (currentData: TForm) => Partial<TForm> | void) {
-      pendingOptimisticCallback = callback
-      return this
-    },
+      optimistic(callback: (currentData: TForm) => Partial<TForm> | void) {
+        pendingOptimisticCallback = callback
+        return this
+      },
 
-    withAllErrors() {
-      withAllErrors.enable()
-      return this
-    },
+      withAllErrors() {
+        withAllErrors.enable()
+        return this
+      },
 
-    withPrecognition(...args: UseFormWithPrecognitionArguments): HttpPrecognitiveFormProps<TForm, TResponse> {
-      originalWithPrecognition(...args)
-      return this as unknown as HttpPrecognitiveFormProps<TForm, TResponse>
-    },
-  })
+      withPrecognition(...args: UseFormWithPrecognitionArguments): HttpPrecognitiveFormProps<TForm, TResponse> {
+        originalWithPrecognition(...args)
+        return this as unknown as HttpPrecognitiveFormProps<TForm, TResponse>
+      },
+    }),
+  )
 
   return getPrecognitionEndpoint() ? (form as unknown as HttpPrecognitiveFormProps<TForm, TResponse>) : form
 }

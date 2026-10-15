@@ -1,0 +1,361 @@
+import { createSignal } from 'solid-js'
+import { useHttp } from 'inertia-adapter-solid'
+interface SearchResponse {
+  items: string[]
+  total: number
+  query: string | null
+}
+interface UserResponse {
+  success: boolean
+  id: number
+  user: {
+    name: string
+    email: string
+  }
+}
+interface ValidateResponse {
+  success: boolean
+}
+interface DeleteResponse {
+  success: boolean
+  deleted: number
+}
+export default () => {
+  const search = useHttp<
+    {
+      query: string
+    },
+    SearchResponse
+  >({
+    query: '',
+  })
+  const createUser = useHttp<
+    {
+      name: string
+      email: string
+    },
+    UserResponse
+  >({
+    name: '',
+    email: '',
+  })
+  const validateUser = useHttp<
+    {
+      name: string
+      email: string
+    },
+    ValidateResponse
+  >({
+    name: '',
+    email: '',
+  })
+  const deleteUser = useHttp<
+    {
+      userId: number
+    },
+    DeleteResponse
+  >({
+    userId: 0,
+  })
+  const slowRequest = useHttp<
+    Record<string, never>,
+    {
+      result: string
+    }
+  >({})
+  const errorHttp = useHttp<Record<string, never>, never>({})
+  const httpExceptionHttp = useHttp<Record<string, never>, never>({})
+  const networkErrorHttp = useHttp<Record<string, never>, never>({})
+  const [lastGetResponse, setLastGetResponse] = createSignal<SearchResponse | null>(null)
+  const [lastPostResponse, setLastPostResponse] = createSignal<UserResponse | null>(null)
+  const [lastDeleteResponse, setLastDeleteResponse] = createSignal<DeleteResponse | null>(null)
+  const [cancelledMessage, setCancelledMessage] = createSignal('')
+  const [errorMessage, setErrorMessage] = createSignal('')
+  const [httpExceptionStatus, setHttpExceptionStatus] = createSignal<number | null>(null)
+  const [httpExceptionBody, setHttpExceptionBody] = createSignal('')
+  const [networkErrorMessage, setNetworkErrorMessage] = createSignal('')
+  const [validationOnErrorMessage, setValidationOnErrorMessage] = createSignal('')
+  const [validationExceptionMessage, setValidationExceptionMessage] = createSignal('')
+  const performSearch = async () => {
+    try {
+      const result = await search.get('/api/data')
+      setLastGetResponse(result ?? null)
+    } catch (e) {
+      console.error('Search failed:', e)
+    }
+  }
+  const performCreate = async () => {
+    try {
+      const result = await createUser.post('/api/users')
+      setLastPostResponse(result ?? null)
+    } catch (e) {
+      console.error('Create failed:', e)
+    }
+  }
+  const performValidation = async () => {
+    setValidationOnErrorMessage('')
+    setValidationExceptionMessage('')
+    try {
+      await validateUser.post('/api/validate', {
+        onError: () => {
+          setValidationOnErrorMessage('onError called')
+        },
+      })
+    } catch (error: unknown) {
+      setValidationExceptionMessage(error instanceof Error ? error.message : 'Unknown validation exception')
+    }
+  }
+  const performDelete = async () => {
+    try {
+      const result = await deleteUser.delete(`/api/users/${deleteUser.data.userId}`)
+      setLastDeleteResponse(result ?? null)
+    } catch (e) {
+      console.error('Delete failed:', e)
+    }
+  }
+  const performSlowRequest = async () => {
+    setCancelledMessage('')
+    try {
+      await slowRequest.get('/api/slow')
+    } catch (e: unknown) {
+      if (e instanceof Error && (e.name === 'HttpCancelledError' || e.message?.includes('abort'))) {
+        setCancelledMessage('Request was cancelled')
+      }
+    }
+  }
+  const cancelSlowRequest = () => {
+    slowRequest.cancel()
+  }
+  const triggerServerError = async () => {
+    setErrorMessage('')
+    try {
+      await errorHttp.post('/api/error')
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'response' in e) {
+        const error = e as {
+          response?: {
+            status?: number
+          }
+        }
+        if (error.response?.status === 500) {
+          setErrorMessage('Server returned 500 error')
+        }
+      }
+    }
+  }
+  const triggerHttpException = async () => {
+    setHttpExceptionStatus(null)
+    setHttpExceptionBody('')
+    try {
+      await httpExceptionHttp.post('/api/error', {
+        onHttpException: (response) => {
+          setHttpExceptionStatus(response.status)
+          setHttpExceptionBody(response.data)
+        },
+      })
+    } catch {
+      // Expected
+    }
+  }
+  const triggerNetworkError = async () => {
+    setNetworkErrorMessage('')
+    try {
+      await networkErrorHttp.get('/api/network-error-test', {
+        onNetworkError: (error) => {
+          setNetworkErrorMessage(error.message || 'Network error occurred')
+        },
+      })
+    } catch {
+      // Expected
+    }
+  }
+  return (
+    <div>
+      <h1>useHttp Test Page</h1>
+
+      {/* GET Request Test */}
+      <section id="get-test">
+        <h2>GET Request</h2>
+        <label>
+          Search Query
+          <input
+            type="text"
+            id="search-query"
+            value={search.data.query}
+            onInput={(e) => search.setData('query', e.currentTarget.value)}
+          />
+        </label>
+        <button onClick={performSearch} id="search-button">
+          Search
+        </button>
+        {search.processing && <div id="search-processing">Searching...</div>}
+        {lastGetResponse() && (
+          <div id="search-result">
+            Items: {lastGetResponse()!.items.join(', ')}
+            <br />
+            Total: {lastGetResponse()!.total}
+            <br />
+            Query: {lastGetResponse()!.query}
+          </div>
+        )}
+        {search.response && <div id="search-response">Response stored: {search.response.total} items</div>}
+      </section>
+
+      {/* POST Request Test */}
+      <section id="post-test">
+        <h2>POST Request</h2>
+        <label>
+          Name
+          <input
+            type="text"
+            id="create-name"
+            value={createUser.data.name}
+            onInput={(e) => createUser.setData('name', e.currentTarget.value)}
+          />
+        </label>
+        <label>
+          Email
+          <input
+            type="email"
+            id="create-email"
+            value={createUser.data.email}
+            onInput={(e) => createUser.setData('email', e.currentTarget.value)}
+          />
+        </label>
+        <button onClick={performCreate} id="create-button">
+          Create User
+        </button>
+        {createUser.processing && <div id="create-processing">Creating...</div>}
+        {createUser.wasSuccessful && <div id="create-success">User created successfully!</div>}
+        {createUser.recentlySuccessful && <div id="create-recently-successful">Recently successful!</div>}
+        {lastPostResponse() && (
+          <div id="create-result">
+            Created user ID: {lastPostResponse()!.id}
+            <br />
+            Name: {lastPostResponse()!.user.name}
+            <br />
+            Email: {lastPostResponse()!.user.email}
+          </div>
+        )}
+        {createUser.isDirty && <div id="create-dirty">Form has unsaved changes</div>}
+      </section>
+
+      {/* Validation Test */}
+      <section id="validation-test">
+        <h2>Validation Errors (422)</h2>
+        <label>
+          Name
+          <input
+            type="text"
+            id="validate-name"
+            value={validateUser.data.name}
+            onInput={(e) => validateUser.setData('name', e.currentTarget.value)}
+          />
+        </label>
+        {validateUser.errors.name && <span id="validate-name-error">{validateUser.errors.name}</span>}
+        <label>
+          Email
+          <input
+            type="email"
+            id="validate-email"
+            value={validateUser.data.email}
+            onInput={(e) => validateUser.setData('email', e.currentTarget.value)}
+          />
+        </label>
+        {validateUser.errors.email && <span id="validate-email-error">{validateUser.errors.email}</span>}
+        <button onClick={performValidation} id="validate-button">
+          Validate
+        </button>
+        {validateUser.hasErrors && <div id="validate-has-errors">Form has errors</div>}
+        {validationOnErrorMessage() && <div id="validate-on-error">{validationOnErrorMessage()}</div>}
+        {validationExceptionMessage() && <div id="validate-exception">{validationExceptionMessage()}</div>}
+        <button onClick={() => validateUser.clearErrors()} id="clear-errors-button">
+          Clear Errors
+        </button>
+        <button onClick={() => validateUser.clearErrors('name')} id="clear-name-error-button">
+          Clear Name Error
+        </button>
+        <button onClick={() => validateUser.setError('name', 'Manual name error')} id="set-name-error-button">
+          Set Name Error
+        </button>
+        <button
+          onClick={() => validateUser.setError({ name: 'Multi name error', email: 'Multi email error' })}
+          id="set-multiple-errors-button"
+        >
+          Set Multiple Errors
+        </button>
+      </section>
+
+      {/* DELETE Request Test */}
+      <section id="delete-test">
+        <h2>DELETE Request</h2>
+        <label>
+          User ID to delete
+          <input
+            type="number"
+            id="delete-user-id"
+            value={deleteUser.data.userId}
+            onInput={(e) => deleteUser.setData('userId', parseInt(e.currentTarget.value) || 0)}
+          />
+        </label>
+        <button onClick={performDelete} id="delete-button">
+          Delete User
+        </button>
+        {lastDeleteResponse() && <div id="delete-result">Deleted user ID: {lastDeleteResponse()!.deleted}</div>}
+      </section>
+
+      {/* Cancel Request Test */}
+      <section id="cancel-test">
+        <h2>Cancel Request</h2>
+        <button onClick={performSlowRequest} id="slow-request-button">
+          Start Slow Request
+        </button>
+        <button onClick={cancelSlowRequest} id="cancel-button">
+          Cancel Request
+        </button>
+        {slowRequest.processing && <div id="slow-processing">Request in progress...</div>}
+        {cancelledMessage() && <div id="cancelled-message">{cancelledMessage()}</div>}
+      </section>
+
+      {/* Server Error Test */}
+      <section id="error-test">
+        <h2>Server Error (500)</h2>
+        <button onClick={triggerServerError} id="error-button">
+          Trigger Server Error
+        </button>
+        {errorMessage() && <div id="error-message">{errorMessage()}</div>}
+      </section>
+
+      {/* HTTP Exception Callback Test */}
+      <section id="http-exception-test">
+        <h2>HTTP Exception Callback</h2>
+        <button onClick={triggerHttpException} id="http-exception-button">
+          Trigger HTTP Exception
+        </button>
+        {httpExceptionStatus() && <div id="http-exception-status">Status: {httpExceptionStatus()}</div>}
+        {httpExceptionBody() && <div id="http-exception-body">Body: {httpExceptionBody()}</div>}
+      </section>
+
+      {/* Network Error Callback Test */}
+      <section id="network-error-test">
+        <h2>Network Error Callback</h2>
+        <button onClick={triggerNetworkError} id="network-error-button">
+          Trigger Network Error
+        </button>
+        {networkErrorMessage() && <div id="network-error-message">{networkErrorMessage()}</div>}
+      </section>
+
+      {/* Reset Test */}
+      <section id="reset-test">
+        <h2>Reset &amp; Defaults</h2>
+        <button onClick={() => createUser.reset()} id="reset-button">
+          Reset Form
+        </button>
+        <button onClick={() => createUser.defaults()} id="defaults-button">
+          Set Current as Defaults
+        </button>
+        <div id="reset-name-value">Current name: {createUser.data.name}</div>
+      </section>
+    </div>
+  )
+}

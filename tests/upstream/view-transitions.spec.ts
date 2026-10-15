@@ -1,0 +1,143 @@
+import { expect, test } from '@playwright/test'
+import { consoleMessages } from './support'
+
+test.describe('View Transitions', () => {
+  test.skip(({ browserName }) => browserName === 'firefox', 'Firefox does not support View Transitions API in CI')
+
+  test('navigates with boolean view transition', async ({ page }) => {
+    await page.goto('/view-transition/page-a')
+
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Transition with boolean' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+  })
+
+  test('calls viewTransition callbacks when using callback function', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/page-a')
+
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Transition with callback' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+
+    await expect.poll(() => consoleMessages.messages).toEqual(['updateCallbackDone', 'ready', 'finished'])
+  })
+
+  test('calls viewTransition callbacks on Link component with callback function', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/page-a')
+
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('link', { name: 'Link to Page B' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+
+    await expect.poll(() => consoleMessages.messages).toEqual(['updateCallbackDone', 'ready', 'finished'])
+  })
+
+  test('calls viewTransition callbacks on client-side visit with callback function', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/page-a')
+
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Client-side replace' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+
+    await expect.poll(() => consoleMessages.messages).toEqual(['updateCallbackDone', 'ready', 'finished'])
+  })
+
+  test('does not use view transition when same page returns with validation errors', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/form-errors')
+    await page.getByRole('button', { name: 'Submit with View Transition' }).click()
+    await expect(page.getByText('The name field is required.')).toBeVisible()
+
+    await page.waitForTimeout(500)
+
+    await expect(consoleMessages.messages).toEqual([])
+  })
+
+  test('does not throw InvalidStateError when document visibility is hidden during view transition', async ({
+    page,
+  }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/page-a')
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    })
+
+    await page.getByRole('button', { name: 'Transition with boolean' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+    await expect(consoleMessages.errors).toEqual([])
+  })
+
+  test('does not throw when a rapid navigation aborts an in-flight view transition', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    await page.goto('/view-transition/page-a')
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Rapid navigation' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-a')
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    // The second navigation aborts the first transition, rejecting its `ready` promise.
+    // It must be handled internally so it never surfaces as an unhandled rejection.
+    await page.waitForTimeout(500)
+    await expect(consoleMessages.errors).toEqual([])
+  })
+
+  test('does not throw when an in-flight view transition is aborted', async ({ page }) => {
+    consoleMessages.listen(page)
+
+    // Chromium and Edge reject `finished` and `updateCallbackDone` when a transition is
+    // aborted, which a headless browser cannot trigger through tab switching.
+    await page.addInitScript(() => {
+      const startViewTransition = document.startViewTransition.bind(document)
+
+      document.startViewTransition = (callback) => {
+        const transition = startViewTransition(callback)
+        const aborted = () =>
+          Promise.reject(new DOMException('Transition was aborted because of invalid state', 'InvalidStateError'))
+
+        return {
+          ready: transition.ready,
+          finished: aborted(),
+          updateCallbackDone: aborted(),
+          types: transition.types,
+          skipTransition: () => transition.skipTransition(),
+        }
+      }
+    })
+
+    await page.goto('/view-transition/page-a')
+    await expect(page.getByText('Page A - View Transition Test')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Transition with boolean' }).click()
+
+    await expect(page).toHaveURL('/view-transition/page-b')
+    await expect(page.getByText('Page B - View Transition Test')).toBeVisible()
+    await expect(consoleMessages.errors).toEqual([])
+  })
+})

@@ -65,6 +65,9 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     'onCancel',
     'onSuccess',
     'onError',
+    'onHttpException',
+    'onNetworkError',
+    'onFlash',
     'onPrefetching',
     'onPrefetched',
     'prefetch',
@@ -101,6 +104,9 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       onCancel: noop,
       onSuccess: noop,
       onError: noop,
+      onHttpException: noop,
+      onNetworkError: noop,
+      onFlash: noop,
       onPrefetching: noop,
       onPrefetched: noop,
       prefetch: false,
@@ -186,6 +192,9 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
     onCancel: props.onCancel,
     onSuccess: props.onSuccess,
     onError: props.onError,
+    onHttpException: props.onHttpException,
+    onNetworkError: props.onNetworkError,
+    onFlash: props.onFlash,
   }))
 
   const prefetchModes = createMemo<LinkPrefetchOption[]>(() => {
@@ -321,7 +330,7 @@ export default function Link<T extends ValidComponent = 'a'>(_props: InertiaLink
       attributes,
       elProps,
       {
-        get dataLoading() {
+        get 'data-loading'() {
           return inFlightCount() > 0 ? '' : undefined
         },
         get children() {

@@ -25,8 +25,9 @@ import {
   splitProps,
   untrack,
 } from 'solid-js'
-import { createDynamic } from 'solid-js/web'
+import { createDynamic, isServer } from 'solid-js/web'
 import type { DynamicProps } from './types'
+import usePage from './usePage'
 
 type InfiniteScrollRefProp = `#${string}` | HTMLElement | (() => HTMLElement | null | undefined)
 
@@ -64,7 +65,7 @@ function resolveHTMLElement(value: InfiniteScrollRefProp, fallback: HTMLElement 
   return fallback
 }
 
-export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props: InfiniteScrollProps<T>) {
+export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props: InfiniteScrollProps<T>): JSX.Element {
   const [props, attributes] = splitProps(
     mergeProps(
       {
@@ -159,14 +160,13 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     onDataReset: syncStateFromDataManager,
   })
 
-  syncStateFromDataManager()
-
   const [loadingPrevious, setLoadingPrevious] = createSignal(false)
   const [loadingNext, setLoadingNext] = createSignal(false)
   const [requestCount, setRequestCount] = createSignal(dataManager.getRequestCount())
 
-  const [hasPrevious, setHasPrevious] = createSignal(dataManager.hasPrevious())
-  const [hasNext, setHasNext] = createSignal(dataManager.hasNext())
+  const scrollProp = isServer ? usePage().scrollProps?.[props.data] : undefined
+  const [hasPrevious, setHasPrevious] = createSignal(isServer ? !!scrollProp?.previousPage : dataManager.hasPrevious())
+  const [hasNext, setHasNext] = createSignal(isServer ? !!scrollProp?.nextPage : dataManager.hasNext())
 
   const manualMode = createMemo(() => props.manual || (props.manualAfter > 0 && requestCount() >= props.manualAfter))
   const autoLoad = createMemo(() => !manualMode())
@@ -245,6 +245,8 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
     },
   }
 
+  const content = createLazyMemo(() => props.children)
+
   const renderedChildren = children(() => [
     // Start Element
     createBoundaryElement(
@@ -254,7 +256,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
             return !props.startElement
           },
           get component() {
-            return props.previous || (props.loading && loadingPrevious()) ? props.loading : undefined
+            return props.previous || (loadingPrevious() ? props.loading : undefined)
           },
           ref(el: HTMLElement) {
             startElementRef = el
@@ -283,11 +285,13 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
             itemsElementRef = el
           },
           get children() {
-            if (typeof props.children !== 'function') {
-              return props.children
+            const child = content()
+
+            if (typeof child !== 'function') {
+              return child
             }
 
-            return props.children({
+            return child({
               get loading() {
                 return loadingPrevious() || loadingNext()
               },
@@ -312,7 +316,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
             return !props.endElement
           },
           get component() {
-            return props.next || (props.loading && loadingNext()) ? props.loading : undefined
+            return props.next || (loadingNext() ? props.loading : undefined)
           },
           ref(el: HTMLElement) {
             endElementRef = el
@@ -343,7 +347,7 @@ export default function InfiniteScroll<T extends ValidComponent = 'div'>(_props:
 
       return renderedChildren()
     })
-  })
+  }) as unknown as JSX.Element
 }
 
 function createBoundaryElement(

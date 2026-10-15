@@ -117,7 +117,7 @@ export default function useFormState<TForm extends object>(
   let { precognitionEndpoint } = options
 
   const isDataFunction = typeof dataOption === 'function'
-  const resolveData = () => (isDataFunction ? (dataOption() as () => TForm)() : dataOption)
+  const resolveData = () => (isDataFunction ? (dataOption as () => TForm)() : dataOption)
 
   const restored = isServer
     ? null
@@ -186,7 +186,7 @@ export default function useFormState<TForm extends object>(
 
   // Precognition state
   let validatorRef: Validator | null = null
-  let withAllErrors: boolean | null = false
+  let withAllErrors: boolean | null = null
   const withAllErrorsEnabled = () => withAllErrors ?? config.get('form.withAllErrors')
 
   const [validating, setValidating] = createSignal(false)
@@ -236,58 +236,61 @@ export default function useFormState<TForm extends object>(
         })
     }
 
-    const precognitiveForm = Object.assign(form, {
-      get validating() {
-        return validating()
-      },
-      validator: () => validatorRef!,
-      valid: (field: string) => validFields().includes(field),
-      invalid: (field: string) => field in errors(),
-      touched: (field?: string): boolean =>
-        typeof field === 'string' ? touchedFields().includes(field) : touchedFields().length > 0,
-      touch: (
-        field: FormDataKeys<TForm> | NamedInputEvent | Array<FormDataKeys<TForm>>,
-        ...fields: FormDataKeys<TForm>[]
-      ) => {
-        if (Array.isArray(field)) {
-          validatorRef?.touch(field as string[])
-        } else if (typeof field === 'string') {
-          validatorRef?.touch([field, ...fields])
-        } else {
-          validatorRef?.touch(field)
-        }
+    const precognitiveForm = Object.defineProperties(
+      form,
+      Object.getOwnPropertyDescriptors({
+        get validating() {
+          return validating()
+        },
+        validator: () => validatorRef!,
+        valid: (field: string) => validFields().includes(field),
+        invalid: (field: string) => field in errors(),
+        touched: (field?: string): boolean =>
+          typeof field === 'string' ? touchedFields().includes(field) : touchedFields().length > 0,
+        touch: (
+          field: FormDataKeys<TForm> | NamedInputEvent | Array<FormDataKeys<TForm>>,
+          ...fields: FormDataKeys<TForm>[]
+        ) => {
+          if (Array.isArray(field)) {
+            validatorRef?.touch(field as string[])
+          } else if (typeof field === 'string') {
+            validatorRef?.touch([field, ...fields])
+          } else {
+            validatorRef?.touch(field)
+          }
 
-        return precognitiveForm
-      },
-      withAllErrors: () =>
-        tap(precognitiveForm, () => {
-          withAllErrors = true
-        }),
-      withoutFileValidation: () => tap(precognitiveForm, () => validatorRef?.withoutFileValidation()),
-      validateFiles: () => tap(precognitiveForm, () => validatorRef?.validateFiles()),
-      setValidationTimeout: (duration: number) => tap(precognitiveForm, () => validatorRef?.setTimeout(duration)),
-      validate: (field?: string | NamedInputEvent | ValidationConfig, config?: ValidationConfig) => {
-        if (typeof field === 'object' && !('target' in field)) {
-          config = field
-          field = undefined
-        }
+          return precognitiveForm
+        },
+        withAllErrors: () =>
+          tap(precognitiveForm, () => {
+            withAllErrors = true
+          }),
+        withoutFileValidation: () => tap(precognitiveForm, () => validatorRef?.withoutFileValidation()),
+        validateFiles: () => tap(precognitiveForm, () => validatorRef?.validateFiles()),
+        setValidationTimeout: (duration: number) => tap(precognitiveForm, () => validatorRef?.setTimeout(duration)),
+        validate: (field?: string | NamedInputEvent | ValidationConfig, config?: ValidationConfig) => {
+          if (typeof field === 'object' && !('target' in field)) {
+            config = field
+            field = undefined
+          }
 
-        if (field === undefined) {
-          validatorRef?.validate(config)
-        } else {
-          const fieldName = resolveName(field)
-          const transformedData = transform(unwrap(data)) as Record<string, unknown>
-          validatorRef?.validate(fieldName, get(transformedData, fieldName), config)
-        }
+          if (field === undefined) {
+            validatorRef?.validate(config)
+          } else {
+            const fieldName = resolveName(field)
+            const transformedData = transform(unwrap(data)) as Record<string, unknown>
+            validatorRef?.validate(fieldName, get(transformedData, fieldName), config)
+          }
 
-        return precognitiveForm
-      },
-      setErrors: (errors: FormDataErrors<TForm>) => tap(precognitiveForm, () => setErrors(() => errors)),
-      forgetError: (field: FormDataKeys<TForm> | NamedInputEvent) =>
-        tap(precognitiveForm, () =>
-          form.clearErrors(resolveName(field as string | NamedInputEvent) as FormDataKeys<TForm>),
-        ),
-    }) as FormStateWithPrecognition<TForm>
+          return precognitiveForm
+        },
+        setErrors: (errors: FormDataErrors<TForm>) => tap(precognitiveForm, () => setErrors(() => errors)),
+        forgetError: (field: FormDataKeys<TForm> | NamedInputEvent) =>
+          tap(precognitiveForm, () =>
+            form.clearErrors(resolveName(field as string | NamedInputEvent) as FormDataKeys<TForm>),
+          ),
+      }),
+    ) as FormStateWithPrecognition<TForm>
 
     return precognitiveForm
   }
@@ -302,6 +305,10 @@ export default function useFormState<TForm extends object>(
     },
 
     defaults(fieldOrFields?: FormDataKeys<TForm> | Partial<TForm>, maybeValue?: unknown) {
+      if (isDataFunction) {
+        throw new Error('You cannot call `defaults()` when using a function to define your form data.')
+      }
+
       defaultsCalledInOnSuccess = true
 
       if (typeof fieldOrFields === 'undefined') {
@@ -417,6 +424,10 @@ export default function useFormState<TForm extends object>(
     },
 
     withPrecognition,
+  }
+
+  if (precognitionEndpoint) {
+    form.withPrecognition(precognitionEndpoint)
   }
 
   return {

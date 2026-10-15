@@ -420,3 +420,9 @@ interactive without re-rendering it.
 ## Next steps
 
 You can read the full documentation on Server-side Rendering on [InertiaJS's Official Guide](https://inertiajs.com/docs/v3).
+
+## Testing
+
+Run `pnpm test` for public type checks, Solid runtime tests, the official Inertia
+browser suite port, and SSR/hydration tests. See [the testing guide](tests/README.md)
+for browser installation, focused commands, coverage, and known baseline failures.
