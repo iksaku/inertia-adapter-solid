@@ -20,6 +20,12 @@ fails. It returns a nonzero exit code if any layer fails. The default browser is
 Chromium with the built-in native XHR client. Browser commands build the package and
 fixture app, start the backend, and stop their servers automatically.
 
+Local runs default to **2 workers** and no retries. CI follows upstream's
+allocation: **3 workers on Linux / 2 on macOS**, with two retries. Traces are
+recorded on the first retry, matching upstream; screenshots are captured on
+failure. To collect traces during a no-retry local investigation, pass
+`--trace=retain-on-failure` to the Playwright command. Test deadlines are unchanged.
+
 Earlier phase notes and the retained `browser-fetch` output directory call the
 default profile "Fetch". Inertia 3.9.1 actually uses `XhrHttpClient`; those results
 cover its built-in client, not the browser Fetch API. Existing output names remain
@@ -56,10 +62,21 @@ binary; normal runs use Playwright's pinned browser revision.
 Failure traces, screenshots, and JSON results are in `test-results/`; HTML reports
 are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
 and `ssr` directories so later layers do not overwrite earlier evidence.
-These outputs are ignored by Git. CI runs the
-four contract layers independently, all three browser engines with the built-in client,
-Chromium with Axios, and Chromium SSR. It uploads browser failure artifacts and
-does not turn known failures into passing jobs.
+These outputs are ignored by Git. Workflows run on pushes and pull requests:
+
+| Workflow | Runner | Checks |
+| --- | --- | --- |
+| `tests.yml` | Ubuntu 24.04 | Four independent type/unit contract jobs |
+| `playwright-chromium.yml` | Ubuntu 24.04 | Native XHR and Axios; separate manual/automatic SSR and hydration job |
+| `playwright-firefox.yml` | Ubuntu 24.04 | Native XHR, three shards |
+| `playwright-webkit.yml` | macOS 15 | Native XHR, four shards |
+
+Every job has a 15-minute budget. Browser binaries are cached by OS, browser,
+and Playwright version; system dependencies are installed even on a cache hit.
+Failed browser/SSR jobs upload their results and HTML reports for 14 days.
+Matrix fail-fast is disabled so a failure does not cancel the remaining checks.
+No supported failure is marked as expected or skipped. CI always starts fresh
+servers, regardless of the local `TEST_REUSE_SERVER` opt-in.
 
 ## Coverage phases
 
@@ -133,6 +150,9 @@ does not turn known failures into passing jobs.
 22. **Browser-safe test interactions:** preserve prepared scroll coordinates
     during activation, distinguish native abort diagnostics from cancellation
     behavior, and control the hover deadline without changing adapter runtime.
+23. **Original deadlines and upstream CI:** retain the original scroll-test
+    timeout, use two workers locally, and port upstream's browser workflows,
+    CI worker allocation, tracing, caching, and browser shards to Solid.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -183,10 +203,12 @@ the runtime and Vite versions used for this port.
 - `tests/test-app/`: React fixture catalogue translated to Solid; `UsePage` uses
   the Vue reactive-page fixtures, and metadata uses native Solid equivalents.
 - `tests/unit/` and `tests/types/`: additional public Solid runtime/type consumers.
+- `.github/workflows/playwright-*.yml`: official Chromium/SSR, Firefox, and WebKit
+  workflows adapted to the single Solid package and existing Node 22/pnpm pins.
 
 Upstream's MIT copyright and permission notice are retained in
 [`upstream/LICENSE.md`](upstream/LICENSE.md) and apply to all copied/adapted
-backend, spec, and fixture code. These resources are not published in upstream
+backend, spec, fixture, and workflow code. These resources are not published in upstream
 npm tarballs; this is a vendored, pinned port, not a runtime dependency patch.
 
 For an update, check out the new upstream revision separately, compare shared
@@ -1619,3 +1641,111 @@ remains on port 13721 of `homelab-sandbox`. Phase 22 is committed locally;
 nothing is pushed and remote CI has not run. The remaining post-render
 timing failure needs a separate investigation; persistent-layout work stays
 explicitly deferred.
+
+## Phase 23: preserve original deadlines and adopt upstream CI
+
+Phase 22 is committed locally. The remaining WebKit post-render scroll timeout
+is intermittent and sensitive to tracing and parallel workload. Its original
+**10,000ms** limit initially reproduces **5 passed / 5 timed out** with four
+workers. Disabling tracing passes **10/10**; retaining tracing but disabling DOM
+snapshots also passes **10/10**. All five failed traces contain the expected
+30 render/scroll messages in order. These markers check call ordering, not
+paint completion or actual measured scroll position.
+
+A fresh original-timeout comparison retains full tracing and has no retries:
+
+| Workers | Focused repetitions passed | Timed out | Reported duration of passing runs |
+| --- | ---: | ---: | --- |
+| 4 | 14 | 6 | Near the 10-second deadline |
+| 1 | 10 | 0 | 4.53–4.83s |
+| 2 | 20 | 0 | 5.26–7.50s, median 5.87s |
+
+Reported durations include runner overhead; they are not page-render timings.
+
+The four-worker full WebKit run passes the scroll case in **8.74s**, but a
+different history-navigation case times out at its unchanged 15-second limit.
+Its total is **1,049 passed / 1 failed / 72 skipped**. The two-worker full run is
+**1,050 passed / 0 failed / 72 skipped**, with the scroll case at **5.59s** and the
+history case also passing. The two-worker suite takes **10 minutes**, versus
+**6.2 minutes** for the four-worker run. This supports lower local concurrency;
+it does not prove a particular VM scheduling cause or guarantee zero flakiness.
+
+At the owner's direction, the proposed 30-second WebKit override is discarded.
+The scroll spec is byte-for-byte unchanged from Phase 22: ten real navigations,
+pointer clicks, headings, URLs, and exact message ordering remain intact. The
+full 5,000-paragraph Solid fixture stays populated. Unlike Solid's `<For>`, the
+pinned React fixture's sparse
+[`Array(500).map(...)`](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/packages/react/test-app/Pages/ScrollAfterRender.tsx#L38-L110)
+does not render its repeated paragraphs; its runtime is not an equivalent-load
+performance control. No adapter source, fixture, assertion, skip, persistent
+layout API, or playground code changes.
+
+Local workers now default to **2**. CI follows the pinned official
+[worker/retry/trace policy](https://github.com/inertiajs/inertia/blob/e36ead235b3d395e0857ade3793b000175622ae2/playwright.config.ts#L89-L122):
+**3 Linux workers / 2 macOS workers**, two retries, traces on the first retry,
+and screenshots on failure. The local worker default is the deliberate VM
+adaptation. All existing test deadlines remain unchanged, including the
+10-second scroll limit and 15-second WebKit project default. CI forbids server
+reuse; local reuse still requires an explicit opt-in.
+
+The three official `playwright-{chromium,firefox,webkit}.yml` workflows are copied
+from the pinned revision and adapted to this standalone package. They retain
+Ubuntu 24.04 Chromium/Firefox, macOS 15 WebKit, Chromium's default/Axios matrix,
+separate Chromium SSR, three Firefox shards, four WebKit shards, browser caches,
+dependency installation on cache hits, failure artifacts, 15-minute job budgets,
+and pinned upstream action revisions. Existing type/unit jobs remain separate;
+no second browser matrix duplicates these workflows.
+
+Solid-specific adaptations keep **Node 22 / pnpm 11.20.0**, replace monorepo
+commands with this package's scripts, remove other adapters and Svelte-only
+dimensions, and retain the existing 14-day HTML/results failure artifacts.
+Pull requests from this repository and forks both trigger the checks; upstream's
+same-repository PR job guard is intentionally omitted. Matrix fail-fast remains
+disabled to collect all results. No merge-report workflow or additional
+release/deployment job is introduced. The upstream MIT notice covers the copied
+workflows.
+
+Actionlint **1.7.12** validates all four workflows. The exact workflow commands
+also collect successfully in CI mode: both Chromium clients list **1,122** cases,
+Chromium SSR lists **36**, Firefox's three shards contain **374 each**, and
+WebKit's four contain **281 / 281 / 280 / 280**. Comparing each shard union with
+its complete suite finds **zero overlaps, missing cases, or added cases**. The
+Linux CI manifests resolve to three workers, two retries, and `forbidOnly: true`.
+This is local workflow/configuration validation, not an executed GitHub Actions
+run or evidence of macOS compatibility.
+
+The final local matrix uses Node **22.23.3**, pnpm **11.20.0**, Playwright
+**1.58.2**, pinned browsers, two workers, no retries, and the adopted first-retry
+trace policy. Client builds run sequentially; native assets are restored after
+Axios. Every layer runs even if an earlier one fails:
+
+| Profile | Passed | Failed | Existing skips |
+| --- | ---: | ---: | ---: |
+| Chromium / native XHR | 1,047 | 0 | 75 |
+| Firefox / native XHR | 1,031 | 0 | 91 |
+| WebKit / native XHR | 1,050 | 0 | 72 |
+| Chromium / Axios | 1,046 | 1 | 75 |
+| SSR / all three engines | 72 | 0 | 36 |
+| Unit | 20 | 0 | 0 |
+
+Package/fixture builds and all three TypeScript checks pass. Comparing the
+browser/SSR reports with Phase 22 by project, file, and complete test title finds
+no added/missing cases, changed skips, changed deadlines, or runner errors. The
+original scroll case passes in Chromium **4.219s**, Firefox **6.545s**, and WebKit
+**4.256s**. These durations do not isolate the effect of lower concurrency from
+the changed trace policy; the preceding full-trace comparison does.
+
+The Axios failure is the unchanged upstream
+`it cancels in-flight requests on each tick with mode: cancel` assertion in
+`poll.spec.ts`: it observes **8** failed requests where **at least 9** are
+expected. A fresh Axios build and **20** focused repetitions with two workers,
+original deadlines, and no retries all pass. This establishes an intermittent
+failure, not its cause or a fix. The failing full-matrix report is retained and
+the matrix exits nonzero; no assertion, skip, retry policy, or runtime code is
+changed to hide it.
+
+Workflow lint, configuration formatting, and `git diff --check` pass. The restored
+native asset and pre-existing upstream checkout edits retain their original
+checksums. These local results do not include GitHub Actions or actual macOS
+execution; those remain to be verified by PR checks. Persistent-layout work
+stays explicitly deferred.

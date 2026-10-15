@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 process.env.PACKAGE = 'solid'
+const runsInCI = !!process.env.CI
+const runsOnMac = process.platform === 'darwin'
 const ssr = process.env.SSR === 'true'
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 const suite = ssr ? 'ssr' : process.env.VITE_HTTP_CLIENT === 'axios' ? 'browser-axios' : 'browser-fetch'
@@ -9,9 +11,10 @@ export default defineConfig({
   testDir: './tests/upstream',
   ...(ssr ? { testMatch: 'ssr.spec.ts' } : { testIgnore: ['ssr.spec.ts', 'svelte.spec.ts', 'plugin.spec.ts'] }),
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 4,
+  forbidOnly: runsInCI,
+  retries: runsInCI ? 2 : 0,
+  // Match upstream's CI allocation; leave more CPU headroom on local VMs.
+  workers: runsInCI ? (runsOnMac ? 2 : 3) : 2,
   timeout: 10_000,
   outputDir: `test-results/${suite}`,
   reporter: [
@@ -21,7 +24,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: 'http://localhost:13721',
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
   projects: [
@@ -37,7 +40,7 @@ export default defineConfig({
       command: 'pnpm build && pnpm test:app:build && node tests/app/server.js',
       url: 'http://localhost:13721',
       timeout: 120_000,
-      reuseExistingServer: process.env.TEST_REUSE_SERVER === 'true',
+      reuseExistingServer: !runsInCI && process.env.TEST_REUSE_SERVER === 'true',
     },
     ...(ssr
       ? [
