@@ -29,7 +29,7 @@ test.describe('persistent layouts', () => {
     test(`can have a persistent layout (${method})`, async ({ page }) => {
       test.skip(
         process.env.PACKAGE === 'solid' && method === 'render-function',
-        'Render-function layouts are deferred in the Solid adapter',
+        'Layout render callbacks are not supported by the Solid adapter',
       )
       await page.goto(`/persistent-layouts/${method}/simple/page-a`)
 
@@ -51,7 +51,7 @@ test.describe('persistent layouts', () => {
     test(`can create more complex layout arrangements using nested layouts (${method})`, async ({ page }) => {
       test.skip(
         process.env.PACKAGE === 'solid' && method === 'render-function',
-        'Render-function layouts are deferred in the Solid adapter',
+        'Layout render callbacks are not supported by the Solid adapter',
       )
       await page.goto(`/persistent-layouts/${method}/nested/page-a`)
 

@@ -191,7 +191,7 @@ identify contracts the Solid adapter does not expose or the owner has deferred:
 | Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
 | App-level default layout | Not implemented in `createInertiaApp`; skipped independently of supported page layouts |
 | Persistent page layouts | Enabled for function components and nested component arrays, including page-prop availability and component-layout SSR/hydration |
-| Layout render callbacks | Deferred by the owner; this adapter treats layout functions as components, so separate per-page wrappers have different identities; not deprecated upstream |
+| Layout render callbacks | Not supported; this adapter treats layout functions as components, so separate per-page wrappers have different identities; not deprecated upstream |
 | Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
 | Deferred rescue/reloading slots | No public Solid API; skipped; readiness and nested deferred data stay enabled |
 | WhenVisible fetching slot | No public Solid API; skipped; visibility/reload behavior stays enabled |
@@ -1862,5 +1862,5 @@ run. Touched source/unit lint, browser-spec formatting, and `git diff --check`
 also pass. Full Firefox/WebKit and Axios profiles, GitHub Actions, and macOS
 execution are not rerun in this audit.
 
-Render-function layouts remain deferred as an adapter scope decision, not
-because Inertia deprecated them. Revisit if users request this API.
+Layout render callbacks are not supported by this adapter. This is an adapter
+scope decision, not an upstream deprecation. Revisit if users request this API.
