@@ -57,6 +57,7 @@
     "es2022-check": "pnpm build:with-deps && es-check es2022 \"dist/index.js\" --checkFeatures --module --noCache --verbose",
     "prepublish": "pnpm run build",
     "test": "pnpm build && node tests/run.mjs",
+    "test:install": "playwright install chromium",
     "test:browser": "playwright test --project=chromium",
     "test:browser:all": "playwright test",
     "test:browser:axios": "VITE_HTTP_CLIENT=axios playwright test --project=chromium",
@@ -74,7 +75,8 @@
     "@solid-primitives/deep": "^0.3.7",
     "@solid-primitives/memo": "^1.5.1",
     "es-toolkit": "^1.47.1",
-    "laravel-precognition": "^2.1.0"
+    "laravel-precognition": "^2.1.0",
+    "parse5": "^8.0.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
@@ -82,7 +84,6 @@
     "@changesets/cli": "^2.31.0",
     "@inertiajs/vite": "^3.9.1",
     "@playwright/test": "1.58.2",
-    "@solidjs/meta": "^0.29.4",
     "@solidjs/testing-library": "^0.8.10",
     "@types/body-parser": "^1.19.6",
     "@types/express": "^5.0.6",
@@ -103,7 +104,6 @@
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
-    "@solidjs/meta": "^0.29.4",
     "solid-js": "^1.9.17"
   }
 }

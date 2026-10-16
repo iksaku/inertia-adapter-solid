@@ -10,10 +10,6 @@ async function getInertiaHeadHTML(page: Page) {
 }
 
 test.describe('server head', () => {
-  test.beforeEach(() => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp explicitly types serverHead as never')
-  })
-
   test('it renders server-provided head elements on initial load', async ({ page }) => {
     await page.goto('/server-head?withServerHead')
     await page.waitForSelector('title[data-inertia="server-head-0"]', { state: 'attached' })

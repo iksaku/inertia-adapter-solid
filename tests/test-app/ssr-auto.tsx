@@ -8,5 +8,11 @@ createInertiaApp({
     const pages = import.meta.glob<{ default: Component }>('./Pages/SSR/**/*.tsx', { eager: true })
     return pages[`./Pages/${name}.tsx`]
   },
-  withApp: (App, options) => <WithAppContext.Provider value={{ injected: 'injected-via-withApp', ssr: options.ssr }}><App /></WithAppContext.Provider>,
+  title: (title, page) => [title, page.props.titleSuffix].filter(Boolean).join(' | '),
+  serverHead: true,
+  withApp: (App, options) => (
+    <WithAppContext.Provider value={{ injected: 'injected-via-withApp', ssr: options.ssr }}>
+      <App />
+    </WithAppContext.Provider>
+  ),
 })

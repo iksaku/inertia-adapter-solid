@@ -189,10 +189,6 @@ test.describe('Head title escaping', () => {
   })
 
   test('it runs the titleCallback with the page during SSR', async ({ page }) => {
-    test.skip(
-      process.env.PACKAGE === 'solid',
-      'Solid createInertiaApp types title as never; metadata uses @solidjs/meta',
-    )
     const response = await page.request.get('/ssr/head-title?withTitleCallback')
     const html = await response.text()
 
@@ -202,7 +198,6 @@ test.describe('Head title escaping', () => {
 
 test.describe('server head', () => {
   test('it renders server-provided head elements in the SSR output', async ({ page }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp types serverHead as never')
     const response = await page.request.get('/ssr/server-head')
     const html = await response.text()
 
@@ -211,6 +206,95 @@ test.describe('server head', () => {
     expect(html).toContain('<link data-inertia="canonical" rel="canonical" href="https://example.com/ssr">')
     expect(html).toContain('Server head rendered on the server')
   })
+})
+
+test.describe('Head hydration', () => {
+  test('hydrates resource-backed Head under nonce CSP without refetching and follows its Signal source', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    consoleMessages.listen(page)
+    await page.route(/\/ssr\/head-resource\?nonce=test$/, async (route) => {
+      const response = await route.fetch()
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      expect(html).toContain('<title data-inertia="">Server A</title>')
+      expect(html).toContain('content="Server A"')
+      await route.fulfill({
+        response,
+        headers: {
+          ...response.headers(),
+          'Content-Security-Policy': "script-src 'self' 'nonce-test-nonce'; object-src 'none'",
+        },
+        body: html.replace(
+          '</body>',
+          '<script>document.documentElement.dataset.blockedControlRan = "true"</script></body>',
+        ),
+      })
+    })
+    const response = await page.goto('/ssr/head-resource?nonce=test')
+    expect(response?.headers()['content-security-policy']).toContain("'nonce-test-nonce'")
+    expect(await response?.text()).toContain(
+      '<script>document.documentElement.dataset.blockedControlRan = "true"</script>',
+    )
+    await expect(page).toHaveTitle('Server A')
+    const article = page.locator('head meta[name="article"]')
+    await expect(article).toHaveCount(1)
+    await expect(article).toHaveAttribute('content', 'Server A')
+    await expect(page.getByTestId('resource-fetches')).toHaveText('0')
+    expect(await page.locator('html').getAttribute('data-blocked-control-ran')).toBeNull()
+
+    await page.getByRole('button', { name: 'Next article' }).click()
+    await expect(page).toHaveTitle('Client B')
+    await expect(article).toHaveCount(1)
+    await expect(article).toHaveAttribute('content', 'Client B')
+    await expect(page.getByTestId('resource-fetches')).toHaveText('1')
+    await expect(page.locator('body meta, body title, template[data-inertia-head]')).toHaveCount(0)
+    expect(errors).toEqual([])
+    expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+  })
+
+  for (const name of ['manual', 'automatic'] as const) {
+    test(`hydrates reactive Head declarations with ${name} bootstrap and cleans up conditional providers`, async ({
+      page,
+    }) => {
+      const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head-title?withTitleCallback`
+      const response = await page.request.get(url)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      expect(html).toContain('<title data-inertia="">SSR Head Title | From Props</title>')
+      expect(html).toContain('content="Initial SSR description"')
+      const serverTags = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return {
+          head: document.head.querySelectorAll('meta[name="description"][data-inertia]').length,
+          body: document.body.querySelectorAll('title, meta, template[data-inertia-head]').length,
+        }
+      }, html)
+      expect(serverTags).toEqual({ head: 1, body: 0 })
+
+      consoleMessages.listen(page)
+      await page.goto(url)
+      await expect(page).toHaveTitle('SSR Head Title | From Props')
+      const description = page.locator('head meta[name="description"]')
+      await expect(description).toHaveCount(1)
+      await expect(description).toHaveAttribute('content', 'Initial SSR description')
+      await page.getByRole('button', { name: 'Update head' }).click()
+      await expect(page).toHaveTitle('Updated SSR Title | From Props')
+      await expect(description).toHaveAttribute('content', 'Updated SSR description')
+      await page.getByRole('button', { name: 'Toggle head' }).click()
+      await expect(description).toHaveCount(0)
+      await page.getByRole('button', { name: 'Toggle head' }).click()
+      await expect(description).toHaveCount(1)
+      await expect(description).toHaveAttribute('content', 'Updated SSR description')
+      await expect(page).toHaveTitle('Updated SSR Title | From Props')
+      await expect(page.locator('head title')).toHaveCount(1)
+      await expect(page.locator('body meta, body title, template[data-inertia-head]')).toHaveCount(0)
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+  }
 })
 
 test.describe('layout props', () => {

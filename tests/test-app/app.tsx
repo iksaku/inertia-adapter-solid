@@ -1,7 +1,8 @@
-import { axiosAdapter, type Page, type VisitOptions } from '@inertiajs/core'
+import { type Page, type PageProps, type VisitOptions, axiosAdapter } from '@inertiajs/core'
 import { createInertiaApp, router } from 'inertia-adapter-solid'
-import { hydrate, render } from 'solid-js/web'
 import type { Component } from 'solid-js'
+import { hydrate, render } from 'solid-js/web'
+import { alternateSuffix } from './Pages/Head/TitleCallback'
 
 window.testing = { Inertia: router }
 window.resolverReceivedPage = null
@@ -12,7 +13,7 @@ const pages = import.meta.glob<{ default: Component }>(
   { eager: true },
 )
 
-await createInertiaApp({
+await createInertiaApp<PageProps>({
   page: window.initialPage,
   resolve: async (name, page) => {
     window.resolverReceivedPage = page as Page
@@ -25,6 +26,15 @@ await createInertiaApp({
     const mount = el.hasAttribute('data-server-rendered') ? hydrate : render
     mount(() => <App {...props} />, el)
   },
+  ...(params.has('withTitleCallback')
+    ? {
+        title: (title, page) =>
+          [title, title === 'Third' ? alternateSuffix() : page.props.titleSuffix].filter(Boolean).join(' | '),
+      }
+    : {}),
+  ...(params.has('withServerHead') ? { serverHead: true } : {}),
+  ...(params.has('withServerHeadCallback') ? { serverHead: (page) => page.props.head as string[] } : {}),
+  ...(params.has('withServerHeadProp') ? { serverHead: 'metaTags' } : {}),
   progress: { delay: 0, color: 'red', ...(params.get('popover') === 'false' ? { popover: false } : {}) },
   http: params.get('customXsrf')
     ? { xsrfCookieName: params.get('customXsrf')!, xsrfHeaderName: `X-${params.get('customXsrf')}` }

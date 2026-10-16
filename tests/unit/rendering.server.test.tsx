@@ -2,15 +2,18 @@ import type { Method, Page, UrlMethodPair } from '@inertiajs/core'
 import {
   App,
   Deferred,
+  Head,
   InfiniteScroll,
   WhenMounted,
   createInertiaApp,
   useForm,
   useHttp,
+  usePage,
   useRemember,
 } from 'inertia-adapter-solid'
-import { isServer, renderToString, renderToStringAsync } from 'solid-js/web'
-import { expect, it } from 'vitest'
+import { ErrorBoundary, Suspense, createResource } from 'solid-js'
+import { isServer, renderToString, renderToStringAsync, useAssets } from 'solid-js/web'
+import { describe, expect, it } from 'vitest'
 
 const page: Page = {
   component: 'SSR',
@@ -97,6 +100,10 @@ it.each([renderToString, renderToStringAsync])(
     const response = await createInertiaApp({
       page: {
         ...page,
+        props: {
+          ...page.props,
+          head: ['<meta data-inertia="description" name="description" content="Server default">'],
+        },
         scrollProps: {
           accounts: { pageName: 'accounts', previousPage: 41, currentPage: 42, nextPage: null, reset: false },
           messages: {
@@ -110,6 +117,9 @@ it.each([renderToString, renderToStringAsync])(
       },
       resolve: () => () => (
         <main>
+          <Head title="SSR & <title>">
+            <meta name="description" content="Page & description" head-key="description" />
+          </Head>
           SSR content
           <InfiniteScroll
             data="accounts"
@@ -144,6 +154,8 @@ it.each([renderToString, renderToStringAsync])(
         </main>
       ),
       render,
+      serverHead: true,
+      title: (title, page) => `${title} | ${page.props.value}`,
       setup: ({ App, props }) => <App {...props} />,
     })
     const body = response.body.replace(/<!--.*?-->/g, '')
@@ -152,6 +164,119 @@ it.each([renderToString, renderToStringAsync])(
     expect(body).toContain('messages:false:true')
     expect(body).toContain('optional:false:false')
     expect(response.body).toContain('data-page=')
-    expect(Array.isArray(response.head)).toBe(true)
+    const head = response.head.join('')
+    expect(head).toContain('<title data-inertia="">SSR &amp; &lt;title&gt; | 0</title>')
+    expect(head).toContain('content="Page &amp; description"')
+    expect(head.match(/name="description"/g)).toHaveLength(1)
+    expect(head).not.toContain('Server default')
+    expect(body).not.toContain('<meta')
+    expect(body).not.toContain('<title')
+    expect(body).not.toContain('<template')
   },
 )
+
+describe('Head SSR', () => {
+  it.each(['native', 'yielding'] as const)(
+    'isolates resolved Head declarations, Solid assets and nonces across concurrent SSR with a %s renderer',
+    async (kind) => {
+      const Consumer = () => {
+        const props = usePage<{ name: string; delay: number }>().props
+        const [title] = createResource(
+          () => new Promise<string>((resolve) => setTimeout(() => resolve(`${props.name} title`), props.delay)),
+        )
+        const Metadata = () => {
+          const [description] = createResource(() => Promise.resolve(`${props.name} description`))
+          return (
+            <Suspense fallback={<meta name="loading" content="Loading metadata" />}>
+              <meta name="description" content={description()} />
+            </Suspense>
+          )
+        }
+        useAssets(() => <meta name="solid-asset" content={props.name} />)
+        useAssets(() => <script>{'window.assetBoundaryText = "</head>"'}</script>)
+        return (
+          <>
+            <Head title={title()}>
+              <Metadata />
+            </Head>
+            <Suspense
+              fallback={
+                <Head title="Abandoned">
+                  <meta name="fallback" content="Loading title" />
+                </Head>
+              }
+            >
+              <main>{title()}</main>
+            </Suspense>
+          </>
+        )
+      }
+      const render: typeof renderToStringAsync =
+        kind === 'native'
+          ? renderToStringAsync
+          : async (root, options) => {
+              const html = await renderToStringAsync(root, options)
+              await new Promise((resolve) => setTimeout(resolve, 30))
+              return html
+            }
+      const requests = [
+        { name: 'First', delay: 20, nonce: 'first-nonce' },
+        { name: 'Second', delay: 1, nonce: 'second-nonce' },
+      ]
+      const responses = await Promise.all(
+        requests.map((props) =>
+          createInertiaApp({
+            page: { ...page, props: { errors: {}, ...props } },
+            resolve: () => Consumer,
+            render,
+            nonce: props.nonce,
+            title: (title, page) => `${title}:${page.props.name}`,
+            setup: ({ App, props }) => <App {...props} />,
+          }),
+        ),
+      )
+      for (const [index, { name, nonce }] of requests.entries()) {
+        const { head, body } = responses[index]
+        const tags = head.join('')
+        expect(tags).toContain(`<title data-inertia="">${name} title:${name}</title>`)
+        expect(tags.match(/name="description"/g)).toHaveLength(1)
+        expect(tags).toContain(`content="${name} description"`)
+        expect(tags.match(/name="solid-asset"/g)).toHaveLength(1)
+        expect(tags).toContain(`content="${name}"`)
+        expect(tags).toContain('window.assetBoundaryText = "</head>"')
+        expect(tags).not.toMatch(/Abandoned|Loading|name="fallback"|name="loading"/)
+        expect(tags).not.toContain(name === 'First' ? 'Second' : 'First')
+        const nonces = Array.from(`${tags}${body}`.matchAll(/nonce="([^"]+)"/g), (match) => match[1])
+        expect(nonces.length).toBeGreaterThanOrEqual(2)
+        expect([...new Set(nonces)]).toEqual([nonce])
+        expect(body.replace(/<!--.*?-->/g, '')).toMatch(new RegExp(`<main[^>]*>${name} title</main>`))
+        expect(body).not.toMatch(/<head|<meta|<title|<template/)
+      }
+    },
+  )
+
+  it('discards Head declarations when a pending resource rejects into a Solid ErrorBoundary', async () => {
+    const Consumer = () => {
+      const [title] = createResource<string>(() => Promise.reject(new Error('Title failed')))
+      return (
+        <ErrorBoundary fallback={<main>Recovered</main>}>
+          <Suspense fallback={<main>Loading</main>}>
+            <Head title={title()}>
+              <meta name="abandoned" content="Abandoned" />
+            </Head>
+            <main>{title()}</main>
+          </Suspense>
+        </ErrorBoundary>
+      )
+    }
+    const response = await createInertiaApp({
+      page,
+      resolve: () => Consumer,
+      render: renderToStringAsync,
+      setup: ({ App, props }) => <App {...props} />,
+    })
+    expect(response.body).toMatch(/<main\b[^>]*>Recovered<\/main>/)
+    expect(response.body).not.toContain('data-inertia-head')
+    expect(response.head.join('')).not.toMatch(/<title|<meta|Abandoned/)
+  })
+})

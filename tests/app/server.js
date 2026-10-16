@@ -129,6 +129,13 @@ app.get('/ssr/head-title', (req, res) =>
   }),
 )
 
+app.get('/ssr/head-resource', (req, res) =>
+  inertia.renderSSR(req, res, {
+    component: 'SSR/HeadResource',
+    props: { nonce: 'test-nonce' },
+  }),
+)
+
 app.get('/ssr/head-with-xss-title', (req, res) =>
   inertia.renderSSR(req, res, {
     component: 'SSR/HeadWithXssTitle',
@@ -163,6 +170,13 @@ app.get('/ssr/server-head', (req, res) =>
 )
 
 // SSR auto-transform test routes (uses the Vite plugin SSR transform)
+app.get('/ssr-auto/head-title', (req, res) =>
+  inertia.renderSSRAuto(req, res, {
+    component: 'SSR/HeadTitle',
+    props: { titleSuffix: 'From Props' },
+  }),
+)
+
 app.get('/ssr-auto/page1', (req, res) =>
   inertia.renderSSRAuto(req, res, {
     component: 'SSR/Page1',

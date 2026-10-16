@@ -1,2 +1,10 @@
-import { Meta, Title } from '@solidjs/meta'
-export default () => <><Title>Title from Children</Title><Meta name="description" content="Title set via children, not prop" /><h1>Title in Children</h1></>
+import { Head } from 'inertia-adapter-solid'
+export default () => (
+  <>
+    <Head>
+      <title>Title from Children</title>
+      <meta name="description" content="Title set via children, not prop" />
+    </Head>
+    <h1>Title in Children</h1>
+  </>
+)

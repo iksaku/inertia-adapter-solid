@@ -13,13 +13,7 @@ export default defineConfig({
           include: ['tests/unit/**/*.browser.test.tsx'],
           server: {
             deps: {
-              inline: [
-                'inertia-adapter-solid',
-                'solid-js',
-                '@solidjs/meta',
-                '@solidjs/testing-library',
-                /@solid-primitives\//,
-              ],
+              inline: ['inertia-adapter-solid', 'solid-js', '@solidjs/testing-library', /@solid-primitives\//],
             },
           },
         },
