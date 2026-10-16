@@ -112,3 +112,84 @@ export const waitForFragmentScroll = async (page: Page) => {
   // Give time for the scroll animation to complete
   await page.waitForTimeout(200)
 }
+
+// Exercise the same public Head interactions before and after SSR hydration.
+export const headAssertions = {
+  async titleFallback(page: Page) {
+    const title = page.locator('head title[data-inertia]')
+    await expect(page).toHaveTitle('Title from Children')
+    await expect(title).toHaveCount(1)
+    await page.getByRole('button', { name: 'Empty child title' }).click()
+    await expect(title).toHaveCount(1)
+    await expect(page).toHaveTitle('')
+    await page.getByRole('button', { name: 'Remove child title' }).click()
+    await expect(page).toHaveTitle('Title from Prop & <fallback>')
+    await expect(title).toHaveCount(1)
+    await page.getByRole('button', { name: 'Clear title prop' }).click()
+    await expect(title).toHaveCount(0)
+  },
+  async providerRestoration(page: Page) {
+    const description = page.locator('head meta[name="description"]')
+    await expect(page).toHaveTitle('Page title')
+    await expect(description).toHaveCount(1)
+    await expect(description).toHaveAttribute('content', 'Page description')
+    await page.getByRole('button', { name: 'Update layout head' }).click()
+    // Wait until the older provider's update reaches the actual document head.
+    await expect(page.locator('head meta[name="layout-revision"]')).toHaveAttribute('content', 'Updated layout title')
+    await expect(page).toHaveTitle('Page title')
+    await expect(description).toHaveAttribute('content', 'Page description')
+    await page.getByRole('button', { name: 'Remove page head' }).click()
+    await expect(page).toHaveTitle('Updated layout title')
+    await expect(description).toHaveCount(1)
+    await expect(description).toHaveAttribute('content', 'Updated layout title')
+    await page.getByRole('button', { name: 'Remove layout head' }).click()
+    await expect(page).toHaveTitle('Server title')
+    await expect(description).toHaveCount(1)
+    await expect(description).toHaveAttribute('content', 'Server description')
+    await expect(page.locator('head meta[name="layout-revision"]')).toHaveCount(0)
+    await expect(page.locator('head title')).toHaveCount(1)
+  },
+  async escapedKey(page: Page) {
+    const metadata = page.locator('head meta[name="escaped-key"]')
+    await expect(metadata).toHaveCount(1)
+    await expect(metadata).toHaveAttribute('data-inertia', 'description" & <page>')
+    await expect(metadata).toHaveAttribute('content', 'First & "quoted" <value>')
+    await expect(page.locator('head [head-key], head [data-inertia][data-hk]')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Update keyed metadata' }).click()
+    await expect(metadata).toHaveCount(1)
+    await expect(metadata).toHaveAttribute('data-inertia', 'description" & <page>')
+    await expect(metadata).toHaveAttribute('content', 'Second > value & "changed"')
+    await page.getByRole('button', { name: 'Remove keyed metadata' }).click()
+    await expect(metadata).toHaveCount(1)
+    await expect(metadata).toHaveAttribute('data-inertia', 'description" & <page>')
+    await expect(metadata).toHaveAttribute('content', 'Fallback description')
+  },
+  async rawText(page: Page) {
+    await expect(page.getByTestId('head-mounted')).toHaveText('mounted')
+    const structuredData = page.locator('head script[type="application/ld+json"][data-inertia]')
+    const stylesheet = page.locator('head style[data-inertia="stylesheet"]')
+    const root = page.locator('html')
+    await expect(structuredData).toHaveCount(2)
+    await expect
+      .poll(() => structuredData.evaluateAll((elements) => elements.map((element) => JSON.parse(element.textContent!))))
+      .toEqual([
+        { '@type': 'WebPage', name: 'A & < B "quoted"' },
+        { '@type': 'WebPage', name: 'A & < B "quoted"' },
+      ])
+    await expect.poll(() => stylesheet.textContent()).toBe(':root { --head-raw-text: "A & < B"; }')
+    await expect(root).toHaveAttribute('data-head-script-value', 'A & < B "quoted"')
+    await expect(root).toHaveAttribute('data-head-script-runs', '1')
+
+    await page.getByRole('button', { name: 'Update raw head content' }).click()
+    await expect
+      .poll(() => structuredData.evaluateAll((elements) => elements.map((element) => JSON.parse(element.textContent!))))
+      .toEqual([
+        { '@type': 'WebPage', name: 'C > D & "changed"' },
+        { '@type': 'WebPage', name: 'C > D & "changed"' },
+      ])
+    await expect.poll(() => stylesheet.textContent()).toBe(':root { --head-raw-text: "C > D &"; }')
+    await expect(root).toHaveAttribute('data-head-script-value', 'C > D & "changed"')
+    await expect(root).toHaveAttribute('data-head-script-runs', '2')
+    await expect(page.locator('head script[data-inertia="executable"]')).toHaveCount(1)
+  },
+}

@@ -129,6 +129,32 @@ app.get('/ssr/head-title', (req, res) =>
   }),
 )
 
+for (const [name, component, props] of [
+  ['with-title', 'Head/WithTitle', {}],
+  ['escaped-key', 'Head/EscapedKey', {}],
+  ['raw-text', 'Head/RawText', {}],
+  [
+    'providers',
+    'Head/Providers',
+    {
+      head: [
+        '<title data-inertia="title">Server title</title>',
+        '<meta data-inertia="description" name="description" content="Server description">',
+      ],
+    },
+  ],
+]) {
+  for (const [prefix, render] of [
+    ['', inertia.render],
+    ['/ssr', inertia.renderSSR],
+    ['/ssr-auto', inertia.renderSSRAuto],
+  ]) {
+    app.get(`${prefix}/head/${name}`, (req, res) =>
+      render(req, res, { component, props: { ...props, titleMode: req.query.titleMode } }),
+    )
+  }
+}
+
 app.get('/ssr/head-resource', (req, res) =>
   inertia.renderSSR(req, res, {
     component: 'SSR/HeadResource',

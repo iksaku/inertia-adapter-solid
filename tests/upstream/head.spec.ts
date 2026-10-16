@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test'
-import { pageLoads } from './support'
+import { headAssertions, pageLoads } from './support'
 
 async function getInertiaHeadHTML(page: Page) {
   return await page.evaluate(() => {
@@ -111,6 +111,11 @@ test.describe('Head component', () => {
     )
   })
 
+  test('preserves and reactively updates raw script, style and JSON-LD content', async ({ page }) => {
+    await page.goto('/head/raw-text')
+    await headAssertions.rawText(page)
+  })
+
   test('handles conditional rendering', async ({ page }) => {
     await page.goto('/head/conditional')
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
@@ -182,6 +187,11 @@ test.describe('Head component', () => {
     await expect.poll(metadata).toEqual([])
   })
 
+  test('preserves provider creation priority and restores layout then server declarations', async ({ page }) => {
+    await page.goto('/head/providers?withServerHead')
+    await headAssertions.providerRestoration(page)
+  })
+
   test('passes page as second argument to titleCallback', async ({ page }) => {
     await page.goto('/head/title-callback?withTitleCallback')
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
@@ -237,14 +247,12 @@ test.describe('Head component', () => {
     expect(headHTML).toBe('<meta name="test" content="no title provided" data-inertia="">')
   })
 
-  test('handles head with title prop', async ({ page }) => {
+  test('prefers child titles, including empty ones, and restores the title prop after removal', async ({ page }) => {
     await page.goto('/head/with-title')
-    await page.waitForSelector('title[data-inertia]', { state: 'attached' })
-
-    const headHTML = await getInertiaHeadHTML(page)
-    expect(headHTML).toBe(
-      '<meta name="description" content="Title set via children, not prop" data-inertia="">' +
-        '<title data-inertia="">Title from Children</title>',
+    await headAssertions.titleFallback(page)
+    await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
+      'content',
+      'Title set via children, not prop',
     )
   })
 
@@ -261,6 +269,11 @@ test.describe('Head component', () => {
     const descriptionCount = await page.locator('meta[name="description"]').count()
     await expect(descriptionCount).toBe(1)
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Updated description')
+  })
+
+  test('escapes head-key identities and keeps keyed updates and restoration unique', async ({ page }) => {
+    await page.goto('/head/escaped-key')
+    await headAssertions.escapedKey(page)
   })
 
   test('does not duplicate meta tags on navigation', async ({ page }) => {

@@ -4,7 +4,9 @@ import createServer from 'inertia-adapter-solid/server'
 import type { Component } from 'solid-js'
 import { renderToStringAsync } from 'solid-js/web'
 
-const pages = import.meta.glob<{ default: Component }>('./Pages/SSR/**/*.tsx', { eager: true })
+const pages = import.meta.glob<{ default: Component }>(['./Pages/SSR/**/*.tsx', './Pages/Head/**/*.tsx'], {
+  eager: true,
+})
 const renderPage = (page: Page) =>
   createInertiaApp({
     page,
