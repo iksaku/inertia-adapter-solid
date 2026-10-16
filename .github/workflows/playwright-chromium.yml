@@ -1,6 +1,14 @@
 # Adapted from inertiajs/inertia v3.9.1; MIT notice: tests/upstream/LICENSE.md.
 name: Playwright Tests on Chromium
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+      - '.changeset/**'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '.changeset/**'
 
 permissions:
   contents: read
