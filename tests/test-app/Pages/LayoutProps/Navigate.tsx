@@ -1,6 +1,7 @@
-import { Link } from 'inertia-adapter-solid'
+import { Link, setLayoutProps } from 'inertia-adapter-solid'
 import AppLayout from '../../Layouts/AppLayout'
 const Navigate = () => {
+  setLayoutProps({ title: 'Navigate Page', showSidebar: false, theme: 'dark' })
   return (
     <div>
       <h2>Navigate Page</h2>
@@ -13,5 +14,5 @@ const Navigate = () => {
     </div>
   )
 }
-Navigate.layout = [AppLayout, { title: 'Navigate Page', showSidebar: false, theme: 'dark' }]
+Navigate.layout = AppLayout
 export default Navigate

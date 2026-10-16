@@ -1,10 +1,30 @@
 import type { Page } from '@inertiajs/core'
 import { cleanup, fireEvent, render, waitFor } from '@solidjs/testing-library'
-import { App, Deferred, router, usePage, useRemember } from 'inertia-adapter-solid'
-import { type ParentComponent, createContext, createEffect, createSignal, onCleanup, useContext } from 'solid-js'
+import {
+  App,
+  Deferred,
+  type InertiaComponent,
+  resetLayoutProps,
+  router,
+  setLayoutProps,
+  usePage,
+  useRemember,
+} from 'inertia-adapter-solid'
+import {
+  type ParentComponent,
+  createContext,
+  createEffect,
+  createSignal,
+  mergeProps,
+  onCleanup,
+  useContext,
+} from 'solid-js'
 import { afterEach, expect, it, vi } from 'vitest'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  resetLayoutProps()
+})
 
 const page = (): Page => ({
   component: 'Consumer',
@@ -334,4 +354,159 @@ it('separates page resets from layout identity, including two resets within the 
   } finally {
     clock.mockRestore()
   }
+})
+
+it('updates layered and named props without remounting layouts or notifying unchanged prop consumers', async () => {
+  const counts: unknown[] = []
+  const Mirror: ParentComponent<Record<string, unknown>> = (props) => {
+    const resolved = mergeProps({ extra: 'fallback' }, props)
+    return (
+      <>
+        <output>{`${String(resolved.title)}:${String(resolved.count)}:${String(resolved.extra)}`}</output>
+        <small>{Object.keys(props).includes('extra') ? 'extra present' : 'extra absent'}</small>
+        <em>{typeof resolved.format === 'function' ? resolved.format(String(resolved.title)) : ''}</em>
+        {resolved.children}
+      </>
+    )
+  }
+  const layout =
+    (name: string): ParentComponent<Record<string, unknown>> =>
+    (props) => {
+      const [count, setCount] = createSignal(0)
+      if (name === 'outer') createEffect(() => counts.push(props.count))
+      return (
+        <section data-layout={name}>
+          <button type="button" onClick={() => setCount(count() + 1)}>
+            {count()}
+          </button>
+          <Mirror {...props} />
+        </section>
+      )
+    }
+  const Outer = layout('outer')
+  const Inner = layout('inner')
+  const A: InertiaComponent = () => <article>A</article>
+  const B: InertiaComponent = () => <article>B</article>
+  const C: InertiaComponent = () => <article>C</article>
+  A.layout = {
+    app: {
+      component: Outer,
+      props: { title: 'outer A', children: 'not the page', format: (title: string) => title.toUpperCase() },
+    },
+    content: [Inner, { title: 'inner A' }],
+  }
+  B.layout = { app: [Outer, { title: 'outer B' }], content: [Inner, { title: 'inner B' }] }
+  C.layout = { '': [Outer], content: [Inner] }
+  const components = { A, B, C }
+  const view = render(() => (
+    <App
+      initialPage={{ ...page(), component: 'A', props: { errors: {}, title: 'page', count: 7 } }}
+      initialComponent={A}
+      resolveComponent={(name) => components[name as keyof typeof components]}
+    />
+  ))
+  const outer = view.container.querySelector('[data-layout="outer"]')!
+  const inner = view.container.querySelector('[data-layout="inner"]')!
+  const text = (element: Element) => element.querySelector('output')!.textContent
+  expect(text(outer)).toBe('outer A:7:fallback')
+  expect(text(inner)).toBe('inner A:7:fallback')
+  expect(outer.querySelector('em')?.textContent).toBe('OUTER A')
+  expect(view.container.querySelector('article')?.textContent).toBe('A')
+  fireEvent.click(outer.querySelector('button')!)
+
+  setLayoutProps({ title: 'intermediate', count: 99 })
+  setLayoutProps({ title: 'shared', count: 7, extra: 0 })
+  setLayoutProps('app', { title: 'named' })
+  setLayoutProps('not-mounted', { title: 'ignored' })
+  await waitFor(() => expect(text(outer)).toBe('named:7:0'))
+  expect(text(inner)).toBe('shared:7:0')
+  expect(outer.querySelector('em')?.textContent).toBe('NAMED')
+  expect(outer.querySelector('small')?.textContent).toBe('extra present')
+  expect(counts).toEqual([7])
+
+  setLayoutProps('app', { title: undefined, count: false, extra: '' })
+  await waitFor(() => expect(text(outer)).toBe('undefined:false:'))
+  expect(text(inner)).toBe('shared:7:0')
+  resetLayoutProps()
+  expect(text(outer)).toBe('outer A:7:fallback')
+  expect(outer.querySelector('small')?.textContent).toBe('extra absent')
+  expect(counts).toEqual([7, false, 7])
+
+  const visit = (component: string, preserveState: boolean) =>
+    new Promise<void>((resolve) =>
+      router.replace({
+        component,
+        props: { errors: {}, title: 'new page', count: 7 },
+        preserveState,
+        onSuccess: () => resolve(),
+      }),
+    )
+  setLayoutProps({ title: 'preserved' })
+  setLayoutProps('app', { title: 'named preserved' })
+  await visit('B', true)
+  expect(text(outer)).toBe('named preserved:7:fallback')
+  expect(text(inner)).toBe('preserved:7:fallback')
+  expect(view.container.querySelector('article')?.textContent).toBe('B')
+
+  setLayoutProps('', { title: 'ignored empty name' })
+  await visit('C', true)
+  expect(text(outer)).toBe('preserved:7:fallback')
+  expect(text(inner)).toBe('preserved:7:fallback')
+  expect(view.container.querySelector('article')?.textContent).toBe('C')
+
+  await visit('A', false)
+  expect(text(outer)).toBe('outer A:7:fallback')
+  expect(text(inner)).toBe('inner A:7:fallback')
+  expect(view.container.querySelector('[data-layout="outer"]')).toBe(outer)
+  expect(view.container.querySelector('[data-layout="inner"]')).toBe(inner)
+  expect(outer.querySelector('button')?.textContent).toBe('1')
+  expect(counts).toEqual([7, false, 7])
+})
+
+it('resolves defaults from the current page, applies props-only overrides, and honors explicit opt-outs', async () => {
+  const Layout: ParentComponent<Record<string, unknown>> = (props) => (
+    <section>
+      <output>{String(props.title)}</output>
+      {props.children}
+    </section>
+  )
+  const Default: InertiaComponent = () => <article>default page</article>
+  const Overrides: InertiaComponent = () => <article>overrides page</article>
+  const Explicit: InertiaComponent = () => <article>explicit page</article>
+  const Disabled: InertiaComponent = () => <article>disabled page</article>
+  const Empty: InertiaComponent = () => <article>empty page</article>
+  const Null: InertiaComponent = () => <article>null page</article>
+  Overrides.layout = { title: 'page override' }
+  Explicit.layout = { component: Layout, props: { title: 'explicit' } }
+  Disabled.layout = false
+  Empty.layout = []
+  Null.layout = null
+  const components = { Default, Overrides, Explicit, Disabled, Empty, Null }
+  const view = render(() => (
+    <App
+      initialPage={{ ...page(), component: 'Default' }}
+      initialComponent={Default}
+      resolveComponent={(name) => components[name as keyof typeof components]}
+      defaultLayout={(name, page) => [Layout, { title: `${name}:${page.url}` }]}
+    />
+  ))
+  const layout = view.container.querySelector('section')
+  expect(view.container.querySelector('output')?.textContent).toBe('Default:/')
+  const visit = (component: keyof typeof components) =>
+    new Promise<void>((resolve) =>
+      router.replace({ component, url: '/next', preserveState: false, onSuccess: () => resolve() }),
+    )
+  await visit('Overrides')
+  expect(view.container.querySelector('output')?.textContent).toBe('page override')
+  await visit('Explicit')
+  expect(view.container.querySelector('output')?.textContent).toBe('explicit')
+  expect(view.container.querySelector('section')).toBe(layout)
+  await visit('Disabled')
+  expect(view.container.querySelector('section')).toBeNull()
+  await visit('Empty')
+  expect(view.container.querySelector('section')).toBeNull()
+  await visit('Null')
+  expect(view.container.querySelector('output')?.textContent).toBe('Null:/next')
+  await visit('Default')
+  expect(view.container.querySelector('output')?.textContent).toBe('Default:/next')
 })

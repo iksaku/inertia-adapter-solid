@@ -4,7 +4,7 @@ import { WithAppContext } from './Pages/SSR/WithApp'
 
 window.testing = { Inertia: router }
 const pages = import.meta.glob<{ default: Component }>(
-  ['./Pages/**/*.tsx', '!./Pages/LayoutProps/**/*.tsx', '!./Pages/NestedProps/RescuedDeferred*.tsx'],
+  ['./Pages/**/*.tsx', '!./Pages/NestedProps/RescuedDeferred*.tsx'],
   { eager: true },
 )
 createInertiaApp({

@@ -23,7 +23,7 @@ import {
   type renderToString,
   type renderToStringAsync,
 } from 'solid-js/web'
-import App, { type InertiaAppProps } from './App'
+import App, { type InertiaAppProps, type InertiaComponent } from './App'
 import type { SolidInertiaAppConfig } from './types'
 
 type SetupOptions<ElementType, SharedProps extends PageProps> = {
@@ -32,28 +32,43 @@ type SetupOptions<ElementType, SharedProps extends PageProps> = {
   props: InertiaAppProps<SharedProps>
 }
 
+// Resolve components without constraining TypeScript's inferred static layout property.
+type PageComponent = Component<Page['props']>
+
 type ComponentResolver = (
   name: string,
   page?: Page<SharedPageProps>,
-) => Component | Promise<Component> | { default: Component }
+) => PageComponent | Promise<PageComponent> | { default: PageComponent }
 
 type SolidWithApp = (app: Component, options: { ssr: boolean }) => JSX.Element
 
-type InertiaAppOptionsForCSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForCSR<
-  SharedProps,
-  ComponentResolver,
-  SetupOptions<Element, SharedProps>,
-  void,
-  SolidInertiaAppConfig
-> & { title?: never; serverHead?: never; withApp?: never }
+type InertiaAppOptionsForCSR<SharedProps extends PageProps> = Omit<
+  CreateInertiaAppOptionsForCSR<
+    SharedProps,
+    ComponentResolver,
+    SetupOptions<Element, SharedProps>,
+    void,
+    SolidInertiaAppConfig
+  >,
+  'layout'
+> & { title?: never; serverHead?: never; withApp?: never; layout?: InertiaAppProps<SharedProps>['defaultLayout'] }
 
-type InertiaAppOptionsForSSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForSSR<
-  SharedProps,
-  ComponentResolver,
-  SetupOptions<null, SharedProps>,
-  JSX.Element,
-  SolidInertiaAppConfig
-> & { title?: never; serverHead?: never; render: RenderToString; withApp?: never }
+type InertiaAppOptionsForSSR<SharedProps extends PageProps> = Omit<
+  CreateInertiaAppOptionsForSSR<
+    SharedProps,
+    ComponentResolver,
+    SetupOptions<null, SharedProps>,
+    JSX.Element,
+    SolidInertiaAppConfig
+  >,
+  'layout'
+> & {
+  title?: never
+  serverHead?: never
+  render: RenderToString
+  withApp?: never
+  layout?: InertiaAppProps<SharedProps>['defaultLayout']
+}
 
 type InertiaAppOptionsAuto<SharedProps extends PageProps> = Omit<
   CreateInertiaAppOptions<
@@ -62,12 +77,13 @@ type InertiaAppOptionsAuto<SharedProps extends PageProps> = Omit<
     JSX.Element | void,
     SolidInertiaAppConfig
   >,
-  'setup'
+  'setup' | 'layout'
 > & {
   title?: never
   serverHead?: never
   page?: Page<SharedProps>
   render?: undefined
+  layout?: InertiaAppProps<SharedProps>['defaultLayout']
 } & (
     | { setup?: undefined; withApp?: SolidWithApp }
     | { setup: (options: SetupOptions<HTMLElement | null, SharedProps>) => JSX.Element | void; withApp?: never }
@@ -100,7 +116,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     defaults = {},
     nonce,
     http,
-    // TODO: layout
+    layout,
     withApp,
   }:
     | InertiaAppOptionsForCSR<SharedProps>
@@ -120,7 +136,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
   const resolveComponent = (name: string, page?: Page) =>
     Promise.resolve(resolve!(name, page)).then((module) => {
       // return 'default' in module ? module.default : module
-      return ((module as { default?: Component }).default || module) as Component
+      return ((module as { default?: InertiaComponent }).default || module) as InertiaComponent
     })
 
   // SSR render function factory - when on server without page/render, return a render function
@@ -133,6 +149,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
         initialPage: page,
         initialComponent,
         resolveComponent,
+        defaultLayout: layout,
       }
 
       let solidApp: () => JSX.Element
@@ -145,7 +162,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
             props,
           })
       } else {
-        solidApp = () => createComponent(App, props)
+        solidApp = () => createComponent(App<SharedProps>, props)
 
         if (withApp) {
           const _solidApp = solidApp
@@ -173,6 +190,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
       initialPage,
       initialComponent,
       resolveComponent,
+      defaultLayout: layout,
     }
 
     if (isServer) {
@@ -196,7 +214,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
       return
     }
 
-    let appElement = () => createComponent(App, props)
+    let appElement = () => createComponent(App<SharedProps>, props)
 
     if (withApp) {
       const _appElement = appElement

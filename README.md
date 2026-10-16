@@ -252,8 +252,102 @@ have different identities even when their JSX looks identical. Their layouts
 remount on navigation. Prefer component arrays when individual layout depths
 need to persist independently; a shared wrapper is one opaque layout boundary.
 
-Render-function layouts are currently deferred in this adapter. They remain
-supported by Inertia's official adapters and are not deprecated upstream.
+Layout render callbacks and page-props callbacks assigned to `Page.layout` are
+not supported. Bare functions always mean components. Both callback formats
+remain supported by Inertia's official adapters and are not deprecated upstream.
+
+### Layout props and named layouts
+
+Pass static props with a tuple or an object descriptor. Both forms can be nested.
+
+```jsx
+Welcome.layout = [SiteLayout, { title: 'Welcome' }]
+
+// Equivalent object syntax
+Welcome.layout = { component: SiteLayout, props: { title: 'Welcome' } }
+
+// Nested layouts, outermost first
+Welcome.layout = [
+  [SiteLayout, { title: 'Welcome' }],
+  { component: NestedLayout, props: { padding: 'lg' } },
+]
+```
+
+Use a named object to target individual layouts with dynamic overrides. Nonempty
+names select props; component identity at each depth still determines persistence.
+
+```jsx
+Welcome.layout = {
+  app: [SiteLayout, { title: 'Welcome' }],
+  content: [NestedLayout, { padding: 'lg' }],
+}
+```
+
+```jsx
+import { resetLayoutProps, setLayoutProps } from 'inertia-adapter-solid'
+
+// Shared by every layout
+setLayoutProps({ title: 'Updated title' })
+
+// Only the layout named "content"
+setLayoutProps('content', { padding: 'sm' })
+
+// Remove all shared and named dynamic overrides
+resetLayoutProps()
+```
+
+Updates shallow-merge with existing dynamic overrides and publish together in a
+microtask; resets take effect immediately. Effective props are resolved from
+lowest to highest priority: page props, descriptor props,
+props-only default overrides, shared dynamic overrides, then named dynamic
+overrides. `children` always belongs to the renderer. An explicit `undefined`
+overrides lower-priority values, allowing the layout's own defaults to apply.
+
+Dynamic overrides reset on a non-preserving navigation and survive when
+`preserveState` is enabled. Resetting props does not reset layout component
+state. Setters are client-only and do nothing during SSR; use static props or
+the default-layout selector for server-rendered data. Overrides made during
+hydration apply after that hydration pass, preserving the initial server markup.
+Read props reactively, and use `createEffect` when a setter depends on changing
+signals or page props.
+
+### Default layouts
+
+The `layout` option selects defaults from the page name and full page object.
+Unlike `Page.layout`, this option explicitly accepts a selector function.
+Configure it in both client and server entrypoints when using manual SSR setup.
+
+```jsx
+createInertiaApp({
+  layout: (name, page) => name.startsWith('Public/')
+    ? null
+    : [SiteLayout, { title: page.props.title }],
+  // resolve/setup, if not supplied by the Vite plugin
+})
+
+// Use the default layout(s), overriding their static props
+Welcome.layout = { title: 'Welcome', showSidebar: false }
+
+// Explicitly opt out of default layouts
+Login.layout = [] // false also opts out; null/undefined inherit defaults
+```
+
+An explicit page layout replaces the defaults rather than appending to them.
+Props-only overrides apply to every default layout. Following Inertia's
+normalization, an empty object means no layouts; an object containing only
+component-like values (including functions) means named layouts. Put
+function-valued props inside an explicit descriptor's `props` object to avoid
+that ambiguity.
+
+TypeScript consumers can use the exported `InertiaComponent`, `InertiaLayout`,
+and `InertiaLayoutComponent` types. Configure `InertiaConfig.layoutProps` and
+`InertiaConfig.namedLayoutProps` in `@inertiajs/core` to type dynamic setters,
+or supply an explicit type argument at the call site:
+
+```tsx
+setLayoutProps<{ title: string }>({ title: 'Updated title' })
+setLayoutProps<{ padding: number }>('content', { padding: 16 })
+```
 
 > [!TIP]
 > Learn more at the official [Layouts](https://inertiajs.com/docs/v3/the-basics/layouts)
