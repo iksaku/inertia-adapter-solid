@@ -215,7 +215,6 @@ test.describe('server head', () => {
 
 test.describe('layout props', () => {
   test('it does not leak layout props between SSR requests', async ({ page, browserName }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid has no mutable layout-props API to isolate')
     const responseA = await page.request.get('/ssr/layout-props-a')
     const htmlA = await responseA.text()
 
@@ -233,7 +232,6 @@ test.describe('layout props', () => {
     page,
     browserName,
   }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid has no setLayoutProps API')
     consoleMessages.listen(page)
 
     await page.request.get('/ssr/layout-props-a')
@@ -248,7 +246,6 @@ test.describe('layout props', () => {
   })
 
   test('it hydrates without errors on a page that uses layout tuple props', async ({ page, browserName }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid supports component layouts, not layout tuple props')
     consoleMessages.listen(page)
 
     await page.goto('/ssr/layout-props-a')
@@ -261,7 +258,6 @@ test.describe('layout props', () => {
   })
 
   test('it renders layout tuple props in SSR HTML', async ({ page, browserName }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid supports component layouts, not layout tuple props')
     const response = await page.request.get('/ssr/layout-props-a')
     const html = await response.text()
 
@@ -270,10 +266,7 @@ test.describe('layout props', () => {
   })
 
   test('it supports a layout callback that receives page props during SSR', async ({ page, browserName }) => {
-    test.skip(
-      process.env.PACKAGE === 'solid',
-      'Solid layout functions are components, not tuple-returning layout callbacks',
-    )
+    test.skip(process.env.PACKAGE === 'solid', 'Layout page-props callbacks are not supported by the Solid adapter')
     const response = await page.request.get('/ssr/layout-props-callback')
     const html = await response.text()
 
@@ -282,10 +275,7 @@ test.describe('layout props', () => {
   })
 
   test('it hydrates a layout callback page without errors', async ({ page, browserName }) => {
-    test.skip(
-      process.env.PACKAGE === 'solid',
-      'Solid layout functions are components, not tuple-returning layout callbacks',
-    )
+    test.skip(process.env.PACKAGE === 'solid', 'Layout page-props callbacks are not supported by the Solid adapter')
     consoleMessages.listen(page)
 
     await page.goto('/ssr/layout-props-callback')
@@ -434,15 +424,16 @@ test.describe('SSR Auto Transform', () => {
   })
 })
 
-test('Solid renders and hydrates a component layout', async ({ page }) => {
-  test.skip(process.env.PACKAGE !== 'solid', 'Solid component-layout contract, not mutable layout props')
+test('Solid renders static layout props and applies dynamic overrides after hydration', async ({ page }) => {
+  test.skip(process.env.PACKAGE !== 'solid', 'Solid client-only layout overrides')
   const response = await page.request.get('/ssr/layout-props-a')
   const html = await response.text()
   expect(html).toContain('Page A Title')
+  expect(html).not.toContain('Client Page A Title')
   expect(html).toContain('Page A Content')
   consoleMessages.listen(page)
   await page.goto('/ssr/layout-props-a')
-  await expect(page.getByTestId('layout-title')).toHaveText('Page A Title')
+  await expect(page.getByTestId('layout-title')).toHaveText('Client Page A Title')
   await expect(page.getByTestId('page-content')).toHaveText('Page A Content')
   expect(consoleMessages.errors).toHaveLength(0)
 })
