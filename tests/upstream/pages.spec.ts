@@ -23,13 +23,14 @@ test('it preserves equal props from the previous page', async ({ page }) => {
 })
 
 test.describe('persistent layouts', () => {
-  // Phase 20 is deferred until Solid's layout identity and reactivity API is designed.
-  // Keep every assertion and fixture so this suite can be re-enabled after that decision.
-  test.skip(process.env.PACKAGE === 'solid', 'Persistent-layout API redesign deferred (Phase 20)')
   const layoutData = [{ method: 'render-function' }, { method: 'shorthand' }] as const
 
   layoutData.forEach(({ method }) => {
     test(`can have a persistent layout (${method})`, async ({ page }) => {
+      test.skip(
+        process.env.PACKAGE === 'solid' && method === 'render-function',
+        'Render-function layouts are deferred in the Solid adapter',
+      )
       await page.goto(`/persistent-layouts/${method}/simple/page-a`)
 
       const layoutAId = await page.evaluate(() => (window as any)._inertia_layout_id)
@@ -48,6 +49,10 @@ test.describe('persistent layouts', () => {
 
   layoutData.forEach(({ method }) => {
     test(`can create more complex layout arrangements using nested layouts (${method})`, async ({ page }) => {
+      test.skip(
+        process.env.PACKAGE === 'solid' && method === 'render-function',
+        'Render-function layouts are deferred in the Solid adapter',
+      )
       await page.goto(`/persistent-layouts/${method}/nested/page-a`)
 
       const layoutAId = await page.evaluate(() => (window as any)._inertia_layout_id)

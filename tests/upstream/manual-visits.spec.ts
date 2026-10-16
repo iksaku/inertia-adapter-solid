@@ -357,11 +357,7 @@ test.describe('Replace', () => {
   const data = [{ method: 'visit' }, { method: 'GET' }] as const
 
   data.forEach(({ method }) => {
-    // TODO: Not working...
-    test(`replaces the current history state (${method} method)`, async ({ page, browserName }) => {
-      // Firefox handles goBack() differently after replaceState - skip this browser-specific test
-      test.skip(browserName === 'firefox', 'Firefox handles history.replaceState differently')
-
+    test(`replaces the current history state (${method} method)`, async ({ page }) => {
       const responsePromise = page.waitForResponse('/dump/get')
       await page.getByRole('link', { name: `[State] Replace ${method}: true` }).click()
       await responsePromise
@@ -491,12 +487,7 @@ test.describe('Preserve scroll', () => {
       await expect(page.getByText('Slot scroll position is 10 & 15')).toBeVisible()
     })
 
-    test('does not reset untracked scroll regions in persistent layouts (visit method)', async ({
-      page,
-      browserName,
-    }) => {
-      test.skip(browserName === 'firefox', 'Firefox on Linux auto-adjusts scroll on content change')
-
+    test('does not reset untracked scroll regions in persistent layouts (visit method)', async ({ page }) => {
       // Activate without Playwright changing the prepared untracked scroll position.
       await page
         .getByRole('link', { exact: true, name: 'Reset Scroll' })
