@@ -16,6 +16,3 @@ the Vite SSR bootstrap to avoid top-level await.
 HTTP 422 submissions through `useHttp` now resolve to `undefined` with validation
 errors instead of rejecting, matching current Inertia behavior. Submission
 return types include `undefined`; other failures still reject.
-
-Head management continues to use `@solidjs/meta`; the unsupported Inertia
-`serverHead` option is explicitly excluded from the app setup types.

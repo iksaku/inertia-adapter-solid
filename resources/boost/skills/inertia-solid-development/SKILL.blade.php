@@ -26,7 +26,7 @@ Activate this skill when:
 Use `search-docs` for detailed Inertia v3 patterns and documentation. The official Inertia documentation demonstrates React, Vue, and Svelte - this package (`inertia-adapter-solid`) mirrors that API for SolidJS, with these differences:
 
 - Import everything from `inertia-adapter-solid` (not `@inertiajs/react`, `@inertiajs/vue3`, or `@inertiajs/svelte`).
-- There is no `<Head>` component. Use `<Title>`, `<Meta>`, and `<Link>` from `@solidjs/meta` - the Inertia `<App>` is already wrapped in a `MetaProvider`.
+- There is a `<Head>` component, exported from `inertia-adapter-solid`, mirroring the official adapters. Pass a `title` prop or intrinsic children (`<title>`, `<meta>`, `<link>`); deduplicate tags with the `head-key` attribute. `@solidjs/meta` is not used - the app is no longer wrapped in a `MetaProvider`.
 - Persistent layouts are assigned via a static property: `Page.layout = Layout` (or an array of layouts).
 - SolidJS reactivity rules apply everywhere: component bodies run once, and destructuring props, `usePage()`, or `useForm()` results breaks reactivity.
 - Layout props (`setLayoutProps` / `useLayoutProps`) are not supported by this adapter.
@@ -64,13 +64,13 @@ Page components receive page props as a single `props` object. Access properties
 
 @verbatim
 @boostsnippet("Basic SolidJS Page Component", "jsx")
-import { Title } from '@solidjs/meta'
+import { Head } from 'inertia-adapter-solid'
 import { For } from 'solid-js'
 
 export default function UsersIndex(props) {
     return (
         <div>
-            <Title>Users</Title>
+            <Head title="Users" />
             <h1>Users</h1>
             <ul>
                 <For each={props.users}>
@@ -129,13 +129,14 @@ export default function UsersIndex() {
 
 @verbatim
 @boostsnippet("Page Title and Meta Tags", "jsx")
-import { Meta, Title } from '@solidjs/meta'
+import { Head } from 'inertia-adapter-solid'
 
 export default function Welcome() {
     return (
         <>
-            <Title>Welcome</Title>
-            <Meta name="description" content="Your page description" />
+            <Head title="Welcome">
+                <meta head-key="description" name="description" content="Your page description" />
+            </Head>
             <h1>Welcome</h1>
         </>
     )
@@ -711,7 +712,7 @@ Server-side patterns (`Inertia::render`, props, middleware) are covered in inert
 - Using `.map()` for dynamic lists - use `<For>` (or `<Index>` for static-length lists) so SolidJS can reuse DOM nodes
 - Using `className` or `htmlFor` - SolidJS uses `class` and `for`
 - Binding controlled inputs with `onChange` - it fires on blur in SolidJS; use `onInput`
-- Reaching for a `<Head>` component - this adapter uses `<Title>`, `<Meta>`, and `<Link>` from `@solidjs/meta`
+- Reaching for `@solidjs/meta`'s `<Title>`, `<Meta>`, or `<Link>` components - this adapter ships its own `<Head>` component like the official adapters, and `@solidjs/meta` is no longer used
 - Recreating persistent layouts the React way (`Page.layout = (page) => <Layout>{page}</Layout>`) - assign the component directly: `Page.layout = Layout` or an array of layouts
 - Accessing `props.children` repeatedly inside layouts - resolve it once with the `children()` helper
 - Running browser-only code in `createEffect` during SSR - effects never run on the server; use `onMount` or guard with `isServer` from `solid-js/web`

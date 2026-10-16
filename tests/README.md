@@ -159,6 +159,41 @@ The fixtures use Solid accessors, stores, reactive props and slot objects,
 re-render counts are not a Solid contract. The unit runner separates browser
 module conditions from actual server conditions; it does not mock the router.
 
+## Inertia-backed Head migration
+
+`head.spec.ts` and `server-head.spec.ts` now run the upstream Head contracts
+against the adapter's public exports. Fixtures use `<Head>`, intrinsic tags,
+Signal accessors, `Show`, and `head-key`; they no longer use `@solidjs/meta`.
+The only changed upstream output expectation is Solid's native omission of
+nullish attributes: `content={null}` and `content={undefined}` do not produce
+the strings `"null"` and `"undefined"`. The original primitive inputs remain.
+
+The existing `Head component` group in `head.spec.ts` also checks state retention
+across `For` changes and title callback Signal dependencies, using the same test
+app, backend and browser runner as the upstream cases. `ssr.spec.ts` groups Head
+hydration beside the other SSR Head contracts. Custom-renderer and ErrorBoundary
+cases belong to `Head SSR` in the existing server-rendering unit file; public
+title callback declarations remain in the shared consumer type file.
+
+Server-rendering tests also check escaping, server-head precedence, and both
+synchronous and asynchronous SSR renderers. Pending-resource cases check
+resolved-only metadata, ErrorBoundary
+recovery, and request-local titles, Solid assets and nonces with overlapping
+requests and a renderer that yields after disposal. Browser tests exercise reactive
+metadata and conditional Head disposal after manual and automatic hydration,
+plus cached-resource hydration and Signal source changes under an enforced nonce
+CSP with a blocked control script. The manual test entry uses `renderToStringAsync`
+for pending resources; the automatic entry retains the framework's synchronous renderer.
+The automatic SSR backend inserts the renderer's head output in `<head>`, not at
+the JSON placeholder inside `<body>`; the hydration regression checks both the
+raw response and the hydrated DOM.
+
+The earlier source-bundling Head harness is removed. Duplicated probes are not
+ported one-for-one; the Solid-specific regressions above and generic title callback
+declarations now run through the normal public-export suite and CI. Resource
+creation inside Head children still has the documented hydration-cache limitation;
+create resources in the page or a helper that returns Head instead.
+
 ## Capability exclusions and explicitly deferred contracts
 
 Shared specs keep their upstream assertions for supported APIs. Explicit skips
@@ -170,7 +205,7 @@ identify contracts the Solid adapter does not expose or the owner has deferred:
 | Svelte compiler/top-level-await options | Framework-specific; Svelte spec excluded |
 | React StrictMode and `React.memo` render counts | Framework-specific; skipped |
 | `withApp` receives the page object | Solid receives `{ ssr }` instead; separate context/CSR/SSR/hydration tests cover that contract |
-| Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
+| Nullish Head attributes | Solid omits them natively rather than serializing literal `"null"` or `"undefined"`; other upstream Head/head-key/title callback/serverHead contracts are enabled |
 | App-level default layout | Not implemented in `createInertiaApp`; page-layout testing is separately deferred below |
 | Persistent page layouts | Explicitly deferred by the owner in Phase 20 pending a Solid-native API redesign; dedicated browser/SSR tests are skipped, with logic and fixtures retained |
 | Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
@@ -199,9 +234,10 @@ the runtime and Vite versions used for this port.
   with capability gates and native metadata assertions documented above.
 - `tests/app/*.js`: official backend, adapted only for Solid, local paths/ports,
   CommonJS exports, the matching automatic-SSR client template, and the Multer
-  avatar lookup correction documented in Phase 6 below.
+  avatar lookup correction documented in Phase 6 below. The Head migration adds
+  an automatic Head route and puts automatic SSR head output in the document head.
 - `tests/test-app/`: React fixture catalogue translated to Solid; `UsePage` uses
-  the Vue reactive-page fixtures, and metadata uses native Solid equivalents.
+  the Vue reactive-page fixtures, and Head declarations use native Solid reactivity.
 - `tests/unit/` and `tests/types/`: additional public Solid runtime/type consumers.
 - `.github/workflows/playwright-*.yml`: official Chromium/SSR, Firefox, and WebKit
   workflows adapted to the single Solid package and existing Node 22/pnpm pins.

@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test'
-import { pageLoads } from './support'
+import { headAssertions, pageLoads } from './support'
 
 async function getInertiaHeadHTML(page: Page) {
   return await page.evaluate(() => {
@@ -12,7 +12,6 @@ async function getInertiaHeadHTML(page: Page) {
 test.describe('Head component', () => {
   test.beforeEach(async ({ page }) => {
     test.skip(process.env.PACKAGE === 'svelte', 'Svelte adapter has no Head component')
-    test.skip(process.env.PACKAGE === 'solid', 'Solid has no Inertia Head/head-key/title callback contract; equivalent @solidjs/meta behavior is tested separately below')
   })
 
   test('replaces the original title element', async ({ page }) => {
@@ -54,14 +53,15 @@ test.describe('Head component', () => {
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
 
     const headHTML = await getInertiaHeadHTML(page)
+    // Solid's native attribute binding omits nullish values instead of stringifying them.
     expect(headHTML).toBe(
       '<meta name="viewport" content="width=device-width, initial-scale=1" data-inertia="">' +
         '<meta name="description" content="This is an &quot;escape&quot; example" data-inertia="">' +
-        '<meta name="undefined" content="undefined" data-inertia="">' +
+        `<meta name="undefined"${process.env.PACKAGE === 'solid' ? '' : ' content="undefined"'} data-inertia="">` +
         '<meta name="number" content="0" data-inertia="">' +
         '<meta name="boolean" content="true" data-inertia="">' +
         '<meta name="false" content="false" data-inertia="">' +
-        '<meta name="null" content="null" data-inertia="">' +
+        `<meta name="null"${process.env.PACKAGE === 'solid' ? '' : ' content="null"'} data-inertia="">` +
         '<meta name="float" content="3.14" data-inertia="">' +
         '<meta name="xss" content="&lt;script&gt;alert(\'xss\')&lt;/script&gt;" data-inertia="">' +
         '<meta name="ampersand" content="Laravel &amp; Inertia" data-inertia="">' +
@@ -111,6 +111,11 @@ test.describe('Head component', () => {
     )
   })
 
+  test('preserves and reactively updates raw script, style and JSON-LD content', async ({ page }) => {
+    await page.goto('/head/raw-text')
+    await headAssertions.rawText(page)
+  })
+
   test('handles conditional rendering', async ({ page }) => {
     await page.goto('/head/conditional')
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
@@ -150,6 +155,43 @@ test.describe('Head component', () => {
     )
   })
 
+  test('preserves stateful children through keyed list changes and removes declarations on disposal', async ({
+    page,
+  }) => {
+    await page.goto('/head/stateful-children')
+    const metadata = () =>
+      page
+        .locator('head meta[data-inertia]')
+        .evaluateAll((elements) =>
+          elements
+            .map((element) => [element.getAttribute('name'), element.getAttribute('content')])
+            .sort(([left], [right]) => left!.localeCompare(right!)),
+        )
+
+    await expect.poll(metadata).toEqual([
+      ['first', '1:before'],
+      ['second', '2:before'],
+    ])
+    await page.getByRole('button', { name: 'Reorder and add' }).click()
+    await expect.poll(metadata).toEqual([
+      ['first', '1:after'],
+      ['second', '2:after'],
+      ['third', '3:after'],
+    ])
+    await page.getByRole('button', { name: 'Remove second' }).click()
+    await expect.poll(metadata).toEqual([
+      ['first', '1:after'],
+      ['third', '3:after'],
+    ])
+    await page.getByRole('button', { name: 'Remove Head' }).click()
+    await expect.poll(metadata).toEqual([])
+  })
+
+  test('preserves provider creation priority and restores layout then server declarations', async ({ page }) => {
+    await page.goto('/head/providers?withServerHead')
+    await headAssertions.providerRestoration(page)
+  })
+
   test('passes page as second argument to titleCallback', async ({ page }) => {
     await page.goto('/head/title-callback?withTitleCallback')
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
@@ -184,6 +226,19 @@ test.describe('Head component', () => {
     await expect(page).toHaveTitle('Callback Page | replaced')
   })
 
+  test('titleCallback retracks Signal dependencies after child title changes and Head disposal', async ({ page }) => {
+    await page.goto('/head/title-callback?withTitleCallback')
+    await expect(page).toHaveTitle('Callback Page | Account')
+    await page.getByRole('button', { name: 'Change title branch' }).click()
+    await expect(page).toHaveTitle('Third | Alternate')
+    await page.getByRole('button', { name: 'Update callback suffix' }).click()
+    await expect(page).toHaveTitle('Third | Updated')
+    await page.getByRole('button', { name: 'Remove Head' }).click()
+    await expect(page).toHaveTitle('Account')
+    await page.getByRole('button', { name: 'Replace prop' }).click()
+    await expect(page).toHaveTitle('replaced')
+  })
+
   test('handles head without title prop', async ({ page }) => {
     await page.goto('/head/without-title')
     await page.waitForTimeout(100)
@@ -192,14 +247,12 @@ test.describe('Head component', () => {
     expect(headHTML).toBe('<meta name="test" content="no title provided" data-inertia="">')
   })
 
-  test('handles head with title prop', async ({ page }) => {
+  test('prefers child titles, including empty ones, and restores the title prop after removal', async ({ page }) => {
     await page.goto('/head/with-title')
-    await page.waitForSelector('title[data-inertia]', { state: 'attached' })
-
-    const headHTML = await getInertiaHeadHTML(page)
-    expect(headHTML).toBe(
-      '<meta name="description" content="Title set via children, not prop" data-inertia="">' +
-        '<title data-inertia="">Title from Children</title>',
+    await headAssertions.titleFallback(page)
+    await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
+      'content',
+      'Title set via children, not prop',
     )
   })
 
@@ -216,6 +269,11 @@ test.describe('Head component', () => {
     const descriptionCount = await page.locator('meta[name="description"]').count()
     await expect(descriptionCount).toBe(1)
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Updated description')
+  })
+
+  test('escapes head-key identities and keeps keyed updates and restoration unique', async ({ page }) => {
+    await page.goto('/head/escaped-key')
+    await headAssertions.escapedKey(page)
   })
 
   test('does not duplicate meta tags on navigation', async ({ page }) => {
@@ -254,67 +312,5 @@ test.describe('Head component', () => {
     await page.waitForSelector('title[data-inertia]', { state: 'attached' })
     const backToMixedHTML = await getInertiaHeadHTML(page)
     expect(backToMixedHTML).toBe(expectedMixedContent)
-  })
-})
-
-test.describe('Solid metadata (@solidjs/meta, not Inertia Head)', () => {
-  test.beforeEach(() => test.skip(process.env.PACKAGE !== 'solid', 'Solid metadata integration'))
-  // @solidjs/meta owns its own title, not the backend's data-inertia title.
-  // Replacing arbitrary pre-existing titles is an Inertia Head contract, not a Solid one.
-
-  test('renders title and escaped metadata without interpreting markup', async ({ page }) => {
-    await page.goto('/head')
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Test Head Component')
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', 'This is an "escape" example')
-    await expect(page.locator('head meta[name="xss"]')).toHaveAttribute('content', "<script>alert('xss')</script>")
-    await expect(page.locator('head meta[name="ampersand"]')).toHaveAttribute('content', 'Laravel & Inertia')
-    await expect(page.locator('head meta[name="unicode"]')).toHaveAttribute('content', 'Hélló! 🎉')
-  })
-
-  test('updates reactive metadata without duplicate descriptions', async ({ page }) => {
-    await page.goto('/head/reactive')
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Initial Title')
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', 'Initial description')
-    await page.locator('#update-meta').click()
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Updated Title')
-    await expect(page.locator('head meta[name="description"]')).toHaveCount(1)
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', 'Updated description')
-    await expect(page.locator('head meta[name="author"]')).toHaveAttribute('content', 'Test Author')
-  })
-
-  test('adds and removes conditional metadata', async ({ page }) => {
-    await page.goto('/head/conditional')
-    const description = page.locator('head meta[name="description"]')
-    const keywords = page.locator('head meta[name="keywords"]')
-    await expect(description).toHaveCount(1)
-    await expect(keywords).toHaveCount(0)
-    await page.locator('#toggle-description').click()
-    await expect(description).toHaveCount(0)
-    await page.locator('#toggle-keywords').click()
-    await expect(keywords).toHaveAttribute('content', 'vue, test, conditional')
-    await page.locator('#toggle-description').click()
-    await expect(description).toHaveCount(1)
-    await expect(page.locator('head meta[name="always-present"]')).toHaveCount(1)
-  })
-
-  test('renders mixed head elements and removes them on navigation', async ({ page }) => {
-    await page.goto('/head/mixed')
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Multiple Elements Test')
-    await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', 'https://example.com/page')
-    await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', 'Open Graph Title')
-    await page.locator('#navigate-away').click()
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Home')
-    await expect(page.locator('head link[rel="canonical"]')).toHaveCount(0)
-    await page.goBack()
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Multiple Elements Test')
-    await expect(page.locator('head meta[name="description"]')).toHaveCount(1)
-  })
-
-  test('renders metadata without a title and a title component with children', async ({ page }) => {
-    await page.goto('/head/without-title')
-    await expect(page.locator('head meta[name="test"]')).toHaveAttribute('content', 'no title provided')
-    await page.goto('/head/with-title')
-    await expect.poll(() => page.locator('head title:not([data-inertia])').textContent()).toBe('Title from Children')
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute('content', 'Title set via children, not prop')
   })
 })

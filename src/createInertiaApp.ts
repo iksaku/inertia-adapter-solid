@@ -16,15 +16,16 @@ import {
 import { type Component, type JSX, createComponent } from 'solid-js'
 import {
   generateHydrationScript,
-  getAssets,
   hydrate as hydrateRoot,
   isServer,
   render as renderRoot,
   type renderToString,
   type renderToStringAsync,
+  ssr,
 } from 'solid-js/web'
 import App, { type InertiaAppProps } from './App'
-import type { SolidInertiaAppConfig } from './types'
+import { ServerHeadContext, createServerHeadState } from './HeadContext'
+import type { InertiaTitleCallback, SolidInertiaAppConfig } from './types'
 
 type SetupOptions<ElementType, SharedProps extends PageProps> = {
   el: ElementType
@@ -39,33 +40,44 @@ type ComponentResolver = (
 
 type SolidWithApp = (app: Component, options: { ssr: boolean }) => JSX.Element
 
-type InertiaAppOptionsForCSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForCSR<
-  SharedProps,
-  ComponentResolver,
-  SetupOptions<Element, SharedProps>,
-  void,
-  SolidInertiaAppConfig
-> & { title?: never; serverHead?: never; withApp?: never }
+type WithTitleCallback<Options, SharedProps extends PageProps> = Omit<Options, 'title'> & {
+  title?: InertiaTitleCallback<SharedProps>
+}
 
-type InertiaAppOptionsForSSR<SharedProps extends PageProps> = CreateInertiaAppOptionsForSSR<
-  SharedProps,
-  ComponentResolver,
-  SetupOptions<null, SharedProps>,
-  JSX.Element,
-  SolidInertiaAppConfig
-> & { title?: never; serverHead?: never; render: RenderToString; withApp?: never }
-
-type InertiaAppOptionsAuto<SharedProps extends PageProps> = Omit<
-  CreateInertiaAppOptions<
+type InertiaAppOptionsForCSR<SharedProps extends PageProps> = WithTitleCallback<
+  CreateInertiaAppOptionsForCSR<
+    SharedProps,
     ComponentResolver,
-    SetupOptions<HTMLElement | null, SharedProps>,
-    JSX.Element | void,
+    SetupOptions<Element, SharedProps>,
+    void,
     SolidInertiaAppConfig
   >,
-  'setup'
+  SharedProps
+> & { withApp?: never }
+
+type InertiaAppOptionsForSSR<SharedProps extends PageProps> = WithTitleCallback<
+  CreateInertiaAppOptionsForSSR<
+    SharedProps,
+    ComponentResolver,
+    SetupOptions<null, SharedProps>,
+    JSX.Element,
+    SolidInertiaAppConfig
+  >,
+  SharedProps
+> & { render: RenderToString; withApp?: never }
+
+type InertiaAppOptionsAuto<SharedProps extends PageProps> = WithTitleCallback<
+  Omit<
+    CreateInertiaAppOptions<
+      ComponentResolver,
+      SetupOptions<HTMLElement | null, SharedProps>,
+      JSX.Element | void,
+      SolidInertiaAppConfig
+    >,
+    'setup'
+  >,
+  SharedProps
 > & {
-  title?: never
-  serverHead?: never
   page?: Page<SharedProps>
   render?: undefined
 } & (
@@ -94,6 +106,8 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     id = 'app',
     resolve,
     setup,
+    title,
+    serverHead,
     progress = {},
     page,
     render,
@@ -117,11 +131,54 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
     httpModule.setClient(http)
   }
 
+  // Capture before component resolution yields to another app's configuration.
+  const renderNonce = config.get('nonce') ?? undefined
+
   const resolveComponent = (name: string, page?: Page) =>
     Promise.resolve(resolve!(name, page)).then((module) => {
       // return 'default' in module ? module.default : module
       return ((module as { default?: Component }).default || module) as Component
     })
+
+  const renderSSR = async (
+    page: Page<SharedProps>,
+    renderer: RenderToString,
+    app: () => JSX.Element,
+  ): Promise<InertiaAppSSRResponse> => {
+    const headState = createServerHeadState()
+    // This request-only context must not introduce another hydration component
+    // scope. The public provider establishes ownership without createComponent.
+    const html = await renderer(
+      () => [
+        // Let Solid inject this render's assets before returning HTML. Reading
+        // global getAssets() after awaiting a custom renderer can cross requests.
+        ssr('<head></head>'),
+        ServerHeadContext.Provider({
+          value: headState,
+          get children() {
+            return app()
+          },
+        }),
+      ],
+      { nonce: renderNonce },
+    )
+    // Solid's browser declarations omit the server generator's options.
+    const hydrationScript = (generateHydrationScript as (options: { nonce?: string }) => string)({
+      nonce: renderNonce,
+    })
+    const { extractHead } = await import('./serverHead')
+    const result = await extractHead(
+      html,
+      (value) => (title ? title(value, page) : value),
+      headState.titles,
+      headState.serverHead,
+    )
+
+    return {
+      body: buildSSRBody(id, page, result.body),
+      head: [...result.head, result.assets, hydrationScript],
+    }
+  }
 
   // SSR render function factory - when on server without page/render, return a render function
   // This is used by the Vite plugin's SSR transform
@@ -133,6 +190,8 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
         initialPage: page,
         initialComponent,
         resolveComponent,
+        titleCallback: title,
+        serverHead,
       }
 
       let solidApp: () => JSX.Element
@@ -153,13 +212,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
         }
       }
 
-      const html = await renderToString(solidApp)
-      const body = buildSSRBody(id, page, html)
-
-      return {
-        body,
-        head: [getAssets(), generateHydrationScript()],
-      }
+      return renderSSR(page, renderToString, solidApp)
     }
   }
 
@@ -173,6 +226,8 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
       initialPage,
       initialComponent,
       resolveComponent,
+      titleCallback: title,
+      serverHead,
     }
 
     if (isServer) {
@@ -215,12 +270,6 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
   }
 
   if (isServer && render) {
-    const html = await render(solidApp!)
-    const body = buildSSRBody(id, initialPage, html)
-
-    return {
-      body,
-      head: [getAssets(), generateHydrationScript()],
-    }
+    return renderSSR(initialPage, render, solidApp!)
   }
 }

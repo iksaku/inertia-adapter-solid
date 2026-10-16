@@ -1,9 +1,24 @@
-import { Meta, Title, Link as HeadLink } from '@solidjs/meta'
-import { Link } from 'inertia-adapter-solid'
-export default () => <><Title>Multiple Elements Test</Title><Meta charset="utf-8" />
-  <Meta name="viewport" content="width=device-width, initial-scale=1" /><Meta name="description" content="Testing multiple head elements" />
-  <Meta name="keywords" content="test, vue, inertia" /><Meta property="og:title" content="Open Graph Title" /><Meta property="og:description" content="Open Graph Description" />
-  <HeadLink rel="icon" href="/favicon.ico" /><HeadLink rel="stylesheet" href="/custom.css" /><HeadLink rel="canonical" href="https://example.com/page" />
-  <h1>Multiple Head Elements</h1><p>Check the document head for multiple elements</p>
-  <Link id="navigate-away" href="/">Go Home</Link><Link id="navigate-back" href="/head/mixed">Back to Mixed</Link>
-</>
+import { Head, Link } from 'inertia-adapter-solid'
+export default () => (
+  <>
+    <Head title="Multiple Elements Test">
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta name="description" content="Testing multiple head elements" />
+      <meta name="keywords" content="test, vue, inertia" />
+      <meta property="og:title" content="Open Graph Title" />
+      <meta property="og:description" content="Open Graph Description" />
+      <link rel="icon" href="/favicon.ico" />
+      <link rel="stylesheet" href="/custom.css" />
+      <link rel="canonical" href="https://example.com/page" />
+    </Head>
+    <h1>Multiple Head Elements</h1>
+    <p>Check the document head for multiple elements</p>
+    <Link id="navigate-away" href="/">
+      Go Home
+    </Link>
+    <Link id="navigate-back" href="/head/mixed">
+      Back to Mixed
+    </Link>
+  </>
+)

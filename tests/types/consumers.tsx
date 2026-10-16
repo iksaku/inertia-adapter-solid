@@ -1,12 +1,27 @@
-import { App, createInertiaApp, Deferred, Form, Link, useForm, usePage, WhenMounted, WhenVisible } from 'inertia-adapter-solid'
+import type { InertiaAppSSRResponse, Page, SharedPageProps } from '@inertiajs/core'
+import {
+  App,
+  Deferred,
+  Form,
+  Head,
+  type InertiaAppProps,
+  type InertiaTitleCallback,
+  Link,
+  WhenMounted,
+  WhenVisible,
+  createInertiaApp,
+  useForm,
+  usePage,
+} from 'inertia-adapter-solid'
 import createServer from 'inertia-adapter-solid/server'
 import framework from 'inertia-adapter-solid/vite'
-import type { InertiaAppSSRResponse, Page, SharedPageProps } from '@inertiajs/core'
-import { renderToString, renderToStringAsync } from 'solid-js/web'
 import type { JSX } from 'solid-js'
+import { renderToString, renderToStringAsync } from 'solid-js/web'
 
 declare module '@inertiajs/core' {
-  interface InertiaConfig { sharedPageProps: { account: { id: number; name: string } } }
+  interface InertiaConfig {
+    sharedPageProps: { account: { id: number; name: string } }
+  }
 }
 
 const form = useForm({ profile: { name: 'Ada', age: 31 }, tags: ['blue'], enabled: false })
@@ -19,7 +34,7 @@ form.setError({ 'profile.age': 'Too young' })
 form.resetAndClearErrors('tags.0')
 form.submit('post', '/profile')
 form.submit({ method: 'patch', url: '/profile' })
-form.transform(data => ({ ...data, enabled: !data.enabled }))
+form.transform((data) => ({ ...data, enabled: !data.enabled }))
 // @ts-expect-error nested key does not exist
 form.reset('profile.missing')
 // @ts-expect-error nested default value must be numeric
@@ -47,35 +62,85 @@ const wrongAccountId: string = usePage().props.account.id
 // @ts-expect-error an explicit page generic preserves known shared nested keys
 const missingAccountEmail = custom.props.account.email
 
-const jsx: JSX.Element = <>
-  <Link href="/profile" method="post" data={{ enabled: false }}>Save</Link>
-  <Deferred data={['profile', 'count']} fallback={<span>Loading</span>}><span>Ready</span></Deferred>
-  <WhenMounted fallback={0}>{false}</WhenMounted>
-  <WhenVisible data="profile" fallback={<span>waiting</span>}><span>visible</span></WhenVisible>
-  <Form action="/profile" method="post">{props => <span>{String(props.isDirty)}</span>}</Form>
-</>
+const jsx: JSX.Element = (
+  <>
+    <Head title="Profile">
+      <meta name="description" content="Profile details" head-key="description" />
+    </Head>
+    <Link href="/profile" method="post" data={{ enabled: false }}>
+      Save
+    </Link>
+    <Deferred data={['profile', 'count']} fallback={<span>Loading</span>}>
+      <span>Ready</span>
+    </Deferred>
+    <WhenMounted fallback={0}>{false}</WhenMounted>
+    <WhenVisible data="profile" fallback={<span>waiting</span>}>
+      <span>visible</span>
+    </WhenVisible>
+    <Form action="/profile" method="post">
+      {(props) => <span>{String(props.isDirty)}</span>}
+    </Form>
+  </>
+)
 // @ts-expect-error Deferred requires a fallback
 const missingFallback = <Deferred data="profile">Ready</Deferred>
 // @ts-expect-error link methods are HTTP methods
 const wrongMethod = <Link href="/profile" method="save" />
 // @ts-expect-error deferred data accepts strings rather than numbers
 const wrongData = <Deferred data={42} fallback="Loading" />
+// @ts-expect-error Head titles must be strings, not accessors
+const wrongTitle = <Head title={() => 'Profile'} />
 
-declare const page: Page<SharedPageProps>
+type HeadPageProps = SharedPageProps & { section: string }
+declare const page: Page<HeadPageProps>
+const title: InertiaTitleCallback<HeadPageProps> = (title, page) =>
+  `${title} | ${page.props.section.toUpperCase()} | ${page.props.account.name}`
+const appProps: InertiaAppProps<HeadPageProps> = { initialPage: page, titleCallback: title, serverHead: true }
+const customApp = <App<HeadPageProps> {...appProps} />
+const sharedTitle: InertiaTitleCallback = (title, page) => {
+  // @ts-expect-error title callback preserves configured shared property types
+  const wrongId: string = page.props.account.id
+  return `${title} | ${wrongId}`
+}
 const resolve = () => () => <main>Consumer</main>
-const manual: Promise<void> = createInertiaApp({ resolve, setup: ({ el, App, props }) => {
-  const element: Element = el
-  const app: JSX.Element = <App {...props} />
-  void [element, app]
-} })
-const automatic = createInertiaApp({ resolve, withApp: (Component, { ssr }) => <section data-ssr={ssr}><Component /></section> })
+const manual: Promise<void> = createInertiaApp<HeadPageProps>({
+  resolve,
+  title,
+  serverHead: (page) => page.props.head as string[] | undefined,
+  setup: ({ el, App, props }) => {
+    const element: Element = el
+    const app: JSX.Element = <App {...props} />
+    void [element, app]
+  },
+})
+const automatic = createInertiaApp<HeadPageProps>({
+  resolve,
+  title,
+  serverHead: 'metaTags',
+  withApp: (Component, { ssr }) => (
+    <section data-ssr={ssr}>
+      <Component />
+    </section>
+  ),
+})
 createInertiaApp()
 for (const render of [renderToString, renderToStringAsync]) {
-  const response: Promise<InertiaAppSSRResponse> = createInertiaApp({ page, resolve, render, setup: ({ el, App, props }) => {
-    const noElement: null = el
-    void noElement
-    return <App {...props} />
-  } })
+  const response: Promise<InertiaAppSSRResponse> = createInertiaApp<HeadPageProps>({
+    page,
+    resolve,
+    render,
+    title: (title, page) => {
+      // @ts-expect-error callbacks inferred from the explicit page generic must not become any
+      const wrongSection: number = page.props.section
+      return `${title} | ${page.props.section.toUpperCase()} | ${wrongSection}`
+    },
+    serverHead: true,
+    setup: ({ el, App, props }) => {
+      const noElement: null = el
+      void noElement
+      return <App {...props} />
+    },
+  })
   void response
 }
 // @ts-expect-error manual setup and automatic wrapper are mutually exclusive
@@ -84,4 +149,18 @@ createInertiaApp({ resolve, setup: () => undefined, withApp: () => <main /> })
 createInertiaApp({ page, resolve, render: () => 42, setup: () => <main /> })
 const server: typeof createServer = createServer
 const frameworkName: string = framework.package
-void [accountId, defaultAccountId, customAccountName, count, jsx, manual, automatic, server, frameworkName, App]
+void [
+  accountId,
+  defaultAccountId,
+  customAccountName,
+  count,
+  jsx,
+  manual,
+  automatic,
+  server,
+  frameworkName,
+  App,
+  appProps,
+  customApp,
+  sharedTitle,
+]

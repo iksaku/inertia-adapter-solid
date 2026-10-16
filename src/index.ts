@@ -1,12 +1,15 @@
 import { config as coreConfig } from '@inertiajs/core'
 import type { SolidInertiaAppConfig } from './types'
 
+export type { InertiaTitleCallback } from './types'
+
 export { http, progress, router } from '@inertiajs/core'
 export { default as App, type InertiaAppProps } from './App'
 export { default as createInertiaApp } from './createInertiaApp'
 
 export { default as Deferred } from './Deferred'
 export { default as Form, useFormContext } from './Form'
+export { default as Head, type InertiaHeadProps } from './Head'
 export { default as InfiniteScroll } from './InfiniteScroll'
 export { default as Link, type InertiaLinkProps } from './Link'
 export {

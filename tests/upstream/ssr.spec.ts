@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { consoleMessages, pageLoads } from './support'
+import { consoleMessages, headAssertions, pageLoads } from './support'
 
 const SSR_SERVER_PORT = 13714
 const SSR_AUTO_PORTS: Record<string, number> = { vue3: 13718, react: 13719, svelte: 13720, solid: 13722 }
@@ -189,10 +189,6 @@ test.describe('Head title escaping', () => {
   })
 
   test('it runs the titleCallback with the page during SSR', async ({ page }) => {
-    test.skip(
-      process.env.PACKAGE === 'solid',
-      'Solid createInertiaApp types title as never; metadata uses @solidjs/meta',
-    )
     const response = await page.request.get('/ssr/head-title?withTitleCallback')
     const html = await response.text()
 
@@ -202,7 +198,6 @@ test.describe('Head title escaping', () => {
 
 test.describe('server head', () => {
   test('it renders server-provided head elements in the SSR output', async ({ page }) => {
-    test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp types serverHead as never')
     const response = await page.request.get('/ssr/server-head')
     const html = await response.text()
 
@@ -211,6 +206,215 @@ test.describe('server head', () => {
     expect(html).toContain('<link data-inertia="canonical" rel="canonical" href="https://example.com/ssr">')
     expect(html).toContain('Server head rendered on the server')
   })
+})
+
+test.describe('Head hydration', () => {
+  test('hydrates resource-backed Head under nonce CSP without refetching and follows its Signal source', async ({
+    page,
+  }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    consoleMessages.listen(page)
+    await page.route(/\/ssr\/head-resource\?nonce=test$/, async (route) => {
+      const response = await route.fetch()
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      expect(html).toContain('<title data-inertia="">Server A</title>')
+      expect(html).toContain('content="Server A"')
+      await route.fulfill({
+        response,
+        headers: {
+          ...response.headers(),
+          'Content-Security-Policy': "script-src 'self' 'nonce-test-nonce'; object-src 'none'",
+        },
+        body: html.replace(
+          '</body>',
+          '<script>document.documentElement.dataset.blockedControlRan = "true"</script></body>',
+        ),
+      })
+    })
+    const response = await page.goto('/ssr/head-resource?nonce=test')
+    expect(response?.headers()['content-security-policy']).toContain("'nonce-test-nonce'")
+    expect(await response?.text()).toContain(
+      '<script>document.documentElement.dataset.blockedControlRan = "true"</script>',
+    )
+    await expect(page).toHaveTitle('Server A')
+    const article = page.locator('head meta[name="article"]')
+    await expect(article).toHaveCount(1)
+    await expect(article).toHaveAttribute('content', 'Server A')
+    await expect(page.getByTestId('resource-fetches')).toHaveText('0')
+    expect(await page.locator('html').getAttribute('data-blocked-control-ran')).toBeNull()
+
+    await page.getByRole('button', { name: 'Next article' }).click()
+    await expect(page).toHaveTitle('Client B')
+    await expect(article).toHaveCount(1)
+    await expect(article).toHaveAttribute('content', 'Client B')
+    await expect(page.getByTestId('resource-fetches')).toHaveText('1')
+    await expect(page.locator('body meta, body title, template[data-inertia-head]')).toHaveCount(0)
+    expect(errors).toEqual([])
+    expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+  })
+
+  for (const name of ['manual', 'automatic'] as const) {
+    test(`hydrates reactive Head declarations with ${name} bootstrap and cleans up conditional providers`, async ({
+      page,
+    }) => {
+      const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head-title?withTitleCallback`
+      const response = await page.request.get(url)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      expect(html).toContain('<title data-inertia="">SSR Head Title | From Props</title>')
+      expect(html).toContain('content="Initial SSR description"')
+      const serverTags = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return {
+          head: document.head.querySelectorAll('meta[name="description"][data-inertia]').length,
+          body: document.body.querySelectorAll('title, meta, template[data-inertia-head]').length,
+        }
+      }, html)
+      expect(serverTags).toEqual({ head: 1, body: 0 })
+
+      consoleMessages.listen(page)
+      await page.goto(url)
+      await expect(page).toHaveTitle('SSR Head Title | From Props')
+      const description = page.locator('head meta[name="description"]')
+      await expect(description).toHaveCount(1)
+      await expect(description).toHaveAttribute('content', 'Initial SSR description')
+      await page.getByRole('button', { name: 'Update head' }).click()
+      await expect(page).toHaveTitle('Updated SSR Title | From Props')
+      await expect(description).toHaveAttribute('content', 'Updated SSR description')
+      await page.getByRole('button', { name: 'Toggle head' }).click()
+      await expect(description).toHaveCount(0)
+      await page.getByRole('button', { name: 'Toggle head' }).click()
+      await expect(description).toHaveCount(1)
+      await expect(description).toHaveAttribute('content', 'Updated SSR description')
+      await expect(page).toHaveTitle('Updated SSR Title | From Props')
+      await expect(page.locator('head title')).toHaveCount(1)
+      await expect(page.locator('body meta, body title, template[data-inertia-head]')).toHaveCount(0)
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+
+    test(`preserves child title precedence and empty title semantics with ${name} SSR and hydration`, async ({
+      page,
+    }) => {
+      consoleMessages.listen(page)
+      for (const mode of ['children', 'empty-child', 'empty-prop']) {
+        const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head/with-title?titleMode=${mode}`
+        const response = await page.request.get(url)
+        expect(response.ok()).toBe(true)
+        const html = await response.text()
+        const titles = await page.evaluate((html) => {
+          const document = new DOMParser().parseFromString(html, 'text/html')
+          return (
+            Array.from(document.head.querySelectorAll('title[data-inertia]'))
+              // The backend template also has a fallback title, not emitted by Head.
+              .filter((title) => title.textContent !== 'Inertia Solid - Testing Environment')
+              .map((title) => title.textContent)
+          )
+        }, html)
+        expect(titles).toEqual(mode === 'children' ? ['Title from Children'] : mode === 'empty-child' ? [''] : [])
+
+        await page.goto(url)
+        if (mode === 'children') {
+          await headAssertions.titleFallback(page)
+        } else if (mode === 'empty-child') {
+          await expect(page.locator('head title[data-inertia]')).toHaveCount(1)
+          await expect(page).toHaveTitle('')
+          await page.getByRole('button', { name: 'Remove child title' }).click()
+          await expect(page).toHaveTitle('Title from Prop & <fallback>')
+        } else {
+          await page.getByRole('button', { name: 'Clear title prop' }).click()
+          await expect(page.locator('head title[data-inertia]')).toHaveCount(0)
+        }
+      }
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+
+    test(`restores provider priority and server defaults with ${name} SSR and hydration`, async ({ page }) => {
+      const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head/providers?withServerHead`
+      const response = await page.request.get(url)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      expect(html).toContain('<title data-inertia="">Page title</title>')
+      expect(html).not.toContain('>Layout title</title>')
+      expect(html).not.toContain('>Server title</title>')
+      const descriptions = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return Array.from(document.head.querySelectorAll('meta[name="description"]')).map((element) =>
+          element.getAttribute('content'),
+        )
+      }, html)
+      expect(descriptions).toEqual(['Page description'])
+
+      consoleMessages.listen(page)
+      await page.goto(url)
+      await headAssertions.providerRestoration(page)
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+
+    test(`preserves escaped head-key identities with ${name} SSR and hydration`, async ({ page }) => {
+      const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head/escaped-key`
+      const response = await page.request.get(url)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      const metadata = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return Array.from(document.head.querySelectorAll('meta[name="escaped-key"]')).map((element) => ({
+          key: element.getAttribute('data-inertia'),
+          content: element.getAttribute('content'),
+          headKey: element.getAttribute('head-key'),
+          hydrationKey: element.getAttribute('data-hk'),
+        }))
+      }, html)
+      expect(metadata).toEqual([
+        { key: 'description" & <page>', content: 'First & "quoted" <value>', headKey: null, hydrationKey: null },
+      ])
+
+      consoleMessages.listen(page)
+      await page.goto(url)
+      await headAssertions.escapedKey(page)
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+
+    test(`preserves raw head text and adopts unchanged scripts with ${name} SSR and hydration`, async ({ page }) => {
+      const url = `${name === 'manual' ? '/ssr' : '/ssr-auto'}/head/raw-text`
+      const response = await page.request.get(url)
+      expect(response.ok()).toBe(true)
+      const html = await response.text()
+      const server = await page.evaluate((html) => {
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        return {
+          structuredData: Array.from(document.head.querySelectorAll('script[type="application/ld+json"]')).map(
+            (element) => JSON.parse(element.textContent!),
+          ),
+          stylesheet: document.head.querySelector('style[data-inertia="stylesheet"]')?.textContent,
+          script: document.head.querySelector('script[data-inertia="executable"]')?.textContent,
+          mounted: document.querySelector('[data-testid="head-mounted"]')?.textContent,
+          bodyHeadElements: document.body.querySelectorAll(
+            'title, meta, style, script[data-inertia], template[data-inertia-head]',
+          ).length,
+        }
+      }, html)
+      expect(server.structuredData).toEqual([
+        { '@type': 'WebPage', name: 'A & < B "quoted"' },
+        { '@type': 'WebPage', name: 'A & < B "quoted"' },
+      ])
+      expect(server.stylesheet).toBe(':root { --head-raw-text: "A & < B"; }')
+      expect(server.script).toContain('A & < B \\"quoted\\"')
+      expect(server.mounted).toBe('server')
+      expect(server.bodyHeadElements).toBe(0)
+
+      consoleMessages.listen(page)
+      await page.goto(url)
+      await headAssertions.rawText(page)
+      expect(consoleMessages.errors).toEqual([])
+      expect(consoleMessages.messages.filter((message) => message.includes('Hydration'))).toEqual([])
+    })
+  }
 })
 
 test.describe('layout props', () => {

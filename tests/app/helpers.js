@@ -200,7 +200,8 @@ module.exports = {
 
     const html = htmlTemplate
       .replace('{{ headAttribute }}', 'inertia')
-      .replace(/<script data-page="app" type="application\/json">{{ placeholder }}<\/script>/, headContent)
+      .replace(/<script data-page="app" type="application\/json">{{ placeholder }}<\/script>/, '')
+      .replace('</head>', () => `${headContent}\n  </head>`)
       .replace('<div id="app"></div>', ssrResult.body)
 
     return res.status(200).send(html)

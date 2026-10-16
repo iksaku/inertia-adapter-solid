@@ -1,5 +1,11 @@
-import { type Page, type PageProps, type PageResolver, router } from '@inertiajs/core'
-import { MetaProvider } from '@solidjs/meta'
+import {
+  type Page,
+  type PageProps,
+  type PageResolver,
+  type ServerHeadOption,
+  resolveServerHead,
+  router,
+} from '@inertiajs/core'
 import { cloneDeep } from 'es-toolkit'
 import {
   type Component,
@@ -9,10 +15,14 @@ import {
   createComponent,
   createMemo,
   mergeProps,
+  onCleanup,
+  useContext,
 } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
 import { isServer } from 'solid-js/web'
+import HeadContext, { ServerHeadContext, createClientHeadManager, createServerHeadState } from './HeadContext'
 import PageContext from './PageContext'
+import type { InertiaTitleCallback } from './types'
 
 type InertiaLayoutComponent = ParentComponent<Page['props']>
 
@@ -24,6 +34,8 @@ export type InertiaAppProps<SharedProps extends PageProps = PageProps> = {
   initialPage: Page<SharedProps>
   initialComponent?: InertiaComponent
   resolveComponent?: PageResolver
+  titleCallback?: InertiaTitleCallback<SharedProps>
+  serverHead?: ServerHeadOption
 }
 
 type InertiaAppState = {
@@ -32,7 +44,7 @@ type InertiaAppState = {
   key: unknown
 }
 
-export default function App(props: ParentProps<InertiaAppProps>) {
+export default function App<SharedProps extends PageProps>(props: ParentProps<InertiaAppProps<SharedProps>>) {
   // Reconcile our own page tree without mutating core's page or pending deferred metadata.
   const [current, setCurrent] = createStore<InertiaAppState>({
     component: props.initialComponent || null,
@@ -40,7 +52,15 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     key: null,
   })
 
-  if (!isServer) {
+  const initialServerHead = resolveServerHead(props.initialPage, props.serverHead)
+  const headManager = isServer
+    ? (useContext(ServerHeadContext) ?? createServerHeadState())
+    : createClientHeadManager(
+        (title) => (props.titleCallback ? props.titleCallback(title, current.page as Page<SharedProps>) : title),
+        initialServerHead,
+      )
+
+  if ('forceUpdate' in headManager) {
     router.init({
       initialPage: props.initialPage,
       resolveComponent: props.resolveComponent!,
@@ -57,6 +77,13 @@ export default function App(props: ParentProps<InertiaAppProps>) {
         )
       },
     })
+    const syncServerHead = (event: { detail: { page: Page } }) => {
+      headManager.updateServerHead(resolveServerHead(event.detail.page, props.serverHead))
+    }
+    onCleanup(router.on('navigate', syncServerHead))
+    onCleanup(router.on('clientVisit', syncServerHead))
+  } else {
+    headManager.serverHead = initialServerHead
   }
 
   const layouts = createMemo(() => {
@@ -95,7 +122,8 @@ export default function App(props: ParentProps<InertiaAppProps>) {
     )
   }
 
-  return createComponent(MetaProvider, {
+  return createComponent(HeadContext.Provider, {
+    value: headManager,
     get children() {
       return createComponent(PageContext.Provider, {
         get value() {
