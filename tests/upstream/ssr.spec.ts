@@ -434,8 +434,7 @@ test.describe('SSR Auto Transform', () => {
   })
 })
 
-// Phase 20: retain the SSR/hydration contract while Solid's persistent-layout API is redesigned.
-test.skip('Solid renders and hydrates a component layout', async ({ page }) => {
+test('Solid renders and hydrates a component layout', async ({ page }) => {
   test.skip(process.env.PACKAGE !== 'solid', 'Solid component-layout contract, not mutable layout props')
   const response = await page.request.get('/ssr/layout-props-a')
   const html = await response.text()

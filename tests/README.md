@@ -62,7 +62,16 @@ binary; normal runs use Playwright's pinned browser revision.
 Failure traces, screenshots, and JSON results are in `test-results/`; HTML reports
 are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
 and `ssr` directories so later layers do not overwrite earlier evidence.
-These outputs are ignored by Git. Workflows run on pushes and pull requests:
+These outputs are ignored by Git. Workflows run on pushes and pull requests,
+except when every changed file is Markdown (`**/*.md`) or under `.changeset/`.
+Source, tests, workflow, dependency, build, and configuration changes still run
+CI, including when mixed with documentation changes.
+
+GitHub evaluates pull-request path filters against the entire PR diff, not just
+the latest commit. A docs-only commit on a PR that already changes code can
+therefore still trigger its PR workflows. Path filters do not apply to tag
+pushes. If these checks become required by branch protection, use conditional
+jobs instead of workflow path filters to avoid leaving required checks pending.
 
 | Workflow | Runner | Checks |
 | --- | --- | --- |
@@ -141,9 +150,10 @@ servers, regardless of the local `TEST_REUSE_SERVER` opt-in.
 19. **Legacy Precognition constructors:** initialize validation for all four
     endpoint overloads through shared form state, preserve reactive validation
     and fluent identity, and verify lazy endpoint callbacks during actual SSR.
-20. **Persistent layouts — explicitly deferred:** retain the tests and fixtures,
-    but skip dedicated browser/SSR layout contracts until a Solid-native layout
-    identity and reactivity API is designed. Other navigation/scroll tests stay active.
+20. **Persistent layouts — originally deferred:** retain dedicated browser/SSR
+    contracts while designing Solid-native layout identity and reactivity.
+    Phase 24 restores the component-layout cases; other navigation/scroll tests
+    stayed active.
 21. **Deferred props:** resolve nested paths reactively and own the mutable page
     tree so reconciliation cannot erase core's pending deferred metadata or
     mutate initial/newly received props.
@@ -153,6 +163,14 @@ servers, regardless of the local `TEST_REUSE_SERVER` opt-in.
 23. **Original deadlines and upstream CI:** retain the original scroll-test
     timeout, use two workers locally, and port upstream's browser workflows,
     CI worker allocation, tracing, caching, and browser shards to Solid.
+24. **Signal-native persistent layouts:** fold layout descriptions with
+    `reduceRight`, retain component owners through dynamic boundaries, and
+    restore six browser cases and the component-layout SSR/hydration case.
+    The two upstream render-callback cases remain skipped: this adapter
+    currently treats layout functions as components, not render callbacks.
+25. **Skipped-test audit:** restore verified browser exclusions for view
+    transitions, history, scroll, and secondary-button prefetch; retain
+    unsupported APIs, render callbacks, and exclusions that still reproduce.
 
 The fixtures use Solid accessors, stores, reactive props and slot objects,
 `For`/`Show`, callback refs, and owned lifecycle cleanup. React whole-component
@@ -171,8 +189,9 @@ identify contracts the Solid adapter does not expose or the owner has deferred:
 | React StrictMode and `React.memo` render counts | Framework-specific; skipped |
 | `withApp` receives the page object | Solid receives `{ ssr }` instead; separate context/CSR/SSR/hydration tests cover that contract |
 | Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
-| App-level default layout | Not implemented in `createInertiaApp`; page-layout testing is separately deferred below |
-| Persistent page layouts | Explicitly deferred by the owner in Phase 20 pending a Solid-native API redesign; dedicated browser/SSR tests are skipped, with logic and fixtures retained |
+| App-level default layout | Not implemented in `createInertiaApp`; skipped independently of supported page layouts |
+| Persistent page layouts | Enabled for function components and nested component arrays, including page-prop availability and component-layout SSR/hydration |
+| Layout render callbacks | Not supported; this adapter treats layout functions as components, so separate per-page wrappers have different identities; not deprecated upstream |
 | Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
 | Deferred rescue/reloading slots | No public Solid API; skipped; readiness and nested deferred data stay enabled |
 | WhenVisible fetching slot | No public Solid API; skipped; visibility/reload behavior stays enabled |
@@ -183,10 +202,13 @@ reference material but excluded from client glob resolution and fixture
 typechecking because they require nonexistent exports/props. Do not enable them
 by writing substitute adapter behavior into the fixtures.
 
-Existing upstream unconditional skips and browser-specific exclusions remain
-unchanged. Chromium alone cannot exercise WebKit's history quota test or prove
-Firefox/WebKit compatibility. See the pinned baseline below for what was actually
-executed locally; a configured CI job is not evidence of a passing run.
+The Phase 25 audit removes stale browser exclusions after repeated checks with
+unchanged assertions. Remaining behavioral exclusions are the two-value SWR
+case, Firefox's manual GET untracked-scroll and InfiniteScroll reload cases,
+and WebKit's secondary-button context-menu case on macOS (Linux is enabled).
+Framework/capability gates and WebKit-only history quota coverage remain.
+See the phase results below for what was actually executed locally; a
+configured CI job is not evidence of a passing run.
 
 ## Upstream provenance and updates
 
@@ -1749,3 +1771,96 @@ native asset and pre-existing upstream checkout edits retain their original
 checksums. These local results do not include GitHub Actions or actual macOS
 execution; those remain to be verified by PR checks. Persistent-layout work
 stays explicitly deferred.
+
+## Phase 24: signal-native persistent layouts (2026-10-15)
+
+The renderer folds plain layout descriptions with `reduceRight`, then renders
+each depth through a stable `createDynamic` boundary. Reactive page props are
+separate from component identity. Children resolve inside their layout's owner
+and context; only the page has a keyed reset boundary. A monotonic counter
+replaces timestamp reset keys so two visits in one clock tick still reset state.
+No default-layout, tuple, named-layout, or mutable layout-props API is added.
+
+Four public runtime cases cover shared-prefix persistence, divergent-subtree
+cleanup, fine-grained props, provider ancestry, transparent layouts, same-tick
+page resets, distinct component identities, and request-local nested SSR.
+An unchanged-source control fails the transparent-layout page swap and same-tick
+reset cases; the prototype passes all 24 unit cases.
+
+Restoring all eight browser cases initially reproduces the two upstream
+render-function failures in Chromium, Firefox, and WebKit: 36 passes and 12
+failures over two repetitions. Their per-page wrapper functions are different
+Solid component identities, not callbacks producing reconcilable virtual trees.
+At the owner's direction, those two cases remain explicit capability skips.
+An interim shared-wrapper fixture experiment is fully reverted: every original
+fixture and assertion is unchanged. Ordinary function components remain valid
+layouts. Six browser cases and the component-layout SSR/hydration case are now
+enabled; unrelated capability exclusions are unchanged.
+
+Final-scope validation uses Node 22.23.3, pnpm 11.20.0, Playwright 1.58.2 and its
+pinned Chromium, Firefox, and Linux WebKit, with two workers and no retries:
+
+| Check | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Dedicated layouts, all three engines, three repetitions | 54 | 0 | 18 |
+| Dedicated layouts, Chromium/Axios, three repetitions | 18 | 0 | 6 |
+| Pages, remember, client visits, history, deferred props, flash in Firefox/WebKit | 166 | 0 | 10 |
+| Full manual/automatic SSR and hydration, all three engines | 75 | 0 | 33 |
+| Public browser/server unit consumers | 24 | 0 | 0 |
+
+All three TypeScript programs, touched-source/unit lint, spec formatting, and
+`git diff --check` pass. Dedicated-layout skips are exactly the two callback
+cases multiplied by engines/repetitions. The full default runner also passed
+before the callback-fixture experiment was reverted; it is not counted as a
+full final-scope run. Complete final-scope browser profiles, GitHub Actions,
+and macOS execution were not rerun.
+
+At the end of this phase, changes were local and uncommitted on
+`explore/signal-native-layouts`; nothing had been pushed. The callback fixtures
+are retained as upstream references, not adapted to imply render-callback
+compatibility.
+
+## Phase 25: skipped-test audit (2026-10-16)
+
+The audit restores 17 more test definitions, adding 21 browser/test combinations
+on Linux without changing fixtures, assertions, deadlines, or adapter source:
+
+- Firefox: eight View Transition cases and one form-transition case. The pinned
+  Firefox 146.0.1 exposes `document.startViewTransition`; the actual callback,
+  navigation, validation-error, and aborted-transition assertions also pass.
+- Firefox: two manual history-replacement cases, the manual visit-method
+  untracked-scroll case, and two link scroll-preservation cases.
+- All engines: the two off-site back-navigation scroll cases.
+- Linux WebKit: secondary-button prefetch. Keep the macOS exclusion because
+  its native context-menu behavior has not been revalidated on the CI platform.
+
+Three repetitions of the nine transition cases across all engines pass
+**81/81**. Five repetitions of the other eight restored cases across all engines
+pass **120/120**. Both runs use the pinned browsers, two workers, and no retries.
+
+A broader diagnostic run temporarily lifts the remaining behavioral skips and
+includes related controls: **92 passed / 10 failed** across two repetitions in
+all engines. The two-value SWR case fails its stale-value equality assertion in
+all six attempts; Firefox's manual GET case misses the expected `(10, 15)` slot
+scroll position in both attempts; Firefox's InfiniteScroll reload case never
+shows User 31 in both attempts. Their original skips are restored unchanged,
+not replaced with weaker assertions or new adapter behavior.
+
+The remaining layout API exclusions still apply to this renderer.
+App-level defaults, tuples, named layouts, and `setLayoutProps` remain absent;
+the four skipped mutable/tuple SSR cases are not satisfied by static component
+fixture substitutes. Layout render callbacks remain excluded at the owner's
+request. Supported component, nested-array, and request-isolation coverage
+remains enabled.
+
+An initial full default run is interrupted by an orb executor replacement.
+After verifying that its processes stopped, a fresh complete `pnpm test` run
+passes all six layers: all three type programs, **24 unit cases**, the full
+Chromium/native suite (**1,055 passed / 67 skipped**), and Chromium SSR/hydration
+(**25 passed / 11 skipped**). No retries or test failures occur in the completed
+run. Touched source/unit lint, browser-spec formatting, and `git diff --check`
+also pass. Full Firefox/WebKit and Axios profiles, GitHub Actions, and macOS
+execution are not rerun in this audit.
+
+Layout render callbacks are not supported by this adapter. This is an adapter
+scope decision, not an upstream deprecation. Revisit if users request this API.

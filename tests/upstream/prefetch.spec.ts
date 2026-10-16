@@ -190,10 +190,11 @@ test('does not navigate or prefetch on secondary button click when using prefetc
   page,
   browserName,
 }) => {
-  // Skip on WebKit
-  if (browserName === 'webkit') {
-    return test.skip('Bug in Playwright + WebKit causing the context menu to stick around')
-  }
+  // Linux WebKit is covered; retain the context-menu exclusion on the macOS CI runner.
+  test.skip(
+    browserName === 'webkit' && process.platform === 'darwin',
+    'Playwright + WebKit context-menu behavior has not been revalidated on macOS',
+  )
 
   // These two prefetch requests should be made on mount
   const prefetch2 = page.waitForResponse('prefetch/2')

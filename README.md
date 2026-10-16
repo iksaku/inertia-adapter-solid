@@ -205,30 +205,55 @@ export default function Welcome(props) {
 Welcome.layout = [SiteLayout, NestedLayout]
 ```
 
-You can also create more complex layout arrangements using nested layouts.
+Layouts are matched by component identity at each depth, starting with the
+outermost layout. Navigating from `[SiteLayout, ProfileLayout]` to
+`[SiteLayout, SettingsLayout]` keeps `SiteLayout` and replaces the inner layout
+and page. Replacing the outer layout also replaces all its descendants;
+removed layouts are disposed, not cached for later visits.
+
+Layouts receive reactive page props. Read `props.title` or `usePage().props.title`
+inside JSX or a reactive computation; do not destructure them or copy their
+values during component initialization. A props update does not rerun a
+retained layout's component body. `preserveState` controls the page's local
+state, not the shared layouts: a different page component always mounts anew,
+and a non-preserving visit remounts even the same page component.
+
+For a custom arrangement, define a shared wrapper component and assign that
+same component to every page that should share its state.
 
 ```jsx
-import Layout from './Layout'
-import { Title } from '@solidjs/meta'
+// SharedLayout.jsx
+import SiteLayout from './SiteLayout'
+import NestedLayout from './NestedLayout'
 
-export default function Welcome(props) {
+export default function SharedLayout(props) {
   return (
-    <Layout>
-        <Title>Welcome</Title>
-        <h1>Welcome</h1>
-        <p>Hello {props.user.name}, welcome to your first Inertia app!</p>
-    </Layout>
+    <SiteLayout title={props.title}>
+      <NestedLayout>{props.children}</NestedLayout>
+    </SiteLayout>
   )
 }
-
-Welcome.layout = (props) => {
-  <SiteLayout title="Welcome">
-    <NestedLayout>
-      {props.children}
-    </NestedLayout>
-  </SiteLayout>
-}
 ```
+
+```jsx
+// Welcome.jsx (use the same assignment on other pages)
+import SharedLayout from './SharedLayout'
+
+export default function Welcome(props) {
+  return <h1>Hello {props.user.name}</h1>
+}
+
+Welcome.layout = SharedLayout
+```
+
+**This adapter treats a layout function as a Solid component, not a render callback.** Separate
+`PageA.layout = (props) => ...` and `PageB.layout = (props) => ...` functions
+have different identities even when their JSX looks identical. Their layouts
+remount on navigation. Prefer component arrays when individual layout depths
+need to persist independently; a shared wrapper is one opaque layout boundary.
+
+Render-function layouts are currently deferred in this adapter. They remain
+supported by Inertia's official adapters and are not deprecated upstream.
 
 > [!TIP]
 > Learn more at the official [Layouts](https://inertiajs.com/docs/v3/the-basics/layouts)

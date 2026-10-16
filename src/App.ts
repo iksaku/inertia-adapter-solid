@@ -6,18 +6,24 @@ import {
   type JSX,
   type ParentComponent,
   type ParentProps,
+  Show,
   createComponent,
   createMemo,
   mergeProps,
 } from 'solid-js'
 import { createStore, reconcile } from 'solid-js/store'
-import { isServer } from 'solid-js/web'
+import { createDynamic, isServer } from 'solid-js/web'
 import PageContext from './PageContext'
 
 type InertiaLayoutComponent = ParentComponent<Page['props']>
 
 type InertiaComponent = Component<Page['props']> & {
   layout?: InertiaLayoutComponent | InertiaLayoutComponent[]
+}
+
+type LayoutNode = {
+  component: InertiaLayoutComponent
+  child?: LayoutNode
 }
 
 export type InertiaAppProps<SharedProps extends PageProps = PageProps> = {
@@ -29,7 +35,7 @@ export type InertiaAppProps<SharedProps extends PageProps = PageProps> = {
 type InertiaAppState = {
   component: InertiaAppProps['initialComponent'] | null
   page: InertiaAppProps['initialPage']
-  key: unknown
+  key: number
 }
 
 export default function App(props: ParentProps<InertiaAppProps>) {
@@ -37,7 +43,7 @@ export default function App(props: ParentProps<InertiaAppProps>) {
   const [current, setCurrent] = createStore<InertiaAppState>({
     component: props.initialComponent || null,
     page: cloneDeep(props.initialPage),
-    key: null,
+    key: 1,
   })
 
   if (!isServer) {
@@ -52,48 +58,51 @@ export default function App(props: ParentProps<InertiaAppProps>) {
           reconcile({
             component: component as InertiaComponent,
             page: cloneDeep(page),
-            key: preserveState ? current.key : Date.now(),
+            key: preserveState ? current.key : current.key + 1,
           }),
         )
       },
     })
   }
 
-  const layouts = createMemo(() => {
-    const component = current.component
+  // Reset only the page's owner on a non-preserving visit, not its layouts.
+  const renderPage = () =>
+    createComponent(Show, {
+      keyed: true,
+      get when() {
+        return current.key
+      },
+      get children() {
+        return createDynamic(
+          () => current.component || undefined,
+          mergeProps({ key: current.key }, () => current.page.props),
+        )
+      },
+    })
 
-    if (component) {
-      if (typeof component.layout === 'function') {
-        return [component.layout]
-      }
+  // Fold descriptions, not elements: creating components here would remount the tree.
+  const layoutTree = createMemo(() => {
+    const layout = current.component?.layout
+    const layouts = typeof layout === 'function' ? [layout] : Array.isArray(layout) ? layout : []
 
-      if (Array.isArray(component.layout)) {
-        return component.layout
-      }
-    }
-
-    return []
+    return layouts.reduceRight<LayoutNode>((child, component) => ({ component, child }), { component: renderPage })
   })
 
-  const renderChildren = (i = 0): JSX.Element => {
-    const layout = createMemo(() => layouts()[i])
-
-    if (!layout()) {
-      return createComponent(
-        current.component!,
-        mergeProps({ key: current.key }, () => current.page.props),
-      )
-    }
-
-    return createComponent(
-      layout(),
+  const RenderLayout: Component<{ node?: LayoutNode }> = (props) =>
+    createDynamic(
+      // A new description updates inputs; only a new component replaces this owner.
+      () => props.node?.component,
       mergeProps(() => current.page.props, {
-        get children() {
-          return renderChildren(i + 1) as Element
+        get children(): JSX.Element {
+          // Resolve descendants inside the layout's owner/context, not ahead of it.
+          return createComponent(RenderLayout, {
+            get node() {
+              return props.node?.child
+            },
+          })
         },
-      }),
+      }) as ParentProps<Page['props']>,
     )
-  }
 
   return createComponent(MetaProvider, {
     get children() {
@@ -102,7 +111,11 @@ export default function App(props: ParentProps<InertiaAppProps>) {
           return current.page
         },
         get children() {
-          return renderChildren()
+          return createComponent(RenderLayout, {
+            get node() {
+              return layoutTree()
+            },
+          })
         },
       })
     },
