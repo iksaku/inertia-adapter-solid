@@ -544,7 +544,7 @@ test.describe('preserve scroll', () => {
     await expect(page.getByText('Slot scroll position is 0 & 0')).toBeVisible()
   })
 
-  test.skip('does not restore untracked scroll regions when pressing the back button from another website', async ({
+  test('does not restore untracked scroll regions when pressing the back button from another website', async ({
     page,
   }) => {
     await page.getByRole('link', { name: 'Off-site link' }).click()
@@ -612,9 +612,7 @@ test.describe('enabled', () => {
     await expect(message.version).not.toBeUndefined()
   })
 
-  test('preserves scroll regions when using the "preserve-scroll" feature', async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'Firefox on Linux auto-adjusts scroll on content change')
-
+  test('preserves scroll regions when using the "preserve-scroll" feature', async ({ page }) => {
     await page.getByText('Preserve Scroll', { exact: true }).click()
 
     await expect(page).toHaveURL('/links/preserve-scroll-page-two?foo=baz')
@@ -624,12 +622,7 @@ test.describe('enabled', () => {
     await expect(page.getByText('Slot scroll position is 10 & 15')).toBeVisible()
   })
 
-  test('preserves scroll regions when using the "preserve-scroll" feature from a callback', async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(browserName === 'firefox', 'Firefox on Linux auto-adjusts scroll on content change')
-
+  test('preserves scroll regions when using the "preserve-scroll" feature from a callback', async ({ page }) => {
     consoleMessages.listen(page)
     // Activate without Playwright scrolling a wrapped link into view before the visit.
     await page.getByTestId('preserve-callback').evaluate((link) => (link as HTMLElement).click())
@@ -710,9 +703,7 @@ test.describe('enabled', () => {
     )
   })
 
-  test.skip('restores all tracked scroll regions when pressing the back button from another website', async ({
-    page,
-  }) => {
+  test('restores all tracked scroll regions when pressing the back button from another website', async ({ page }) => {
     await page.getByRole('link', { name: 'Off-site link' }).click()
 
     await expect(page).toHaveURL('non-inertia')

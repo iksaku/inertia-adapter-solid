@@ -7,8 +7,10 @@ import {
   createInertiaApp,
   useForm,
   useHttp,
+  usePage,
   useRemember,
 } from 'inertia-adapter-solid'
+import { type ParentComponent, createContext, useContext } from 'solid-js'
 import { isServer, renderToString, renderToStringAsync } from 'solid-js/web'
 import { expect, it } from 'vitest'
 
@@ -33,6 +35,31 @@ it('uses actual server conditions and renders only the mounting fallback', () =>
   ))
   expect(body).toContain('server waiting')
   expect(body).not.toContain('browser only')
+})
+
+it('renders nested layouts under their providers with request-local props', () => {
+  const Context = createContext('missing')
+  const Outer: ParentComponent<Page['props']> = (props) => (
+    <Context.Provider value={`outer:${props.value}`}>{props.children}</Context.Provider>
+  )
+  const Inner: ParentComponent<Page['props']> = (props) => {
+    const parent = useContext(Context)
+    return <Context.Provider value={`${parent}/inner:${props.value}`}>{props.children}</Context.Provider>
+  }
+  const Consumer = () => {
+    const parent = useContext(Context)
+    const current = usePage()
+    return <output>{`${parent}/page:${current.props.value}`}</output>
+  }
+  Consumer.layout = [Outer, Inner]
+  const render = (value: number) =>
+    renderToString(() => (
+      <App initialPage={{ ...page, props: { errors: {}, value } }} initialComponent={Consumer} />
+    )).replace(/<!--.*?-->/g, '')
+
+  expect(render(7)).toContain('outer:7/inner:7/page:7')
+  expect(render(19)).toContain('outer:19/inner:19/page:19')
+  expect(render(0)).toContain('outer:0/inner:0/page:0')
 })
 
 it.each(['useForm', 'useHttp'] as const)(

@@ -1,7 +1,8 @@
 import type { Page } from '@inertiajs/core'
-import { cleanup, render, waitFor } from '@solidjs/testing-library'
+import { cleanup, fireEvent, render, waitFor } from '@solidjs/testing-library'
 import { App, Deferred, router, usePage, useRemember } from 'inertia-adapter-solid'
-import { afterEach, expect, it } from 'vitest'
+import { type ParentComponent, createContext, createEffect, createSignal, onCleanup, useContext } from 'solid-js'
+import { afterEach, expect, it, vi } from 'vitest'
 
 afterEach(cleanup)
 
@@ -128,4 +129,209 @@ it('restores remembered falsy state after a genuine client-side page remount', a
   )
   expect(mounts).toBeGreaterThan(before)
   await waitFor(() => expect(view.container.textContent).toBe('0'))
+})
+
+it('retains only the shared layout prefix, with live props and correctly owned descendants', async () => {
+  const Context = createContext('root')
+  const disposed: string[] = []
+  const counts: unknown[] = []
+  const layout =
+    (name: string): ParentComponent<Page['props']> =>
+    (props) => {
+      const parent = useContext(Context)
+      const [count, setCount] = createSignal(0)
+      onCleanup(() => disposed.push(name))
+      if (name === 'outer') createEffect(() => counts.push(props.count))
+      return (
+        <section data-layout={name} data-parent={parent}>
+          <output>{`${props.label}:${props.count}:${props.extra ?? 'missing'}`}</output>
+          <button type="button" onClick={() => setCount(count() + 1)}>
+            {count()}
+          </button>
+          <Context.Provider value={name}>{props.children}</Context.Provider>
+        </section>
+      )
+    }
+  const Outer = layout('outer')
+  const Inner = layout('inner')
+  const Other = layout('other')
+  const Replacement = layout('replacement')
+  const consumer = (name: string, layouts: ParentComponent<Page['props']>[]) => {
+    const Consumer = () => {
+      const parent = useContext(Context)
+      const current = usePage()
+      return (
+        <article data-page={name} data-parent={parent}>
+          {String(current.props.label)}
+        </article>
+      )
+    }
+    Consumer.layout = layouts
+    return Consumer
+  }
+  const components = {
+    A: consumer('A', [Outer, Inner]),
+    B: consumer('B', [Outer, Inner]),
+    C: consumer('C', [Outer, Other]),
+    D: consumer('D', [Outer]),
+    E: consumer('E', [Replacement, Inner]),
+    F: consumer('F', []),
+  }
+  const view = render(() => (
+    <App
+      initialPage={{ ...page(), component: 'A', props: { errors: {}, label: 'first', count: 7, extra: 'present' } }}
+      initialComponent={components.A}
+      resolveComponent={(name) => components[name as keyof typeof components]}
+    />
+  ))
+  const element = (name: string) => view.container.querySelector(`[data-layout="${name}"]`)!
+  const outer = element('outer')
+  const inner = element('inner')
+  fireEvent.click(outer.querySelector('button')!)
+  fireEvent.click(inner.querySelector('button')!)
+  expect(inner.getAttribute('data-parent')).toBe('outer')
+  expect(view.container.querySelector('article')?.getAttribute('data-parent')).toBe('inner')
+
+  const visit = (component: keyof typeof components, label: string, count = 7) =>
+    new Promise<void>((resolve) =>
+      router.replace({
+        component,
+        props: { errors: {}, label, count },
+        preserveState: false,
+        onSuccess: () => resolve(),
+      }),
+    )
+
+  await visit('B', 'second')
+  expect(element('outer')).toBe(outer)
+  expect(element('inner')).toBe(inner)
+  expect(outer.querySelector('button')?.textContent).toBe('1')
+  expect(inner.querySelector('button')?.textContent).toBe('1')
+  expect(outer.querySelector('output')?.textContent).toBe('second:7:missing')
+  expect(inner.querySelector('output')?.textContent).toBe('second:7:missing')
+  expect(view.container.querySelector('article')?.textContent).toBe('second')
+  expect(counts).toEqual([7])
+  expect(disposed).toEqual([])
+
+  await visit('C', 'third', 11)
+  expect(element('outer')).toBe(outer)
+  expect(element('other').getAttribute('data-parent')).toBe('outer')
+  expect(view.container.querySelector('article')?.getAttribute('data-parent')).toBe('other')
+  expect(element('inner')).toBeNull()
+  expect(disposed).toEqual(['inner'])
+  expect(counts).toEqual([7, 11])
+
+  await visit('D', 'fourth', 11)
+  expect(element('outer')).toBe(outer)
+  expect(element('other')).toBeNull()
+  expect(view.container.querySelector('article')?.getAttribute('data-parent')).toBe('outer')
+  expect(disposed).toEqual(['inner', 'other'])
+
+  await visit('A', 'fifth', 11)
+  const newInner = element('inner')
+  expect(element('outer')).toBe(outer)
+  expect(newInner).not.toBe(inner)
+  expect(newInner.querySelector('button')?.textContent).toBe('0')
+  expect(newInner.getAttribute('data-parent')).toBe('outer')
+
+  await visit('E', 'sixth', 11)
+  expect(element('outer')).toBeNull()
+  expect(element('inner')).not.toBe(newInner)
+  expect(element('inner').getAttribute('data-parent')).toBe('replacement')
+  expect(disposed.filter((name) => name === 'inner')).toHaveLength(2)
+  expect(disposed.filter((name) => name === 'outer')).toHaveLength(1)
+
+  await visit('F', 'bare', 11)
+  expect(view.container.querySelector('section')).toBeNull()
+  expect(view.container.querySelector('article')?.getAttribute('data-parent')).toBe('root')
+  await visit('A', 'wrapped again', 11)
+  expect(element('outer')).not.toBe(outer)
+  expect(element('inner').getAttribute('data-parent')).toBe('outer')
+  view.unmount()
+  expect(disposed.filter((name) => name === 'outer')).toHaveLength(2)
+  expect(disposed.filter((name) => name === 'inner')).toHaveLength(4)
+  expect(disposed.filter((name) => name === 'replacement')).toHaveLength(1)
+})
+
+it('updates the page through a transparent layout without relying on a parent DOM insertion', async () => {
+  const Layout: ParentComponent = (props) => props.children
+  const A = () => <h1>Page A</h1>
+  const B = () => <h1>Page B</h1>
+  A.layout = Layout
+  B.layout = Layout
+  const view = render(() => (
+    <App
+      initialPage={{ ...page(), component: 'A' }}
+      initialComponent={A}
+      resolveComponent={(name) => (name === 'A' ? A : B)}
+    />
+  ))
+  expect(view.container.textContent).toBe('Page A')
+  await new Promise<void>((resolve) =>
+    router.replace({ component: 'B', preserveState: true, onSuccess: () => resolve() }),
+  )
+  expect(view.container.textContent).toBe('Page B')
+})
+
+it('separates page resets from layout identity, including two resets within the same clock tick', async () => {
+  const Layout: ParentComponent<Page['props']> = (props) => <main>{props.children}</main>
+  const consumer = () => {
+    const Consumer = (props: Page['props']) => {
+      const [count, setCount] = createSignal(0)
+      return (
+        <article>
+          <output>{String(props.label)}</output>
+          <button type="button" onClick={() => setCount(count() + 1)}>
+            {count()}
+          </button>
+        </article>
+      )
+    }
+    Consumer.layout = Layout
+    return Consumer
+  }
+  const A = consumer()
+  const B = consumer()
+  const C = consumer()
+  C.layout = (props) => <Layout {...props}>{props.children}</Layout>
+  const components = { A, B, C }
+  const view = render(() => (
+    <App
+      initialPage={{ ...page(), component: 'A', props: { errors: {}, label: 'first' } }}
+      initialComponent={A}
+      resolveComponent={(name) => components[name as keyof typeof components]}
+    />
+  ))
+  const layout = view.container.querySelector('main')
+  const article = view.container.querySelector('article')
+  const button = () => view.container.querySelector('button')!
+  const visit = (component: string, preserveState: boolean, label = 'updated') =>
+    new Promise<void>((resolve) =>
+      router.replace({ component, props: { errors: {}, label }, preserveState, onSuccess: () => resolve() }),
+    )
+
+  fireEvent.click(button())
+  await visit('A', true)
+  expect(view.container.querySelector('article')).toBe(article)
+  expect(view.container.querySelector('output')?.textContent).toBe('updated')
+  expect(button().textContent).toBe('1')
+
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(123456789)
+  try {
+    await visit('A', false)
+    expect(view.container.querySelector('article')).not.toBe(article)
+    expect(button().textContent).toBe('0')
+    fireEvent.click(button())
+    await visit('A', false)
+    expect(button().textContent).toBe('0')
+    fireEvent.click(button())
+    await visit('B', true)
+    expect(button().textContent).toBe('0')
+    expect(view.container.querySelector('main')).toBe(layout)
+    // Equal rendered markup does not make a new wrapper the same Solid component.
+    await visit('C', true)
+    expect(view.container.querySelector('main')).not.toBe(layout)
+  } finally {
+    clock.mockRestore()
+  }
 })
