@@ -1,5 +1,8 @@
-import type { ParentProps } from 'solid-js'
-const Layout = (props: ParentProps) => <div><h2 data-testid="layout-title">Page A Title</h2>{props.children}</div>
-const Page = () => <p data-testid="page-content">Page A Content</p>
-Page.layout = Layout
+import { setLayoutProps } from 'inertia-adapter-solid'
+import Layout from '../../Layouts/SSRLayoutProps'
+const Page = () => {
+  setLayoutProps({ title: 'Client Page A Title' })
+  return <p data-testid="page-content">Page A Content</p>
+}
+Page.layout = [Layout, { title: 'Page A Title' }]
 export default Page

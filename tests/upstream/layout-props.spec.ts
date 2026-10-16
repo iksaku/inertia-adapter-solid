@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('layout props', () => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid has neither setLayoutProps nor tuple/named-layout props APIs')
-
   test('it can set layout props dynamically with setLayoutProps', async ({ page }) => {
     await page.goto('/layout-props/basic')
 
@@ -113,52 +111,56 @@ test.describe('layout props', () => {
     await expect(contentLayoutIdAfter).toEqual(contentLayoutId)
   })
 
-  test('it supports a layout callback that derives props from page props', async ({ page }) => {
-    await page.goto('/layout-props/callback')
+  test.describe('page-props callbacks', () => {
+    test.skip(process.env.PACKAGE === 'solid', 'Layout page-props callbacks are not supported by the Solid adapter')
 
-    await expect(page.locator('.app-title')).toHaveText('Profile: Jane')
-    await expect(page.locator('.sidebar')).not.toBeVisible()
+    test('it supports a layout callback that derives props from page props', async ({ page }) => {
+      await page.goto('/layout-props/callback')
 
-    await page.getByRole('link', { name: 'Go to Basic Page' }).click()
+      await expect(page.locator('.app-title')).toHaveText('Profile: Jane')
+      await expect(page.locator('.sidebar')).not.toBeVisible()
 
-    await expect(page).toHaveURL('/layout-props/basic')
-    await expect(page.locator('.app-title')).toHaveText('Basic Layout Props')
-    await expect(page.locator('.sidebar')).toBeVisible()
-  })
+      await page.getByRole('link', { name: 'Go to Basic Page' }).click()
 
-  test('it supports a layout callback that returns only props and uses the default layout', async ({ page }) => {
-    await page.goto('/layout-props/callback-default?withDefaultAppLayout')
+      await expect(page).toHaveURL('/layout-props/basic')
+      await expect(page.locator('.app-title')).toHaveText('Basic Layout Props')
+      await expect(page.locator('.sidebar')).toBeVisible()
+    })
 
-    await expect(page.locator('.app-title')).toHaveText('Profile: Jane')
-    await expect(page.locator('.sidebar')).not.toBeVisible()
-  })
+    test('it supports a layout callback that returns only props and uses the default layout', async ({ page }) => {
+      await page.goto('/layout-props/callback-default?withDefaultAppLayout')
 
-  test('it supports a zero-arg layout callback that returns only props', async ({ page }) => {
-    await page.goto('/layout-props/callback-static?withDefaultAppLayout')
+      await expect(page.locator('.app-title')).toHaveText('Profile: Jane')
+      await expect(page.locator('.sidebar')).not.toBeVisible()
+    })
 
-    await expect(page.locator('.app-title')).toHaveText('Static Callback Title')
-    await expect(page.locator('.sidebar')).not.toBeVisible()
-  })
+    test('it supports a zero-arg layout callback that returns only props', async ({ page }) => {
+      await page.goto('/layout-props/callback-static?withDefaultAppLayout')
 
-  test('it supports a layout callback that returns props containing a function value', async ({ page }) => {
-    await page.goto('/layout-props/callback-function-prop?withDefaultAppLayout')
+      await expect(page.locator('.app-title')).toHaveText('Static Callback Title')
+      await expect(page.locator('.sidebar')).not.toBeVisible()
+    })
 
-    await expect(page.locator('.app-title')).toHaveText('Function Prop Title')
-    await expect(page.locator('.sidebar')).not.toBeVisible()
-  })
+    test('it supports a layout callback that returns props containing a function value', async ({ page }) => {
+      await page.goto('/layout-props/callback-function-prop?withDefaultAppLayout')
 
-  test('it supports a layout callback that returns only function-valued props', async ({ page }) => {
-    await page.goto('/layout-props/callback-all-function-props?withDefaultAppLayout')
+      await expect(page.locator('.app-title')).toHaveText('Function Prop Title')
+      await expect(page.locator('.sidebar')).not.toBeVisible()
+    })
 
-    await expect(page.locator('.app-title')).toHaveText('Profile: User')
-    await expect(page.locator('.sidebar')).toBeVisible()
-  })
+    test('it supports a layout callback that returns only function-valued props', async ({ page }) => {
+      await page.goto('/layout-props/callback-all-function-props?withDefaultAppLayout')
 
-  test('it treats a component key as a regular prop when its value is not a component', async ({ page }) => {
-    await page.goto('/layout-props/callback-component-prop?withDefaultAppLayout')
+      await expect(page.locator('.app-title')).toHaveText('Profile: User')
+      await expect(page.locator('.sidebar')).toBeVisible()
+    })
 
-    await expect(page.locator('.app-title')).toHaveText('Component Prop Title')
-    await expect(page.locator('.sidebar')).not.toBeVisible()
+    test('it treats a component key as a regular prop when its value is not a component', async ({ page }) => {
+      await page.goto('/layout-props/callback-component-prop?withDefaultAppLayout')
+
+      await expect(page.locator('.app-title')).toHaveText('Component Prop Title')
+      await expect(page.locator('.sidebar')).not.toBeVisible()
+    })
   })
 
   test('it supports a static props object as layout and uses the default layout', async ({ page }) => {

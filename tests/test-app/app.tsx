@@ -1,19 +1,30 @@
 import { axiosAdapter, type Page, type VisitOptions } from '@inertiajs/core'
 import { createInertiaApp, router } from 'inertia-adapter-solid'
 import { hydrate, render } from 'solid-js/web'
-import type { Component } from 'solid-js'
+import type { Component, ParentComponent } from 'solid-js'
+import AppLayout from './Layouts/AppLayout'
+import DefaultLayout from './Layouts/DefaultLayout'
 
 window.testing = { Inertia: router }
 window.resolverReceivedPage = null
 const params = new URLSearchParams(window.location.search)
 // Keep upstream reference fixtures for APIs Solid does not expose out of the runnable bundle.
 const pages = import.meta.glob<{ default: Component }>(
-  ['./Pages/**/*.tsx', '!./Pages/LayoutProps/**/*.tsx', '!./Pages/NestedProps/RescuedDeferred*.tsx'],
+  ['./Pages/**/*.tsx', '!./Pages/NestedProps/RescuedDeferred*.tsx'],
   { eager: true },
 )
+const AnonymousDefaultLayout: ParentComponent = props => <DefaultLayout>{props.children}</DefaultLayout>
 
 await createInertiaApp({
   page: window.initialPage,
+  layout: (name) => {
+    if (params.has('withDefaultAppLayout')) return AppLayout
+    if (params.has('withAnonymousDefaultLayout')) return AnonymousDefaultLayout
+    if (params.has('withDefaultLayout')) return DefaultLayout
+    if (params.has('withDefaultLayoutCallback')) {
+      return name === 'DefaultLayout/CallbackExcluded' ? null : DefaultLayout
+    }
+  },
   resolve: async (name, page) => {
     window.resolverReceivedPage = page as Page
     if (name === 'DeferredProps/InstantReload') await new Promise((resolve) => setTimeout(resolve, 50))

@@ -2,9 +2,12 @@ import type { Method, Page, UrlMethodPair } from '@inertiajs/core'
 import {
   App,
   Deferred,
+  type InertiaComponent,
   InfiniteScroll,
   WhenMounted,
   createInertiaApp,
+  resetLayoutProps,
+  setLayoutProps,
   useForm,
   useHttp,
   usePage,
@@ -61,6 +64,61 @@ it('renders nested layouts under their providers with request-local props', () =
   expect(render(19)).toContain('outer:19/inner:19/page:19')
   expect(render(0)).toContain('outer:0/inner:0/page:0')
 })
+
+it.each(['manual', 'automatic'] as const)(
+  'renders request-local default layout props with %s SSR setup',
+  async (mode) => {
+    const Layout: ParentComponent<Record<string, unknown>> = (props) => (
+      <section>
+        <h1>{String(props.title)}</h1>
+        {props.children}
+      </section>
+    )
+    const Inner: ParentComponent<Record<string, unknown>> = (props) => (
+      <main>
+        <h2>{String(props.title)}</h2>
+        {props.children}
+      </main>
+    )
+    const Consumer: InertiaComponent = () => {
+      setLayoutProps({ title: 'must not leak' })
+      setLayoutProps('app', { title: 'must not leak either' })
+      return <article>content</article>
+    }
+    const options = {
+      resolve: () => Consumer,
+      layout: (name: string, page: Page) => ({
+        app: [Layout, { title: `${name}:${page.props.value}` }] as [typeof Layout, Record<string, unknown>],
+        content: { component: Inner, props: { title: undefined } },
+      }),
+    }
+    const factory = await createInertiaApp(options)
+    const render = async (value: number) => {
+      const initial = { ...page, props: { errors: {}, value, title: 'page fallback' } }
+      const response =
+        mode === 'automatic'
+          ? await factory!(initial, renderToString)
+          : await createInertiaApp({
+              ...options,
+              page: initial,
+              render: renderToString,
+              setup: ({ App, props }) => <App {...props} />,
+            })
+      return response.body.replace(/<!--.*?-->/g, '')
+    }
+    const first = await render(7)
+    expect(first).toContain('<h1>SSR:7</h1>')
+    expect(first).toContain('<h2>undefined</h2>')
+    expect(first).toContain('>content</article>')
+    expect(await render(19)).toContain('<h1>SSR:19</h1>')
+    Consumer.layout = { title: 'page override' }
+    const overridden = await render(23)
+    expect(overridden).toContain('<h1>page override</h1>')
+    expect(overridden).toContain('<h2>page override</h2>')
+    expect(overridden).not.toContain('must not leak')
+    resetLayoutProps()
+  },
+)
 
 it.each(['useForm', 'useHttp'] as const)(
   'initializes %s legacy validation during SSR without resolving endpoints',

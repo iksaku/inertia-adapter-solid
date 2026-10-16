@@ -2,8 +2,15 @@ import { config as coreConfig } from '@inertiajs/core'
 import type { SolidInertiaAppConfig } from './types'
 
 export { http, progress, router } from '@inertiajs/core'
-export { default as App, type InertiaAppProps } from './App'
+export {
+  default as App,
+  type InertiaAppProps,
+  type InertiaComponent,
+  type InertiaLayout,
+  type InertiaLayoutComponent,
+} from './App'
 export { default as createInertiaApp } from './createInertiaApp'
+export { resetLayoutProps, setLayoutProps } from './layoutProps'
 
 export { default as Deferred } from './Deferred'
 export { default as Form, useFormContext } from './Form'

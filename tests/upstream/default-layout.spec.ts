@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test'
 
 test('it applies the default layout to pages without their own layout', async ({ page }) => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp has no default-layout option')
   await page.goto('/default-layout?withDefaultLayout')
 
   await expect(page.locator('#default-layout')).toBeVisible()
@@ -17,7 +16,6 @@ test('it does not apply the default layout when visiting without the layout opti
 })
 
 test('it lets page layout take precedence over the default layout', async ({ page }) => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp has no default-layout option')
   await page.goto('/default-layout/with-own-layout?withDefaultLayout')
 
   await expect(page.locator('#default-layout')).not.toBeVisible()
@@ -27,7 +25,6 @@ test('it lets page layout take precedence over the default layout', async ({ pag
 })
 
 test('it applies the default layout after navigating to a page without its own layout', async ({ page }) => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp has no default-layout option')
   await page.goto('/default-layout/with-own-layout?withDefaultLayout')
 
   await expect(page.locator('#page-layout')).toBeVisible()
@@ -40,7 +37,6 @@ test('it applies the default layout after navigating to a page without its own l
 })
 
 test('it supports anonymous arrow functions as layout components', async ({ page }) => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp has no default-layout option')
   test.skip(!['react', 'solid'].includes(process.env.PACKAGE ?? ''), 'Requires function layout components')
 
   await page.goto('/default-layout?withAnonymousDefaultLayout')
@@ -51,7 +47,6 @@ test('it supports anonymous arrow functions as layout components', async ({ page
 })
 
 test('it supports a callback that conditionally returns a layout', async ({ page }) => {
-  test.skip(process.env.PACKAGE === 'solid', 'Solid createInertiaApp has no default-layout option')
   await page.goto('/default-layout?withDefaultLayoutCallback')
 
   await expect(page.locator('#default-layout')).toBeVisible()
