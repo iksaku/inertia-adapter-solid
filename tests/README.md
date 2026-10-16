@@ -62,7 +62,16 @@ binary; normal runs use Playwright's pinned browser revision.
 Failure traces, screenshots, and JSON results are in `test-results/`; HTML reports
 are in `playwright-report/`. Both keep separate `browser-fetch`, `browser-axios`,
 and `ssr` directories so later layers do not overwrite earlier evidence.
-These outputs are ignored by Git. Workflows run on pushes and pull requests:
+These outputs are ignored by Git. Workflows run on pushes and pull requests,
+except when every changed file is Markdown (`**/*.md`) or under `.changeset/`.
+Source, tests, workflow, dependency, build, and configuration changes still run
+CI, including when mixed with documentation changes.
+
+GitHub evaluates pull-request path filters against the entire PR diff, not just
+the latest commit. A docs-only commit on a PR that already changes code can
+therefore still trigger its PR workflows. Path filters do not apply to tag
+pushes. If these checks become required by branch protection, use conditional
+jobs instead of workflow path filters to avoid leaving required checks pending.
 
 | Workflow | Runner | Checks |
 | --- | --- | --- |
