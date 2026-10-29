@@ -1,12 +1,16 @@
-import { App, createInertiaApp, Deferred, Form, Link, useForm, usePage, WhenMounted, WhenVisible } from 'inertia-adapter-solid'
+import { App, createInertiaApp, Deferred, Form, type InertiaComponent, type InertiaLayout, Link, resetLayoutProps, setLayoutProps, useForm, usePage, WhenMounted, WhenVisible } from 'inertia-adapter-solid'
 import createServer from 'inertia-adapter-solid/server'
 import framework from 'inertia-adapter-solid/vite'
 import type { InertiaAppSSRResponse, Page, SharedPageProps } from '@inertiajs/core'
 import { renderToString, renderToStringAsync } from 'solid-js/web'
-import type { JSX } from 'solid-js'
+import type { JSX, ParentProps } from 'solid-js'
 
 declare module '@inertiajs/core' {
-  interface InertiaConfig { sharedPageProps: { account: { id: number; name: string } } }
+  interface InertiaConfig {
+    sharedPageProps: { account: { id: number; name: string } }
+    layoutProps: { title: string; count: number }
+    namedLayoutProps: { app: { title: string; theme: 'light' | 'dark' }; content: { padding: 'sm' | 'lg' } }
+  }
 }
 
 const form = useForm({ profile: { name: 'Ada', age: 31 }, tags: ['blue'], enabled: false })
@@ -85,3 +89,46 @@ createInertiaApp({ page, resolve, render: () => 42, setup: () => <main /> })
 const server: typeof createServer = createServer
 const frameworkName: string = framework.package
 void [accountId, defaultAccountId, customAccountName, count, jsx, manual, automatic, server, frameworkName, App]
+
+const Layout = (props: ParentProps<{ title?: string }>) => <section>{props.title}{props.children}</section>
+const layouts: InertiaLayout[] = [
+  Layout,
+  [Layout, { title: 'tuple' }],
+  { component: Layout, props: { title: 'object' } },
+  [[Layout, { title: 'outer' }], { component: Layout, props: { title: 'inner' } }],
+  [[Layout]],
+  { app: [Layout, { title: 'named' }] },
+  { app: [Layout] },
+  { title: 'default override' },
+  false, null, [],
+]
+const PageWithLayout = () => <main>Content</main>
+PageWithLayout.layout = [Layout, { title: 'Inferred tuple' }]
+createInertiaApp({ resolve: () => PageWithLayout })
+createInertiaApp({ resolve: async () => PageWithLayout })
+createInertiaApp({ resolve: () => ({ default: PageWithLayout }) })
+const TypedPage: InertiaComponent = () => <main>Typed content</main>
+TypedPage.layout = { app: [Layout] }
+createInertiaApp({ resolve: () => TypedPage })
+createInertiaApp({ resolve, layout: (name, page) => [Layout, { title: `${name}:${page.props.account.name}` }] })
+setLayoutProps({ title: 'shared', count: 7 })
+setLayoutProps('app', { theme: 'dark' })
+setLayoutProps('content', { padding: 'lg' })
+setLayoutProps<{ customTitle: string }>({ customTitle: 'explicit generic' })
+setLayoutProps<{ padding: number }>('custom', { padding: 7 })
+resetLayoutProps()
+// @ts-expect-error configured shared layout props retain their types
+setLayoutProps({ count: 'wrong' })
+// @ts-expect-error unknown named layout
+setLayoutProps('missing', { title: 'wrong' })
+// @ts-expect-error props must match the selected named layout
+setLayoutProps('content', { theme: 'dark' })
+// @ts-expect-error unconfigured props require an explicit generic
+setLayoutProps({ customTitle: 'not configured' })
+// @ts-expect-error explicit generic props retain their types
+setLayoutProps<{ customTitle: string }>({ customTitle: 7 })
+// @ts-expect-error explicit named generic props retain their types
+setLayoutProps<{ padding: number }>('custom', { padding: 'wrong' })
+// @ts-expect-error a data resolver is not a Solid layout component
+const callbackLayout: InertiaLayout = (props: { title: string }) => [Layout, { title: props.title }]
+void layouts

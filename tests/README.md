@@ -189,18 +189,20 @@ identify contracts the Solid adapter does not expose or the owner has deferred:
 | React StrictMode and `React.memo` render counts | Framework-specific; skipped |
 | `withApp` receives the page object | Solid receives `{ ssr }` instead; separate context/CSR/SSR/hydration tests cover that contract |
 | Inertia `Head`, head-key, title callback, `serverHead` | Not exported / options type `never`; native `@solidjs/meta` tests cover reactive metadata, cleanup, and SSR escaping instead |
-| App-level default layout | Not implemented in `createInertiaApp`; skipped independently of supported page layouts |
+| App-level default layout | Enabled, including conditional selectors and page-level precedence |
 | Persistent page layouts | Enabled for function components and nested component arrays, including page-prop availability and component-layout SSR/hydration |
 | Layout render callbacks | Not supported; this adapter treats layout functions as components, so separate per-page wrappers have different identities; not deprecated upstream |
-| Layout tuples/names/`setLayoutProps` | No public Solid API; skipped |
+| Layout page-props callbacks | Not supported; bare functions are components, not data resolvers |
+| Layout tuples/objects/names/props-only defaults | Enabled with reactive props and persistent component identity |
+| `setLayoutProps` / `resetLayoutProps` | Enabled; shared/named precedence, navigation reset, preserve-state retention, and client-only SSR behavior |
 | Deferred rescue/reloading slots | No public Solid API; skipped; readiness and nested deferred data stay enabled |
 | WhenVisible fetching slot | No public Solid API; skipped; visibility/reload behavior stays enabled |
 | Form progress reset value | Solid declares `Progress \| undefined`; start/progress/reset assertions require its exact empty value rather than upstream's `null` |
 
-LayoutProps and nested rescued-deferred fixture sources are retained as upstream
-reference material but excluded from client glob resolution and fixture
-typechecking because they require nonexistent exports/props. Do not enable them
-by writing substitute adapter behavior into the fixtures.
+LayoutProps fixtures are included in client resolution and strict typechecking;
+only page-props callback cases remain skipped. Nested rescued-deferred fixtures
+remain excluded because their slot API is unavailable. Do not enable them by
+writing substitute adapter behavior into the fixtures.
 
 The Phase 25 audit removes stale browser exclusions after repeated checks with
 unchanged assertions. Remaining behavioral exclusions are the two-value SWR
