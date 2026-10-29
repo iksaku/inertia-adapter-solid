@@ -2,8 +2,6 @@ import { expect, test } from '@playwright/test'
 import { consoleMessages } from './support'
 
 test.describe('View Transitions', () => {
-  test.skip(({ browserName }) => browserName === 'firefox', 'Firefox does not support View Transitions API in CI')
-
   test('navigates with boolean view transition', async ({ page }) => {
     await page.goto('/view-transition/page-a')
 

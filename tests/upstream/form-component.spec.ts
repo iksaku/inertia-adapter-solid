@@ -556,9 +556,7 @@ test.describe('Form Component', () => {
       await expect(page).toHaveURL('form-component/options')
     })
 
-    test('submits the form with view transitions enabled', async ({ page, browserName }) => {
-      test.skip(browserName === 'firefox', 'Firefox does not support View Transitions API in CI')
-
+    test('submits the form with view transitions enabled', async ({ page }) => {
       consoleMessages.listen(page)
       pageLoads.watch(page, 2)
 
